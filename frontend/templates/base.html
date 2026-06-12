@@ -40,8 +40,8 @@
     <nav>
       <a href="{% url 'dashboard' %}" title="Dashboard"><span class="nav-icon"></span><span class="nav-label">Dashboard</span></a>
       <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('{% url 'conta_atendimento' %}')">
-        <button type="button" class="nav-group-toggle" @click="open = !open" :aria-expanded="open" title="Gestão de Contas">
-          <span class="nav-label">Gestão de Contas</span>
+        <button type="button" class="nav-group-toggle" @click="open = !open" :aria-expanded="open" title="Análise de Contas">
+          <span class="nav-label">Análise de Contas</span>
         </button>
         <div class="nav-submenu" x-show="open">
           <a class="nav-subitem" href="{% url 'conta_atendimento' %}" title="Triagem"><span class="nav-icon"></span><span class="nav-label">Triagem</span></a>
