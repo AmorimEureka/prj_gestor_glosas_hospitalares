@@ -58,7 +58,7 @@ Servicos:
 ## Endpoints esperados na API unica
 
 - `GET /app_glosas/` com filtros `offset`, `limit`, `cd_remessa`, `cd_atendimento`, `cd_reg`, `nm_paciente`, `nm_convenio`, `descricao` e `tp_atendimento`
-- `POST /glosas/from-conta-atendimento`
+- `POST /app_glosas/glosas`
 - `GET /glosas`
 - `GET /glosas/{id}`
 - `PATCH /glosas/{id}`

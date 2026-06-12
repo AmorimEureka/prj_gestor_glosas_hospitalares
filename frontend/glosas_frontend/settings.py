@@ -57,4 +57,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 API_BEARER_TOKEN = os.getenv("API_BEARER_TOKEN", "")
 API_CONTA_ATENDIMENTO_PATH = os.getenv("API_CONTA_ATENDIMENTO_PATH", "/app_glosas/")
+API_REGISTRO_GLOSA_PATH = os.getenv("API_REGISTRO_GLOSA_PATH", "/app_glosas/glosas")
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "60"))

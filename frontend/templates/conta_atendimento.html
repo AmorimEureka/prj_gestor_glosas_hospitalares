@@ -197,7 +197,6 @@
                                 {% for key, value in conta.items %}
                                   <input type="hidden" name="{{ key }}" value="{{ value }}">
                                 {% endfor %}
-                                <input type="hidden" name="valor_glosado" value="0">
                                 <div class="glosa-modal-header">
                                   <div>
                                     <span class="glosa-modal-eyebrow">Registro de glosa</span>
@@ -213,11 +212,11 @@
                                 <div class="glosa-modal-grid">
                                   <div class="glosa-field glosa-field--wide">
                                     <label>Processo / N Controle / N Fatura / N GAB</label>
-                                    <input name="identificador_glosa" class="form-control" placeholder="Informe o identificador usado pelo convenio">
+                                    <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convenio">
                                   </div>
                                   <div class="glosa-field">
                                     <label>Data da glosa</label>
-                                    <input type="date" name="dt_glosa" class="form-control">
+                                    <input type="date" name="data_glosa" class="form-control">
                                   </div>
                                   <div class="glosa-field glosa-field--wide">
                                     <label>Motivo da glosa</label>

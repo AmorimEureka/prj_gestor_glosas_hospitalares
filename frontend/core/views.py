@@ -155,6 +155,42 @@ def as_positive_int(value, default=1):
     return parsed if parsed > 0 else default
 
 
+def as_int_or_zero(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def as_float_or_zero(value):
+    try:
+        return float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def build_registro_glosa_payload(data):
+    return {
+        "codigo_paciente": as_int_or_zero(data.get("cd_paciente")),
+        "cd_remessa": as_int_or_zero(data.get("cd_remessa")),
+        "cd_atendimento": as_int_or_zero(data.get("cd_atendimento")),
+        "conta": as_int_or_zero(data.get("cd_reg")),
+        "cd_prestador": as_int_or_zero(data.get("cd_prestador")),
+        "cd_convenio": as_int_or_zero(data.get("cd_convenio")),
+        "tp_atendimento": data.get("tp_atendimento") or "",
+        "procedimento": str(data.get("cd_pro_fat") or ""),
+        "convenio": data.get("nm_convenio") or "",
+        "guia": str(data.get("cd_guia") or ""),
+        "prestador": data.get("nm_prestador") or "",
+        "data_atendimento": data.get("dt_lancamento") or None,
+        "valor": as_float_or_zero(data.get("vl_total_conta")),
+        "processo_controle_fatura_gab": data.get("processo_controle_fatura_gab") or "",
+        "data_glosa": data.get("data_glosa") or None,
+        "motivo_glosa": data.get("motivo_glosa") or "",
+        "descricao_glosa": data.get("descricao_glosa") or "",
+    }
+
+
 def dashboard(request):
     try:
         indicadores = api_get("/dashboard/indicadores")
@@ -169,15 +205,11 @@ def dashboard(request):
 @require_http_methods(["GET", "POST"])
 def conta_atendimento(request):
     if request.method == "POST":
-        payload = request.POST.dict()
-        payload["item_glosado"] = payload.get("descricao", "")
-        payload["valor_apresentado"] = payload.get("vl_total_conta") or "0"
-        payload["valor_glosado"] = payload.get("valor_glosado") or "0"
-        payload["motivo_glosa"] = payload.get("motivo_glosa") or "Nao informado"
+        payload = build_registro_glosa_payload(request.POST)
         try:
-            api_post("/glosas/from-conta-atendimento", payload)
+            api_post(settings.API_REGISTRO_GLOSA_PATH, payload)
             messages.success(request, "Glosa registrada a partir da conta selecionada.")
-            return redirect("glosas")
+            return redirect(request.get_full_path())
         except ApiError as exc:
             messages.error(request, f"Falha ao registrar glosa: {exc}")
 
