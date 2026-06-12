@@ -15,34 +15,57 @@ def api_headers() -> dict[str, str]:
     return headers
 
 
-def api_get(path: str, params: dict | None = None):
-    response = requests.get(
-        f"{settings.API_BASE_URL}{path}",
-        params={k: v for k, v in (params or {}).items() if v},
-        headers=api_headers(),
-        timeout=10,
-    )
+def api_request(method: str, path: str, **kwargs):
+    try:
+        response = requests.request(
+            method,
+            f"{settings.API_BASE_URL}{path}",
+            headers=api_headers(),
+            timeout=settings.API_TIMEOUT,
+            **kwargs,
+        )
+    except requests.Timeout as exc:
+        raise ApiError(
+            f"tempo limite excedido ao consultar a API em {settings.API_BASE_URL}{path}. "
+            f"Tente novamente ou aumente API_TIMEOUT no .env."
+        ) from exc
+    except requests.ConnectionError as exc:
+        raise ApiError(f"nao foi possivel conectar na API em {settings.API_BASE_URL}.") from exc
+    except requests.RequestException as exc:
+        raise ApiError(f"falha ao consultar a API: {exc}") from exc
+
     if response.status_code >= 400:
         raise ApiError(response.text, response.status_code)
-    return response.json()
+    return response
+
+
+def api_get(path: str, params: dict | None = None):
+    response = api_request(
+        "GET",
+        path,
+        params={k: v for k, v in (params or {}).items() if v},
+    )
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc
 
 
 def api_post(path: str, data: dict):
-    response = requests.post(f"{settings.API_BASE_URL}{path}", json=data, headers=api_headers(), timeout=10)
-    if response.status_code >= 400:
-        raise ApiError(response.text, response.status_code)
-    return response.json()
+    response = api_request("POST", path, json=data)
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc
 
 
 def api_patch(path: str, data: dict):
-    response = requests.patch(f"{settings.API_BASE_URL}{path}", json=data, headers=api_headers(), timeout=10)
-    if response.status_code >= 400:
-        raise ApiError(response.text, response.status_code)
-    return response.json()
+    response = api_request("PATCH", path, json=data)
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc
 
 
 def api_delete(path: str):
-    response = requests.delete(f"{settings.API_BASE_URL}{path}", headers=api_headers(), timeout=10)
-    if response.status_code >= 400:
-        raise ApiError(response.text, response.status_code)
-
+    api_request("DELETE", path)
