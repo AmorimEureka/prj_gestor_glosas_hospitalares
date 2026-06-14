@@ -217,10 +217,25 @@ def conta_atendimento(request):
     filtros.pop("limit", None)
     filtros.pop("offset", None)
     page = as_positive_int(filtros.pop("page", None), 1)
+    limit = PATIENTS_PER_PAGE
+    offset = (page - 1) * limit
     api_filtros = {k: v for k, v in filtros.items() if v}
+    api_filtros["limit"] = limit
+    api_filtros["offset"] = offset
     consulta_indisponivel = False
+    total_pacientes = 0
     try:
-        contas = as_list(api_get(settings.API_CONTA_ATENDIMENTO_PATH, api_filtros)) if request.GET else []
+        if request.GET:
+            payload = api_get(settings.API_CONTA_ATENDIMENTO_PATH, api_filtros)
+            contas = as_list(payload)
+            if isinstance(payload, dict):
+                total_pacientes = as_int_or_zero(payload.get("total"))
+                limit = as_positive_int(payload.get("limit"), PATIENTS_PER_PAGE)
+                offset = as_int_or_zero(payload.get("offset"))
+            else:
+                total_pacientes = len(_group_contas(contas))
+        else:
+            contas = []
     except ApiError as exc:
         contas = []
         if is_service_unavailable_error(exc):
@@ -231,24 +246,41 @@ def conta_atendimento(request):
         if isinstance(conta, dict):
             conta["dt_lancamento_formatada"] = format_api_date(conta.get("dt_lancamento"))
     grupos = _group_contas(contas)
-    total_pages = max(ceil(len(grupos) / PATIENTS_PER_PAGE), 1)
-    page = min(page, total_pages)
-    page_start = (page - 1) * PATIENTS_PER_PAGE
-    page_end = page_start + PATIENTS_PER_PAGE
-    grupos_pagina = grupos[page_start:page_end]
+    if request.GET and not total_pacientes:
+        total_pacientes = len(grupos)
+
     base_query = {k: v for k, v in filtros.items() if v}
-    page_options = [{"number": number, "selected": number == page} for number in range(1, total_pages + 1)]
+    total_pages = max(ceil(total_pacientes / PATIENTS_PER_PAGE), 1)
+    if request.GET and page > total_pages:
+        return redirect(
+            f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
+        )
+
+    page = min(page, total_pages)
+    grupos_pagina = grupos
+    page_options = [
+        {"number": number, "selected": number == page}
+        for number in range(1, total_pages + 1)
+    ]
     pagination = {
         "page": page,
         "total_pages": total_pages,
         "page_options": page_options,
         "has_previous": page > 1,
         "has_next": page < total_pages,
-        "previous_url": f"?{urlencode({**base_query, 'page': page - 1})}" if page > 1 else "",
-        "next_url": f"?{urlencode({**base_query, 'page': page + 1})}" if page < total_pages else "",
-        "start": page_start + 1 if grupos else 0,
-        "end": min(page_end, len(grupos)),
-        "total": len(grupos),
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "start": offset + 1 if grupos and total_pacientes else 0,
+        "end": min(offset + len(grupos), total_pacientes),
+        "total": total_pacientes,
         "query": base_query,
     }
     resumo = {
