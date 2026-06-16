@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Glosas MV > Análise de Contas{% endblock %}
+{% block page_title %}Acompanhamento{% endblock %}
+{% block content %}
+<section
+  class="acompanhamento-page"
+  x-data="{
+    draggedCard: null,
+    receiving: false,
+    receivingTitle: '',
+    receivingIds: '',
+    openRecebimento(card) {
+      this.receivingIds = card.ids;
+      this.receivingTitle = card.title;
+      this.receiving = true;
+      this.$nextTick(() => this.$refs.dtRecebimento?.focus());
+    },
+    dropRecebimento() {
+      if (!this.draggedCard) return;
+      this.openRecebimento(this.draggedCard);
+      this.draggedCard = null;
+    }
+  }"
+>
+  <form method="get" class="filter-panel acompanhamento-filters">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Convênio</label>
+        <input class="form-control" name="nm_convenio" value="{{ filtros.nm_convenio|default:'' }}" placeholder="Ex: CASSI">
+      </div>
+      <div class="filter-group filter-group--sm">
+        <label>Atendimento</label>
+        <input class="form-control" name="cd_atendimento" value="{{ filtros.cd_atendimento|default:'' }}" inputmode="numeric">
+      </div>
+      <div class="filter-group filter-group--sm">
+        <label>Remessa</label>
+        <input class="form-control" name="cd_remessa" value="{{ filtros.cd_remessa|default:'' }}" inputmode="numeric">
+      </div>
+      <div class="filter-group filter-group--sm">
+        <label>Conta</label>
+        <input class="form-control" name="cd_reg" value="{{ filtros.cd_reg|default:'' }}" inputmode="numeric">
+      </div>
+      <div class="filter-group">
+        <label>Paciente</label>
+        <input class="form-control" name="nm_paciente" value="{{ filtros.nm_paciente|default:'' }}">
+      </div>
+      <div class="filter-group filter-group--sm">
+        <label>Tipo atend.</label>
+        <select class="form-select" name="tp_atendimento">
+          <option value="">Todos</option>
+          {% for tipo in tipos_atendimento %}
+            <option value="{{ tipo }}" {% if filtros.tp_atendimento == tipo %}selected{% endif %}>{{ tipo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <input type="hidden" name="modo" value="{{ modo }}">
+      {% if faixa %}<input type="hidden" name="faixa" value="{{ faixa }}">{% endif %}
+      <div class="filter-actions">
+        <button class="btn btn-primary">Filtrar</button>
+        <a class="btn btn-outline-secondary" href="{% url 'acompanhamento' %}">Limpar</a>
+      </div>
+    </div>
+  </form>
+
+  <div class="acompanhamento-toolbar">
+    <div class="summary-strip">
+      <span>{{ resumo.processos }} processos</span>
+      <span>{{ resumo.registros }} registros</span>
+      <span>{{ resumo.recebidos }} recebidos</span>
+      <strong>R$ {{ resumo.valor_total|br_currency }}</strong>
+    </div>
+    <div class="view-switch">
+      <a class="{% if modo == 'kanban' %}active{% endif %}" href="?{% querystring modo='kanban' faixa='' %}">Kanban</a>
+      <a class="{% if modo == 'tabela' %}active{% endif %}" href="?{% querystring modo='tabela' %}">Tabela</a>
+    </div>
+  </div>
+
+  {% if modo == "tabela" %}
+    <div class="age-palette">
+      <a class="{% if not faixa %}active{% endif %}" href="?{% querystring modo='tabela' faixa='' %}">Todos</a>
+      <a class="{% if faixa == 'ate_30' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='ate_30' %}">Até 30 dias</a>
+      <a class="{% if faixa == 'ate_60' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='ate_60' %}">Até 60 dias</a>
+      <a class="{% if faixa == 'ate_90' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='ate_90' %}">Até 90 dias</a>
+      <a class="{% if faixa == 'mais_90' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='mais_90' %}">Há +90 dias</a>
+      <a class="{% if faixa == 'recebidas' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='recebidas' %}">Recebidas</a>
+    </div>
+    <section class="panel acompanhamento-table-panel">
+      <div class="acompanhamento-table-wrap">
+        <table class="table acompanhamento-table align-middle">
+          <thead>
+            <tr>
+              <th class="col-processo-original">Proc. Original</th>
+              <th class="col-processo-recurso">Proc. Recurso</th>
+              <th class="col-paciente">Paciente</th>
+              <th class="col-convenio">Convênio</th>
+              <th class="col-procedimento">Proced.</th>
+              <th class="col-desc">Descrição</th>
+              <th class="col-remessa">Remessa</th>
+              <th class="col-atendimento">Atend.</th>
+              <th class="col-conta">Conta</th>
+              <th class="col-qtd">Qtd.</th>
+              <th class="col-valor">Valor</th>
+              <th class="col-dt-recebimento">Dt. Receb.</th>
+              <th class="col-valor-recebido">Valor Rec.</th>
+              <th class="col-observacao">Observação</th>
+              <th class="col-acao">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td class="process-cell">{{ row.processo_controle_fatura_gab|default:"-" }}</td>
+                <td class="process-cell process-cell--strong">{{ row.processo_recurso|default:"-" }}</td>
+                <td class="person-cell">{{ row.paciente_label }}</td>
+                <td>{{ row.convenio|default:"-" }}</td>
+                <td>{{ row.procedimento|default:"-" }}</td>
+                <td class="desc-cell">{{ row.descricao_glosa|default:"-" }}</td>
+                <td class="ref-cell">{{ row.cd_remessa|default:"-" }}</td>
+                <td class="ref-cell">{{ row.cd_atendimento|default:"-" }}</td>
+                <td class="ref-cell ref-cell--strong">{{ row.conta|default:"-" }}</td>
+                <td class="qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
+                <td class="value-cell">{{ row.valor_recurso_formatado|default:"-" }}</td>
+                <td>
+                  <input type="date" name="dt_recebimento" form="recebimento-row-{{ row.id }}" class="form-control recebimento-table-input" value="{{ row.dt_recebimento_input }}" required>
+                </td>
+                <td>
+                  <input name="valor_recebido" form="recebimento-row-{{ row.id }}" class="form-control recebimento-table-input" value="{{ row.valor_recebido_formatado }}" placeholder="R$ 0,00" required>
+                </td>
+                <td>
+                  <input name="observacao_recebimento" form="recebimento-row-{{ row.id }}" class="form-control recebimento-table-input" value="{{ row.observacao_recebimento|default:'' }}" placeholder="Observação">
+                </td>
+                <td>
+                  <form id="recebimento-row-{{ row.id }}" method="post" class="recebimento-action-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="registro_ids" value="{{ row.id }}">
+                    <input type="hidden" name="next" value="{{ current_full_path }}">
+                    <button class="btn btn-outline-primary">Salvar</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="15">Nenhum recurso encontrado para os filtros informados.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% else %}
+    <div class="kanban-board">
+      {% for column in kanban_columns %}
+        <section
+          class="kanban-column kanban-column--{{ column.key }} {% if column.key == 'recebidas' %}kanban-column--received{% endif %}"
+          {% if column.key == 'recebidas' %}
+            @dragover.prevent
+            @drop.prevent="dropRecebimento()"
+          {% endif %}
+        >
+          <header>
+            <strong>{{ column.label }}</strong>
+            <span>{{ column.cards|length }}</span>
+          </header>
+          <div class="kanban-card-list">
+            {% for card in column.cards %}
+              <article
+                class="kanban-card"
+                draggable="{% if column.key != 'recebidas' %}true{% else %}false{% endif %}"
+                @dragstart="draggedCard = { ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}' }"
+              >
+                <div class="kanban-card-head">
+                  <span><b>Proc. Original</b> {{ card.processos_originais }}</span>
+                  <strong><b>Proc. Recurso</b> {{ card.processo_recurso }}</strong>
+                </div>
+                <dl class="kanban-card-facts">
+                  <div><dt>Paciente</dt><dd>{{ card.pacientes }}</dd></div>
+                  <div><dt>Convênio</dt><dd>{{ card.convenios }}</dd></div>
+                  <div><dt>Qtd.</dt><dd>{{ card.qtd_total|floatformat:0 }}</dd></div>
+                  <div><dt>Valor</dt><dd>{{ card.valor_total_formatado }}</dd></div>
+                </dl>
+                {% if card.has_mini_table %}
+                  <div class="kanban-mini-table-wrap">
+                    <table class="kanban-mini-table">
+                      <thead>
+                        <tr>
+                          <th>Proc.</th>
+                          <th>Descrição</th>
+                          <th>Remessa</th>
+                          <th>Atend.</th>
+                          <th>Conta</th>
+                          <th>Qtd.</th>
+                          <th>Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for item in card.itens %}
+                          <tr>
+                            <td>{{ item.procedimento|default:"-" }}</td>
+                            <td>{{ item.descricao_glosa|default:"-" }}</td>
+                            <td>{{ item.cd_remessa|default:"-" }}</td>
+                            <td>{{ item.cd_atendimento|default:"-" }}</td>
+                            <td>{{ item.conta|default:"-" }}</td>
+                            <td>{{ item.qtd_recurso|floatformat:0 }}</td>
+                            <td>{{ item.valor_recurso_formatado }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% endif %}
+                {% if column.key != 'recebidas' %}
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    @click="openRecebimento({ ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}' })"
+                  >Receber</button>
+                {% endif %}
+              </article>
+            {% empty %}
+              <div class="kanban-empty">Sem processos nesta faixa.</div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="glosa-modal" x-show="receiving" x-cloak @keydown.escape.window="receiving = false">
+    <div class="glosa-modal-backdrop" @click="receiving = false"></div>
+    <div class="glosa-modal-dialog acompanhamento-recebimento-dialog" role="dialog" aria-modal="true">
+      <form method="post" class="glosa-modal-form">
+        {% csrf_token %}
+        <input type="hidden" name="registro_ids" :value="receivingIds">
+        <input type="hidden" name="next" value="{{ current_full_path }}">
+        <div class="glosa-modal-header">
+          <div>
+            <span class="glosa-modal-eyebrow">Recebimento</span>
+            <h2 x-text="receivingTitle || 'Processo de recurso'"></h2>
+          </div>
+          <button type="button" class="glosa-modal-close" @click="receiving = false" aria-label="Fechar">x</button>
+        </div>
+        <div class="glosa-section-grid">
+          <div class="glosa-field">
+            <label>Data do recebimento</label>
+            <input x-ref="dtRecebimento" type="date" name="dt_recebimento" class="form-control" required>
+          </div>
+          <div class="glosa-field">
+            <label>Valor recebido</label>
+            <input name="valor_recebido" class="form-control" placeholder="R$ 0,00" required>
+          </div>
+          <div class="glosa-field glosa-field--full">
+            <label>Observação</label>
+            <textarea name="observacao_recebimento" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="glosa-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" @click="receiving = false">Cancelar</button>
+          <button class="btn btn-primary">Salvar recebimento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

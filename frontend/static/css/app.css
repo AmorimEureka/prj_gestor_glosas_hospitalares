@@ -759,6 +759,399 @@ body {
   color: var(--ink);
 }
 
+/* ── Acompanhamento ───────────────────────────────────── */
+.acompanhamento-page {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  --age-30: #2f7f95;
+  --age-30-soft: #e8f5f8;
+  --age-60: #8a6f25;
+  --age-60-soft: #fff5d8;
+  --age-90: #a85f2c;
+  --age-90-soft: #fff0e6;
+  --age-more: #9a3f54;
+  --age-more-soft: #fde9ee;
+  --received: #3b7a57;
+  --received-soft: #e7f5ed;
+}
+
+.acompanhamento-filters .filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.acompanhamento-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-strip,
+.view-switch,
+.age-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-strip {
+  color: #315467;
+  font-size: 12px;
+}
+
+.summary-strip span,
+.summary-strip strong {
+  border: 1px solid #cfe1e8;
+  background: #fff;
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+.summary-strip strong {
+  color: #8a520d;
+  border-color: #efcf9b;
+  background: #fff8ed;
+}
+
+.view-switch,
+.age-palette {
+  border: 1px solid #dbe4ea;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.view-switch a,
+.age-palette a {
+  color: #315467;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.view-switch a.active,
+.age-palette a.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.age-palette a:nth-child(2).active { background: var(--age-30); }
+.age-palette a:nth-child(3).active { background: var(--age-60); }
+.age-palette a:nth-child(4).active { background: var(--age-90); }
+.age-palette a:nth-child(5).active { background: var(--age-more); }
+.age-palette a:nth-child(6).active { background: var(--received); }
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  overflow-x: visible;
+  min-height: 0;
+  padding-bottom: 4px;
+}
+
+.kanban-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 540px;
+  max-height: calc(100vh - 245px);
+  border: 1px solid var(--column-border, #dbe4ea);
+  background: #f8fbfc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.kanban-column--ate_30 {
+  --column-color: var(--age-30);
+  --column-soft: var(--age-30-soft);
+  --column-border: #b9dce4;
+}
+
+.kanban-column--ate_60 {
+  --column-color: var(--age-60);
+  --column-soft: var(--age-60-soft);
+  --column-border: #ead9a7;
+}
+
+.kanban-column--ate_90 {
+  --column-color: var(--age-90);
+  --column-soft: var(--age-90-soft);
+  --column-border: #efc6aa;
+}
+
+.kanban-column--mais_90 {
+  --column-color: var(--age-more);
+  --column-soft: var(--age-more-soft);
+  --column-border: #edbdc8;
+}
+
+.kanban-column--received {
+  --column-color: var(--received);
+  --column-soft: var(--received-soft);
+  --column-border: #badbcc;
+  background: #f6fbf8;
+}
+
+.kanban-column header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--column-border, #dbe4ea);
+  background: linear-gradient(180deg, #fff, var(--column-soft, #f8fbfc));
+}
+
+.kanban-column header strong {
+  color: var(--column-color, #173d4f);
+  font-size: 13px;
+}
+
+.kanban-column header span {
+  min-width: 28px;
+  text-align: center;
+  border-radius: 999px;
+  background: var(--column-color, var(--primary-dark));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 8px;
+}
+
+.kanban-card-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.kanban-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--column-border, #d6e2e8);
+  background:
+    linear-gradient(90deg, var(--column-soft, #f8fbfc) 0 5px, #fff 5px),
+    #fff;
+  border-radius: 8px;
+  padding: 10px 10px 10px 14px;
+  box-shadow: 0 10px 20px rgba(24, 34, 48, 0.06);
+}
+
+.kanban-card[draggable="true"] {
+  cursor: grab;
+}
+
+.kanban-card-head {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.kanban-card-head span {
+  display: grid;
+  gap: 5px;
+  color: #5c6f7a;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.kanban-card-head strong {
+  display: grid;
+  gap: 5px;
+  color: var(--column-color, #102f3f);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.kanban-card-head b {
+  color: #315467;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.kanban-card-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.kanban-card-facts div {
+  min-width: 0;
+  border: 1px solid #e7edf1;
+  background: #fbfdfe;
+  border-radius: 6px;
+  padding: 5px 6px;
+}
+
+.kanban-card-facts dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.kanban-card-facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.kanban-card .btn {
+  justify-self: end;
+  border-color: var(--column-color, var(--primary));
+  color: var(--column-color, var(--primary));
+}
+
+.kanban-card .btn:hover {
+  background: var(--column-color, var(--primary));
+  color: #fff;
+}
+
+.kanban-mini-table-wrap {
+  max-height: 155px;
+  overflow: auto;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.kanban-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.kanban-mini-table th,
+.kanban-mini-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid #edf2f5;
+  vertical-align: top;
+}
+
+.kanban-mini-table th {
+  color: var(--column-color, #315467);
+  background: var(--column-soft, #f8fbfc);
+  font-size: 10px;
+}
+
+.kanban-empty {
+  color: var(--muted);
+  border: 1px dashed #c9d8df;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.acompanhamento-table-panel {
+  overflow: visible;
+  padding: 0;
+}
+
+.acompanhamento-table-wrap {
+  width: 100%;
+  overflow-x: visible;
+}
+
+.acompanhamento-table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 12px;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 0;
+}
+
+.acompanhamento-table th {
+  color: #315467;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f4f8fa;
+  border-bottom: 1px solid #d8e4ea;
+  padding: 8px 6px;
+}
+
+.acompanhamento-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e7edf1;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.acompanhamento-table tbody tr:nth-child(even) td {
+  background: #fbfdfe;
+}
+
+.acompanhamento-table .col-processo-original { width: 7%; }
+.acompanhamento-table .col-processo-recurso { width: 7%; }
+.acompanhamento-table .col-paciente { width: 12%; }
+.acompanhamento-table .col-convenio { width: 6%; }
+.acompanhamento-table .col-procedimento { width: 7%; }
+.acompanhamento-table .col-desc { width: 12%; }
+.acompanhamento-table .col-remessa { width: 4.5%; }
+.acompanhamento-table .col-atendimento { width: 6%; }
+.acompanhamento-table .col-conta { width: 5%; }
+.acompanhamento-table .col-qtd { width: 3.5%; }
+.acompanhamento-table .col-valor { width: 5.5%; }
+.acompanhamento-table .col-dt-recebimento { width: 7%; }
+.acompanhamento-table .col-valor-recebido { width: 6%; }
+.acompanhamento-table .col-observacao { width: 9.5%; }
+.acompanhamento-table .col-acao { width: 5%; }
+
+.process-cell,
+.person-cell,
+.desc-cell {
+  line-height: 1.35;
+}
+
+.process-cell--strong,
+.ref-cell--strong,
+.value-cell {
+  color: #123748;
+  font-weight: 800;
+}
+
+.ref-cell,
+.qtd-cell,
+.value-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.recebimento-table-input {
+  width: 100%;
+  min-width: 0;
+  font-size: 11px;
+  padding: 5px 7px;
+}
+
+.recebimento-action-form {
+  margin: 0;
+}
+
+.recebimento-action-form .btn {
+  white-space: nowrap;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.acompanhamento-recebimento-dialog {
+  width: min(620px, calc(100vw - 32px));
+}
+
 .result-kpi--value {
   background: #f2f8fa;
   border-color: #cddfe7;
@@ -1822,5 +2215,49 @@ body {
 
   .glosa-modal-actions {
     flex-direction: column-reverse;
+  }
+}
+
+@media (max-width: 1280px) {
+  .kanban-board {
+    grid-template-columns: repeat(5, minmax(210px, 1fr));
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 1180px) {
+  .acompanhamento-table-wrap {
+    overflow-x: auto;
+  }
+
+  .acompanhamento-table {
+    min-width: 1080px;
+  }
+}
+
+@media (max-width: 760px) {
+  .acompanhamento-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .view-switch,
+  .age-palette {
+    width: 100%;
+  }
+
+  .view-switch a,
+  .age-palette a {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .recebimento-inline-form {
+    grid-template-columns: 1fr;
+    min-width: 240px;
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
   }
 }

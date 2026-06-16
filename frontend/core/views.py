@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .services import ApiError, api_delete, api_get, api_post, api_put
+from .services import ApiError, api_delete, api_get, api_patch, api_post, api_put
 
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
@@ -303,8 +303,12 @@ def as_int_or_none(value):
 
 
 def as_float_or_zero(value):
+    text = str(value or "").strip()
+    text = "".join(char for char in text if char.isdigit() or char in ",.-")
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
     try:
-        return float(str(value).replace(",", "."))
+        return float(text)
     except (TypeError, ValueError):
         return 0.0
 
@@ -335,6 +339,168 @@ def format_brl_input(value):
 
     formatted = f"{amount:,.2f}"
     return f"R$ {formatted}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def parse_api_date(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+
+    text = str(value).strip().replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(text).date()
+    except ValueError:
+        pass
+
+    if len(text) >= 10 and text[4:5] == "-" and text[7:8] == "-":
+        try:
+            return datetime.strptime(text[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    return None
+
+
+def age_bucket(registro):
+    reference_date = (
+        parse_api_date(registro.get("data_criacao"))
+        or parse_api_date(registro.get("dt_recurso"))
+        or parse_api_date(registro.get("data_glosa"))
+        or date.today()
+    )
+    days = max((date.today() - reference_date).days, 0)
+    if days < 30:
+        return "ate_30"
+    if days < 60:
+        return "ate_60"
+    if days <= 90:
+        return "ate_90"
+    return "mais_90"
+
+
+def valor_registro_recurso(registro):
+    return as_float_or_zero(
+        registro.get("valor_glosado")
+        if registro.get("valor_glosado") not in (None, "")
+        else registro.get("valor")
+    )
+
+
+def qtd_registro_recurso(registro):
+    return as_float_or_zero(
+        registro.get("qtd_glosada")
+        if registro.get("qtd_glosada") not in (None, "")
+        else 1
+    )
+
+
+def processo_card_key(registro):
+    return (
+        registro.get("processo_recurso")
+        or registro.get("processo_controle_fatura_gab")
+        or f"registro-{registro.get('id')}"
+    )
+
+
+def build_acompanhamento_rows(registros):
+    rows = []
+    for registro in registros:
+        if not isinstance(registro, dict):
+            continue
+        if registro.get("sn_glosado") != "true":
+            continue
+        if not registro.get("processo_recurso"):
+            continue
+
+        row = dict(registro)
+        row["paciente_label"] = (
+            row.get("nm_paciente")
+            or f"Paciente {row.get('codigo_paciente') or '-'}"
+        )
+        row["idade_bucket"] = age_bucket(row)
+        row["idade_bucket_label"] = ACOMPANHAMENTO_BUCKETS[row["idade_bucket"]]
+        row["qtd_recurso"] = qtd_registro_recurso(row)
+        row["valor_recurso"] = valor_registro_recurso(row)
+        row["valor_recurso_formatado"] = format_brl_input(row["valor_recurso"])
+        row["valor_recebido_formatado"] = format_brl_input(
+            row.get("valor_recebido")
+        )
+        row["dt_recebimento_input"] = format_api_date_input(
+            row.get("dt_recebimento")
+        )
+        row["dt_recebimento_formatada"] = format_api_date(
+            row.get("dt_recebimento")
+        )
+        rows.append(row)
+    return rows
+
+
+ACOMPANHAMENTO_BUCKETS = {
+    "ate_30": "Até 30 dias",
+    "ate_60": "Até 60 dias",
+    "ate_90": "Até 90 dias",
+    "mais_90": "Há +90 dias",
+    "recebidas": "Glosas recebidas",
+}
+
+
+def unique_join(values):
+    normalized = []
+    for value in values:
+        text = str(value or "").strip()
+        if text and text not in normalized:
+            normalized.append(text)
+    return ", ".join(normalized) or "-"
+
+
+def build_acompanhamento_cards(rows):
+    grouped = {}
+    for row in rows:
+        key = processo_card_key(row)
+        grouped.setdefault(key, []).append(row)
+
+    cards = []
+    for key, itens in grouped.items():
+        all_received = all(item.get("dt_recebimento") for item in itens)
+        bucket_key = "recebidas" if all_received else age_bucket(itens[0])
+        total = sum(item["valor_recurso"] for item in itens)
+        qtd = sum(item["qtd_recurso"] for item in itens)
+        cards.append(
+            {
+                "key": str(key),
+                "bucket": bucket_key,
+                "ids": ",".join(str(item["id"]) for item in itens if item.get("id")),
+                "processos_originais": unique_join(
+                    item.get("processo_controle_fatura_gab") for item in itens
+                ),
+                "processo_recurso": unique_join(
+                    item.get("processo_recurso") for item in itens
+                ),
+                "pacientes": unique_join(item.get("paciente_label") for item in itens),
+                "convenios": unique_join(item.get("convenio") for item in itens),
+                "qtd_total": qtd,
+                "valor_total": total,
+                "valor_total_formatado": format_brl_input(total),
+                "itens": itens,
+                "has_mini_table": len(itens) > 1,
+            }
+        )
+    return cards
+
+
+def build_kanban_columns(cards):
+    columns = []
+    for key, label in ACOMPANHAMENTO_BUCKETS.items():
+        columns.append(
+            {
+                "key": key,
+                "label": label,
+                "cards": [card for card in cards if card["bucket"] == key],
+            }
+        )
+    return columns
 
 
 def _glosa_match_key(item):
@@ -395,6 +561,7 @@ def attach_registros_glosa(contas, filtros):
 def build_registro_glosa_payload(data):
     return {
         "codigo_paciente": as_int_or_zero(data.get("cd_paciente")),
+        "nm_paciente": data.get("nm_paciente") or None,
         "cd_remessa": as_int_or_zero(data.get("cd_remessa")),
         "cd_atendimento": as_int_or_zero(data.get("cd_atendimento")),
         "conta": as_int_or_zero(data.get("cd_reg")),
@@ -605,6 +772,106 @@ def conta_atendimento(request):
             "consulta_indisponivel": consulta_indisponivel,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
             "tiss_motivos": tiss_motivos,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def acompanhamento(request):
+    if request.method == "POST":
+        registro_ids = [
+            item.strip()
+            for item in (request.POST.get("registro_ids") or "").split(",")
+            if item.strip()
+        ]
+        payload = {
+            "dt_recebimento": request.POST.get("dt_recebimento") or None,
+            "valor_recebido": as_float_or_zero(request.POST.get("valor_recebido")),
+            "observacao_recebimento": (
+                request.POST.get("observacao_recebimento") or None
+            ),
+        }
+        if not registro_ids:
+            messages.error(request, "Nenhum registro selecionado para recebimento.")
+            return redirect("acompanhamento")
+
+        try:
+            for registro_id in registro_ids:
+                api_patch(
+                    f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}/recebimento",
+                    payload,
+                )
+            messages.success(
+                request,
+                "Recebimento registrado para o processo selecionado.",
+            )
+        except ApiError as exc:
+            messages.error(request, format_api_error(exc, "Recebimento de glosa"))
+
+        redirect_url = request.get_full_path()
+        if request.POST.get("next"):
+            redirect_url = request.POST["next"]
+        return redirect(redirect_url)
+
+    filtros = request.GET.dict()
+    modo = filtros.pop("modo", "kanban")
+    faixa = filtros.pop("faixa", "")
+    api_filtros = {
+        key: value
+        for key, value in filtros.items()
+        if key
+        in {
+            "cd_remessa",
+            "cd_atendimento",
+            "cd_reg",
+            "nm_convenio",
+            "nm_paciente",
+            "tp_atendimento",
+        }
+        and value
+    }
+    api_filtros["limit"] = 5000
+
+    try:
+        payload = api_get(settings.API_REGISTRO_GLOSA_PATH, api_filtros)
+        registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+    except ApiError as exc:
+        registros = []
+        messages.error(request, format_api_error(exc, "Acompanhamento"))
+
+    rows = build_acompanhamento_rows(registros)
+    cards = build_acompanhamento_cards(rows)
+    kanban_columns = build_kanban_columns(cards)
+    if faixa:
+        rows_filtradas = [
+            row
+            for row in rows
+            if ("recebidas" if row.get("dt_recebimento") else row["idade_bucket"])
+            == faixa
+        ]
+    else:
+        rows_filtradas = rows
+
+    resumo = {
+        "processos": len(cards),
+        "registros": len(rows),
+        "valor_total": sum(row["valor_recurso"] for row in rows),
+        "recebidos": sum(1 for row in rows if row.get("dt_recebimento")),
+    }
+
+    return render(
+        request,
+        "acompanhamento.html",
+        {
+            "filtros": filtros,
+            "modo": modo if modo in {"kanban", "tabela"} else "kanban",
+            "faixa": faixa,
+            "faixas": ACOMPANHAMENTO_BUCKETS,
+            "kanban_columns": kanban_columns,
+            "rows": rows_filtradas,
+            "resumo": resumo,
+            "tipos_atendimento": TIPOS_ATENDIMENTO,
+            "current_full_path": request.get_full_path(),
         },
     )
 
