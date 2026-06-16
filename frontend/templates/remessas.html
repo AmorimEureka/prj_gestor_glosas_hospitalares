@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_extras %}
 {% block page_title %}Remessas{% endblock %}
 {% block content %}
 <section class="panel">
@@ -21,7 +22,7 @@
         <td>{{ remessa.numero_remessa }}</td>
         <td>{{ remessa.competencia }}</td>
         <td>{{ remessa.numero_nf }}</td>
-        <td>R$ {{ remessa.valor_total }}</td>
+        <td>R$ {{ remessa.valor_total|br_currency }}</td>
         <td>R$ {{ remessa.valor_glosa }}</td>
         <td><span class="status">{{ remessa.status }}</span></td>
       </tr>

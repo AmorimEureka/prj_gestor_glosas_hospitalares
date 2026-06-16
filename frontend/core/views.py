@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from .services import ApiError, api_get, api_post
 
 PATIENTS_PER_PAGE = 10
+TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
 
 
 def format_api_date(value):
@@ -39,6 +40,38 @@ def format_api_date(value):
     return text
 
 
+def format_api_datetime(value):
+    if not value:
+        return "-"
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y %H:%M:%S")
+
+    text = str(value).strip()
+    if not text:
+        return "-"
+
+    normalized = text.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).strftime("%d/%m/%Y %H:%M:%S")
+    except ValueError:
+        pass
+
+    return text
+
+
+def format_lancamento_datetime(dt_lancamento, hr_lancamento):
+    formatted = format_api_datetime(hr_lancamento)
+    if formatted != "-" and "/" in formatted:
+        return formatted
+
+    data = format_api_date(dt_lancamento)
+    if data == "-":
+        return formatted
+    if formatted == "-":
+        return data
+    return f"{data} {formatted}"
+
+
 def format_api_error(exc: ApiError, endpoint_name: str) -> str:
     if exc.status_code == 401:
         return f"{endpoint_name}: API exige autenticacao. Configure API_BEARER_TOKEN no ambiente do frontend."
@@ -49,8 +82,36 @@ def format_api_error(exc: ApiError, endpoint_name: str) -> str:
 
 def is_service_unavailable_error(exc: ApiError) -> bool:
     text = str(exc).lower()
-    unavailable_terms = ("timeout", "timed out", "ora-", "oracle", "banco", "database", "connection")
+    unavailable_terms = (
+        "timeout",
+        "timed out",
+        "ora-",
+        "oracle",
+        "banco",
+        "database",
+        "connection",
+    )
     return exc.status_code is None or exc.status_code >= 500 or any(term in text for term in unavailable_terms)
+
+
+def _group_itens_by_grupo_faturamento(itens):
+    grupos = {}
+    ordem = []
+    for item in itens:
+        grupo = item.get("ds_gru_fat") or "Grupo nao informado"
+        if grupo not in grupos:
+            grupos[grupo] = []
+            ordem.append(grupo)
+        grupos[grupo].append(item)
+
+    return [
+        {
+            "ds_gru_fat": grupo,
+            "itens": grupos[grupo],
+            "num_lancamentos": len(grupos[grupo]),
+        }
+        for grupo in ordem
+    ]
 
 
 def _group_contas(contas):
@@ -102,6 +163,7 @@ def _group_contas(contas):
                 rem_lancamentos += len(itens)
                 rem_convenios |= atd_convenios
                 rem_procedimentos |= atd_procedimentos
+                primeiro_item = itens[0] if itens else {}
                 atendimentos.append({
                     "cd_atendimento": atd,
                     "itens": itens,
@@ -109,6 +171,13 @@ def _group_contas(contas):
                     "num_lancamentos": len(itens),
                     "convenios": sorted(atd_convenios),
                     "procedimentos": sorted(atd_procedimentos),
+                    "grupos_faturamento": _group_itens_by_grupo_faturamento(
+                        itens
+                    ),
+                    "dt_atendimento": primeiro_item.get(
+                        "dt_atendimento_formatada"
+                    ),
+                    "dt_alta": primeiro_item.get("dt_alta_formatada"),
                 })
             pac_total += rem_total
             pac_lancamentos += rem_lancamentos
@@ -162,11 +231,36 @@ def as_int_or_zero(value):
         return 0
 
 
+def as_int_or_none(value):
+    if value in (None, ""):
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def as_float_or_zero(value):
     try:
         return float(str(value).replace(",", "."))
     except (TypeError, ValueError):
         return 0.0
+
+
+def as_float_or_none(value):
+    if value in (None, ""):
+        return None
+
+    text = str(value).strip()
+    text = "".join(char for char in text if char.isdigit() or char in ",.-")
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
+
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return None
 
 
 def build_registro_glosa_payload(data):
@@ -180,14 +274,22 @@ def build_registro_glosa_payload(data):
         "tp_atendimento": data.get("tp_atendimento") or "",
         "procedimento": str(data.get("cd_pro_fat") or ""),
         "convenio": data.get("nm_convenio") or "",
-        "guia": str(data.get("cd_guia") or ""),
+        "guia": str(data.get("nr_guia") or data.get("cd_guia") or ""),
         "prestador": data.get("nm_prestador") or "",
-        "data_atendimento": data.get("dt_lancamento") or None,
+        "data_atendimento": data.get("dt_atendimento")
+        or data.get("dt_lancamento")
+        or None,
         "valor": as_float_or_zero(data.get("vl_total_conta")),
+        "sn_glosado": data.get("sn_glosado") or None,
         "processo_controle_fatura_gab": data.get("processo_controle_fatura_gab") or "",
+        "processo_recurso": data.get("processo_recurso") or None,
         "data_glosa": data.get("data_glosa") or None,
         "motivo_glosa": data.get("motivo_glosa") or "",
         "descricao_glosa": data.get("descricao_glosa") or "",
+        "qtd_glosada": as_int_or_none(data.get("qtd_glosada")),
+        "valor_glosado": as_float_or_none(data.get("valor_glosado")),
+        "dt_recurso": data.get("dt_recurso") or None,
+        "dt_pagamento": data.get("dt_pagamento") or None,
     }
 
 
@@ -206,12 +308,19 @@ def dashboard(request):
 def conta_atendimento(request):
     if request.method == "POST":
         payload = build_registro_glosa_payload(request.POST)
+        is_acatar = payload.get("sn_glosado") == "not"
         try:
             api_post(settings.API_REGISTRO_GLOSA_PATH, payload)
-            messages.success(request, "Glosa registrada a partir da conta selecionada.")
+            success_message = (
+                "Acato registrado a partir da conta selecionada."
+                if is_acatar
+                else "Glosa registrada a partir da conta selecionada."
+            )
+            messages.success(request, success_message)
             return redirect(request.get_full_path())
         except ApiError as exc:
-            messages.error(request, f"Falha ao registrar glosa: {exc}")
+            action_name = "acato" if is_acatar else "glosa"
+            messages.error(request, f"Falha ao registrar {action_name}: {exc}")
 
     filtros = request.GET.dict()
     filtros.pop("limit", None)
@@ -224,6 +333,14 @@ def conta_atendimento(request):
     api_filtros["offset"] = offset
     consulta_indisponivel = False
     total_pacientes = 0
+    tiss_motivos = []
+    try:
+        payload_tiss = api_get(settings.API_TISS_PATH, {"limit": 600})
+        if isinstance(payload_tiss, dict):
+            tiss_motivos = payload_tiss.get("itens", [])
+    except ApiError as exc:
+        messages.error(request, format_api_error(exc, "Consulta TISS"))
+
     try:
         if request.GET:
             payload = api_get(settings.API_CONTA_ATENDIMENTO_PATH, api_filtros)
@@ -244,7 +361,16 @@ def conta_atendimento(request):
             messages.error(request, format_api_error(exc, "Consulta de conta/atendimento"))
     for conta in contas:
         if isinstance(conta, dict):
-            conta["dt_lancamento_formatada"] = format_api_date(conta.get("dt_lancamento"))
+            conta["dt_atendimento_formatada"] = format_api_date(
+                conta.get("dt_atendimento")
+            )
+            conta["dt_alta_formatada"] = format_api_date(
+                conta.get("dt_alta")
+            )
+            conta["hr_lancamento_formatada"] = format_lancamento_datetime(
+                conta.get("dt_lancamento"),
+                conta.get("hr_lancamento"),
+            )
     grupos = _group_contas(contas)
     if request.GET and not total_pacientes:
         total_pacientes = len(grupos)
@@ -298,6 +424,8 @@ def conta_atendimento(request):
             "resumo": resumo,
             "pagination": pagination,
             "consulta_indisponivel": consulta_indisponivel,
+            "tipos_atendimento": TIPOS_ATENDIMENTO,
+            "tiss_motivos": tiss_motivos,
         },
     )
 

@@ -1,9 +1,16 @@
 {% extends "base.html" %}
+{% load core_extras %}
 {% block page_title %}Triagem{% endblock %}
 {% block content %}
 
-<section class="panel filter-panel">
-  <form class="remessa-filters" method="get">
+<datalist id="tiss-motivos">
+  {% for motivo in tiss_motivos %}
+  <option value="{{ motivo.codigo_termo }} - {{ motivo.termo }}"></option>
+  {% endfor %}
+</datalist>
+
+<section class="panel filter-panel" x-data="{ loading: false }">
+  <form class="remessa-filters" method="get" @submit="loading = true">
     <div class="filter-row">
       <div class="filter-group">
         <label>Remessa</label>
@@ -29,14 +36,26 @@
         <label>Procedimento</label>
         <input name="descricao" value="{{ filtros.descricao }}" class="form-control" placeholder="Descrição">
       </div>
-      <div class="filter-group filter-group--sm">
+      <div class="filter-group">
         <label>Tipo atend.</label>
-        <input name="tp_atendimento" value="{{ filtros.tp_atendimento }}" class="form-control" placeholder="Ex: A">
+        <select name="tp_atendimento" class="form-select">
+          <option value="">Todos</option>
+          {% for tipo in tipos_atendimento %}
+          <option value="{{ tipo }}" {% if filtros.tp_atendimento == tipo %}selected{% endif %}>{{ tipo }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="filter-actions">
-        <button class="btn btn-primary">Filtrar</button>
-        <a href="{{ request.path }}" class="btn btn-outline-secondary">Limpar</a>
+        <button class="btn btn-primary" :disabled="loading">
+          <span x-show="!loading">Filtrar</span>
+          <span x-show="loading" x-cloak>Buscando...</span>
+        </button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
       </div>
+    </div>
+    <div class="filter-loading" x-show="loading" x-cloak aria-live="polite">
+      <span class="filter-loading-spinner" aria-hidden="true"></span>
+      <span>Consultando contas faturadas...</span>
     </div>
   </form>
 </section>
@@ -71,7 +90,7 @@
         </span>
         <span class="result-total result-total--value">
           <span>Valor total</span>
-          <strong>R$ {{ resumo.valor_total|floatformat:2 }}</strong>
+          <strong>R$ {{ resumo.valor_total|br_currency }}</strong>
         </span>
       </div>
       {% if pagination.total %}
@@ -128,7 +147,7 @@
           <span class="mpill mpill--dim">{{ grupo.num_remessas }} rem.</span>
           <span class="mpill mpill--dim">{{ grupo.num_atendimentos }} atend.</span>
           <span class="mpill mpill--dim">{{ grupo.num_lancamentos }} lanc.</span>
-          <span class="mpill mpill--valor">R$ {{ grupo.total|floatformat:2 }}</span>
+          <span class="mpill mpill--valor">R$ {{ grupo.total|br_currency }}</span>
         </div>
       </button>
 
@@ -142,7 +161,7 @@
               {{ rem.num_atendimentos }} atend. &middot; {{ rem.num_lancamentos }} lanc.
               {% for conv in rem.convenios %} &middot; {{ conv }}{% endfor %}
             </span>
-            <span class="rem-total">R$ {{ rem.total|floatformat:2 }}</span>
+            <span class="rem-total">R$ {{ rem.total|br_currency }}</span>
           </button>
 
           <div class="rem-body" x-show="remOpen">
@@ -152,43 +171,92 @@
                 <span class="atd-chevron" :class="{ 'atd-chevron--open': atdOpen }">&#9654;</span>
                 <span class="atd-title">Atendimento <strong>#{{ atd.cd_atendimento }}</strong></span>
                 <span class="atd-meta">
-                  {{ atd.num_lancamentos }} lanc.
-                  {% for conv in atd.convenios %} &middot; {{ conv }}{% endfor %}
+                  {% if atd.dt_atendimento %}Atend. {{ atd.dt_atendimento }}{% endif %}
+                  {% if atd.dt_alta %} &middot; Alta {{ atd.dt_alta }}{% endif %}
                 </span>
-                <span class="atd-total">R$ {{ atd.total|floatformat:2 }}</span>
               </button>
 
               <div class="atd-body" x-show="atdOpen">
-                <div class="table-responsive detail-table-wrap">
-                  <table class="table align-middle account-table">
-                    <thead>
-                      <tr>
-                        <th>Conta</th>
-                        <th>Convenio</th>
-                        <th>Procedimento</th>
-                        <th class="col-desc">Descricao</th>
-                        <th>Guia</th>
-                        <th>Prestador</th>
-                        <th>Data</th>
-                        <th class="col-valor">Valor</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    {% for conta in atd.itens %}
-                    <tbody x-data="{ glosar: false }">
+                <div class="account-groups">
+                  {% for grupo_fat in atd.grupos_faturamento %}
+                  <section class="account-group-section">
+                    <header class="account-group-header">
+                      <span class="account-group-title">{{ grupo_fat.ds_gru_fat }}</span>
+                      <strong class="account-group-count">{{ grupo_fat.num_lancamentos }} lanc.</strong>
+                    </header>
+                    <div class="table-responsive detail-table-wrap account-group-table-wrap">
+                      <table class="table align-middle account-table">
+                        <colgroup>
+                          <col class="account-col-conta">
+                          <col class="account-col-convenio">
+                          <col class="account-col-procedimento">
+                          <col class="account-col-descricao">
+                          <col class="account-col-guia">
+                          <col class="account-col-lancamento">
+                          <col class="account-col-tipo">
+                          <col class="account-col-qtd">
+                          <col class="account-col-valor">
+                          <col class="account-col-acao">
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th>Conta</th>
+                            <th>Convenio</th>
+                            <th>Procedimento</th>
+                            <th class="col-desc">Descricao</th>
+                            <th>Guia</th>
+                            <th>DT Lanç.</th>
+                            <th>Tipo Atendimento</th>
+                            <th class="account-col-label-qtd">Qtd Lanç.</th>
+                            <th class="col-valor">Valor</th>
+                            <th class="account-action-col"></th>
+                          </tr>
+                        </thead>
+                        {% for conta in grupo_fat.itens %}
+                        <tbody
+                          x-data="{
+                            glosar: false,
+                            acatar: false,
+                            valorGlosado: '',
+                            valorAcatado: '',
+                            formatValorGlosado() {
+                              const digits = this.valorGlosado.replace(/\D/g, '');
+                              const cents = Number(digits || 0);
+                              this.valorGlosado = new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(cents / 100);
+                            },
+                            formatValorAcatado() {
+                              const digits = this.valorAcatado.replace(/\D/g, '');
+                              const cents = Number(digits || 0);
+                              this.valorAcatado = new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(cents / 100);
+                            }
+                          }"
+                          :class="{ 'glosa-open-row': glosar || acatar }"
+                        >
                       <tr class="item-row">
                         <td class="cell-mono">{{ conta.cd_reg|default:"-" }}</td>
                         <td>{{ conta.nm_convenio|default:"-" }}</td>
                         <td><span class="badge-proc">{{ conta.cd_pro_fat|default:"-" }}</span></td>
                         <td class="col-desc">{{ conta.descricao|default:"-" }}</td>
-                        <td class="cell-mono">{{ conta.cd_guia|default:"-" }}</td>
-                        <td>{{ conta.nm_prestador|default:"-" }}</td>
-                        <td class="cell-mono">{{ conta.dt_lancamento_formatada|default:"-" }}</td>
-                        <td class="col-valor cell-valor">R$ {{ conta.vl_total_conta|floatformat:2 }}</td>
-                        <td>
-                          <button type="button" class="btn-glosar" @click="glosar = true" :class="{ 'btn-glosar--active': glosar }">
+                        <td class="cell-mono">{{ conta.nr_guia|default:"-" }}</td>
+                        <td class="cell-mono">{{ conta.hr_lancamento_formatada|default:"-" }}</td>
+                        <td>{{ conta.tp_atendimento|default:"-" }}</td>
+                        <td class="cell-mono cell-center">{{ conta.qt_lancamento|default:"-" }}</td>
+                        <td class="col-valor cell-valor">R$ {{ conta.vl_total_conta|br_currency }}</td>
+                        <td class="account-action-cell">
+                          <div class="account-action-buttons">
+                          <button type="button" class="btn-glosar" @click="acatar = false; glosar = true" :class="{ 'btn-glosar--active': glosar }">
                             + Glosar
                           </button>
+                          <button type="button" class="btn-acatar" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
+                            + Acatar
+                          </button>
+                          </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
                             <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
@@ -208,24 +276,55 @@
                                   <span>{{ conta.nm_paciente|default:"Paciente nao informado" }}</span>
                                   <span>{{ conta.nm_convenio|default:"Convenio nao informado" }}</span>
                                   <span>Atend. {{ conta.cd_atendimento|default:"-" }}</span>
+                                  <span class="glosa-modal-context-desc">{{ conta.descricao|default:"Procedimento nao informado" }}</span>
                                 </div>
-                                <div class="glosa-modal-grid">
-                                  <div class="glosa-field glosa-field--wide">
-                                    <label>Processo / N Controle / N Fatura / N GAB</label>
-                                    <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convenio">
-                                  </div>
-                                  <div class="glosa-field">
-                                    <label>Data da glosa</label>
-                                    <input type="date" name="data_glosa" class="form-control">
-                                  </div>
-                                  <div class="glosa-field glosa-field--wide">
-                                    <label>Motivo da glosa</label>
-                                    <input name="motivo_glosa" class="form-control" placeholder="Informe o motivo">
-                                  </div>
-                                  <div class="glosa-field glosa-field--full">
-                                    <label>Descricao</label>
-                                    <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes da glosa"></textarea>
-                                  </div>
+                                <div class="glosa-section-stack">
+                                  <section class="glosa-section" aria-labelledby="glosa-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                                    <h3 id="glosa-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo original</h3>
+                                    <div class="glosa-section-grid">
+                                      <div class="glosa-field glosa-field--wide">
+                                        <label>Processo / N Controle / N Fatura / N GAB (Processo Original)</label>
+                                        <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convenio">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Data da glosa</label>
+                                        <input type="date" name="data_glosa" class="form-control">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Dt pagamento</label>
+                                        <input type="date" name="dt_pagamento" class="form-control">
+                                      </div>
+                                      <div class="glosa-field glosa-field--wide">
+                                        <label>Motivo da glosa</label>
+                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" placeholder="Digite codigo ou termo TISS">
+                                      </div>
+                                    </div>
+                                  </section>
+                                  <section class="glosa-section" aria-labelledby="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                                    <h3 id="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo de glosa</h3>
+                                    <div class="glosa-section-grid">
+                                      <div class="glosa-field glosa-field--wide">
+                                        <label>Processo do Recurso</label>
+                                        <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Dt recurso</label>
+                                        <input type="date" name="dt_recurso" class="form-control">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Qtd glosada</label>
+                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Valor glosado</label>
+                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" x-model="valorGlosado" @input="valorGlosado = $event.target.value; formatValorGlosado()">
+                                      </div>
+                                      <div class="glosa-field glosa-field--full">
+                                        <label>Descricao</label>
+                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes da glosa"></textarea>
+                                      </div>
+                                    </div>
+                                  </section>
                                 </div>
                                 <div class="glosa-modal-actions">
                                   <button type="button" class="btn btn-outline-secondary" @click="glosar = false">Cancelar</button>
@@ -234,11 +333,91 @@
                               </form>
                             </div>
                           </div>
+                          <div class="glosa-modal" x-show="acatar" x-cloak @keydown.escape.window="acatar = false">
+                            <div class="glosa-modal-backdrop" @click="acatar = false"></div>
+                            <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                              <form method="post" class="glosa-modal-form">
+                                {% csrf_token %}
+                                {% for key, value in conta.items %}
+                                  <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                {% endfor %}
+                                <input type="hidden" name="sn_glosado" value="not">
+                                <div class="glosa-modal-header">
+                                  <div>
+                                    <span class="glosa-modal-eyebrow">Registro de acato</span>
+                                    <h2 id="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Conta {{ conta.cd_reg|default:"-" }}</h2>
+                                  </div>
+                                  <button type="button" class="glosa-modal-close" @click="acatar = false" aria-label="Fechar">x</button>
+                                </div>
+                                <div class="glosa-modal-context">
+                                  <span>{{ conta.nm_paciente|default:"Paciente nao informado" }}</span>
+                                  <span>{{ conta.nm_convenio|default:"Convenio nao informado" }}</span>
+                                  <span>Atend. {{ conta.cd_atendimento|default:"-" }}</span>
+                                  <span class="glosa-modal-context-desc">{{ conta.descricao|default:"Procedimento nao informado" }}</span>
+                                </div>
+                                <div class="glosa-section-stack">
+                                  <section class="glosa-section" aria-labelledby="acatar-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                                    <h3 id="acatar-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo original</h3>
+                                    <div class="glosa-section-grid">
+                                      <div class="glosa-field glosa-field--wide">
+                                        <label>Processo / N Controle / N Fatura / N GAB (Processo Original)</label>
+                                        <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convenio">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Data da glosa</label>
+                                        <input type="date" name="data_glosa" class="form-control">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Dt pagamento</label>
+                                        <input type="date" name="dt_pagamento" class="form-control">
+                                      </div>
+                                      <div class="glosa-field glosa-field--wide">
+                                        <label>Motivo da glosa</label>
+                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" placeholder="Digite codigo ou termo TISS">
+                                      </div>
+                                    </div>
+                                  </section>
+                                  <section class="glosa-section" aria-labelledby="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                                    <h3 id="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo de glosa</h3>
+                                    <div class="glosa-section-grid">
+                                      <div class="glosa-field glosa-field--wide">
+                                        <label>Processo do Recurso</label>
+                                        <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Dt recurso</label>
+                                        <input type="date" name="dt_recurso" class="form-control">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Qtd glosada</label>
+                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Valor glosado</label>
+                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" x-model="valorAcatado" @input="valorAcatado = $event.target.value; formatValorAcatado()">
+                                      </div>
+                                      <div class="glosa-field glosa-field--full">
+                                        <label>Descricao</label>
+                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do acato"></textarea>
+                                      </div>
+                                    </div>
+                                  </section>
+                                </div>
+                                <div class="glosa-modal-actions">
+                                  <button type="button" class="btn btn-outline-secondary" @click="acatar = false">Cancelar</button>
+                                  <button class="btn-success-outline">Registrar acato</button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
                         </td>
                       </tr>
-                    </tbody>
-                    {% endfor %}
-                  </table>
+                        </tbody>
+                        {% endfor %}
+                      </table>
+                    </div>
+                  </section>
+                  {% endfor %}
                 </div>
               </div>
             </div>
