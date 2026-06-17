@@ -10,11 +10,33 @@
     receiving: false,
     receivingTitle: '',
     receivingIds: '',
+    sortDirections: {},
+    toggleColumnSort(columnKey) {
+      const current = this.sortDirections[columnKey] || 'asc';
+      const next = current === 'asc' ? 'desc' : 'asc';
+      this.sortDirections[columnKey] = next;
+      const list = this.$refs[`kanbanList${columnKey}`];
+      if (!list) return;
+      [...list.querySelectorAll('.kanban-card')]
+        .sort((a, b) => {
+          const first = a.dataset.referenceDate || '';
+          const second = b.dataset.referenceDate || '';
+          return next === 'asc'
+            ? first.localeCompare(second)
+            : second.localeCompare(first);
+        })
+        .forEach((card) => list.appendChild(card));
+    },
     openRecebimento(card) {
       this.receivingIds = card.ids;
       this.receivingTitle = card.title;
       this.receiving = true;
-      this.$nextTick(() => this.$refs.dtRecebimento?.focus());
+      this.$nextTick(() => {
+        if (this.$refs.dtRecebimento) this.$refs.dtRecebimento.value = card.dtRecebimento || '';
+        if (this.$refs.valorRecebido) this.$refs.valorRecebido.value = card.valorRecebido || '';
+        if (this.$refs.observacaoRecebimento) this.$refs.observacaoRecebimento.value = card.observacao || '';
+        this.$refs.dtRecebimento?.focus();
+      });
     },
     dropRecebimento() {
       if (!this.draggedCard) return;
@@ -101,10 +123,7 @@
               <th class="col-conta">Conta</th>
               <th class="col-qtd">Qtd.</th>
               <th class="col-valor">Valor</th>
-              <th class="col-dt-recebimento">Dt. Receb.</th>
-              <th class="col-valor-recebido">Valor Rec.</th>
-              <th class="col-observacao">Observação</th>
-              <th class="col-acao">Ação</th>
+              <th class="col-acao">Receber</th>
             </tr>
           </thead>
           <tbody>
@@ -113,34 +132,30 @@
                 <td class="process-cell">{{ row.processo_controle_fatura_gab|default:"-" }}</td>
                 <td class="process-cell process-cell--strong">{{ row.processo_recurso|default:"-" }}</td>
                 <td class="person-cell">{{ row.paciente_label }}</td>
-                <td>{{ row.convenio|default:"-" }}</td>
-                <td>{{ row.procedimento|default:"-" }}</td>
+                <td class="center-cell">{{ row.convenio|default:"-" }}</td>
+                <td class="center-cell">{{ row.procedimento|default:"-" }}</td>
                 <td class="desc-cell">{{ row.descricao_glosa|default:"-" }}</td>
-                <td class="ref-cell">{{ row.cd_remessa|default:"-" }}</td>
-                <td class="ref-cell">{{ row.cd_atendimento|default:"-" }}</td>
-                <td class="ref-cell ref-cell--strong">{{ row.conta|default:"-" }}</td>
-                <td class="qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
-                <td class="value-cell">{{ row.valor_recurso_formatado|default:"-" }}</td>
-                <td>
-                  <input type="date" name="dt_recebimento" form="recebimento-row-{{ row.id }}" class="form-control recebimento-table-input" value="{{ row.dt_recebimento_input }}" required>
-                </td>
-                <td>
-                  <input name="valor_recebido" form="recebimento-row-{{ row.id }}" class="form-control recebimento-table-input" value="{{ row.valor_recebido_formatado }}" placeholder="R$ 0,00" required>
-                </td>
-                <td>
-                  <input name="observacao_recebimento" form="recebimento-row-{{ row.id }}" class="form-control recebimento-table-input" value="{{ row.observacao_recebimento|default:'' }}" placeholder="Observação">
-                </td>
-                <td>
-                  <form id="recebimento-row-{{ row.id }}" method="post" class="recebimento-action-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="registro_ids" value="{{ row.id }}">
-                    <input type="hidden" name="next" value="{{ current_full_path }}">
-                    <button class="btn btn-outline-primary">Salvar</button>
-                  </form>
+                <td class="center-cell ref-cell">{{ row.cd_remessa|default:"-" }}</td>
+                <td class="center-cell ref-cell">{{ row.cd_atendimento|default:"-" }}</td>
+                <td class="center-cell ref-cell ref-cell--strong">{{ row.conta|default:"-" }}</td>
+                <td class="center-cell qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
+                <td class="center-cell value-cell">{{ row.valor_recurso_formatado|default:"-" }}</td>
+                <td class="receive-action-cell">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    @click="openRecebimento({
+                      ids: '{{ row.id }}',
+                      title: '{{ row.processo_recurso|default:row.processo_controle_fatura_gab|escapejs }}',
+                      dtRecebimento: '{{ row.dt_recebimento_input|default:'' }}',
+                      valorRecebido: '{{ row.valor_recebido_formatado|default:''|escapejs }}',
+                      observacao: '{{ row.observacao_recebimento|default:''|escapejs }}'
+                    })"
+                  >Receber</button>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="15">Nenhum recurso encontrado para os filtros informados.</td></tr>
+              <tr><td colspan="12">Nenhum recurso encontrado para os filtros informados.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -157,13 +172,25 @@
           {% endif %}
         >
           <header>
-            <strong>{{ column.label }}</strong>
-            <span>{{ column.cards|length }}</span>
+            <div class="kanban-column-title">
+              <strong>{{ column.label }}</strong>
+              <span>{{ column.cards|length }} cards</span>
+              <b>{{ column.valor_total_formatado }}</b>
+            </div>
+            <button
+              type="button"
+              class="kanban-sort-button"
+              title="Ordenar por data do pagamento"
+              @click="toggleColumnSort('{{ column.key }}')"
+            >
+              <span class="sort-opposite-arrows" aria-hidden="true"></span>
+            </button>
           </header>
-          <div class="kanban-card-list">
+          <div class="kanban-card-list" x-ref="kanbanList{{ column.key }}">
             {% for card in column.cards %}
               <article
                 class="kanban-card"
+                data-reference-date="{{ card.reference_date }}"
                 draggable="{% if column.key != 'recebidas' %}true{% else %}false{% endif %}"
                 @dragstart="draggedCard = { ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}' }"
               >
@@ -245,11 +272,11 @@
           </div>
           <div class="glosa-field">
             <label>Valor recebido</label>
-            <input name="valor_recebido" class="form-control" placeholder="R$ 0,00" required>
+            <input x-ref="valorRecebido" name="valor_recebido" class="form-control" placeholder="R$ 0,00" required>
           </div>
           <div class="glosa-field glosa-field--full">
             <label>Observação</label>
-            <textarea name="observacao_recebimento" class="form-control" rows="3"></textarea>
+            <textarea x-ref="observacaoRecebimento" name="observacao_recebimento" class="form-control" rows="3"></textarea>
           </div>
         </div>
         <div class="glosa-modal-actions">

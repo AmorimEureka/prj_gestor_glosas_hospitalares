@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Glosas MV > Administrativo{% endblock %}
+{% block page_title %}Prazos por Convênio{% endblock %}
+{% block content %}
+<section class="admin-page">
+  <div class="admin-summary">
+    <span>{{ resumo.convenios }} convênios</span>
+    <span>{{ resumo.configurados }} parametrizados</span>
+    <span>Movimentação desde janeiro</span>
+  </div>
+
+  <form method="post" class="admin-panel">
+    {% csrf_token %}
+    <div class="admin-panel-head">
+      <div>
+        <strong>Abertura de processo de recurso</strong>
+        <span>Informe o prazo em dias corridos a partir da data de atendimento.</span>
+      </div>
+      <button type="submit" class="btn btn-primary">Salvar prazos</button>
+    </div>
+
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Convênio</th>
+            <th>Base de cálculo</th>
+            <th>Dias para recurso</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for convenio in convenios %}
+            <tr>
+              <td>
+                {{ convenio.cd_convenio }}
+                <input type="hidden" name="cd_convenio" value="{{ convenio.cd_convenio }}">
+                <input type="hidden" name="convenio_{{ convenio.cd_convenio }}" value="{{ convenio.convenio }}">
+              </td>
+              <td>
+                <div class="admin-convenio-cell">
+                  <strong>{{ convenio.convenio }}</strong>
+                  <span>Convênio movimentado desde janeiro</span>
+                </div>
+              </td>
+              <td>
+                <span class="admin-base-chip">Data de atendimento</span>
+              </td>
+              <td>
+                <label class="admin-days-field">
+                  <input
+                    type="number"
+                    class="admin-days-input"
+                    name="dias_para_recurso_{{ convenio.cd_convenio }}"
+                    value="{{ convenio.dias_para_recurso|default_if_none:'' }}"
+                    min="1"
+                    max="365"
+                    placeholder="10"
+                  >
+                  <span>dias</span>
+                </label>
+              </td>
+              <td>
+                {% if convenio.configurado %}
+                  <span class="status status--success">Configurado</span>
+                {% else %}
+                  <span class="status">Pendente</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5">Nenhum convênio encontrado na movimentação desde janeiro.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+</section>
+{% endblock %}

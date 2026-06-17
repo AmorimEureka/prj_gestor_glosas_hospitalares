@@ -7,7 +7,7 @@
   <title>Gestao de Glosas</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20260612-api-unavailable" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20260617-admin-table" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -38,25 +38,27 @@
       <strong>Glosas MV</strong>
     </div>
     <nav>
-      <a href="{% url 'dashboard' %}" title="Dashboard"><span class="nav-icon"></span><span class="nav-label">Dashboard</span></a>
+      <a class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}" title="Indicadores"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></span><span class="nav-label">Indicadores</span></a>
       <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('{% url 'conta_atendimento' %}') || '{{ request.path }}'.startsWith('{% url 'acompanhamento' %}')">
-        <button type="button" class="nav-group-toggle" @click="open = !open" :aria-expanded="open" title="Análise de Contas">
+        <button type="button" class="nav-group-toggle {% if request.resolver_match.url_name == 'conta_atendimento' or request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}" @click="open = !open" :aria-expanded="open" title="Análise de Contas">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h6l4 4v14H6V3h2z"></path><path d="M14 3v5h5"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg></span>
           <span class="nav-label">Análise de Contas</span>
         </button>
         <div class="nav-submenu" x-show="open">
-          <a class="nav-subitem" href="{% url 'conta_atendimento' %}" title="Triagem"><span class="nav-icon"></span><span class="nav-label">Triagem</span></a>
-          <a class="nav-subitem" href="{% url 'acompanhamento' %}" title="Acompanhamento"><span class="nav-icon"></span><span class="nav-label">Acompanhamento</span></a>
+          <a class="nav-subitem {% if request.resolver_match.url_name == 'conta_atendimento' %}is-active{% endif %}" href="{% url 'conta_atendimento' %}" title="Triagem"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10"></path><path d="M7 12h10"></path><path d="M7 17h6"></path></svg></span><span class="nav-label">Triagem</span></a>
+          <a class="nav-subitem {% if request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}" href="{% url 'acompanhamento' %}" title="Acompanhamento"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17V7"></path><path d="M10 17V4"></path><path d="M16 17v-7"></path><path d="M22 17H2"></path></svg></span><span class="nav-label">Acompanhamento</span></a>
         </div>
       </div>
-      <a href="{% url 'glosas' %}" title="Glosas"><span class="nav-icon"></span><span class="nav-label">Glosas</span></a>
-      <a href="{% url 'remessas' %}" title="Remessas"><span class="nav-icon"></span><span class="nav-label">Remessas</span></a>
-      <a href="{% url 'recursos' %}" title="Recursos"><span class="nav-icon"></span><span class="nav-label">Recursos</span></a>
-      <a href="{% url 'recebimentos' %}" title="Recebimentos"><span class="nav-icon"></span><span class="nav-label">Recebimentos</span></a>
-      <a href="{% url 'conciliacao' %}" title="Conciliacao"><span class="nav-icon"></span><span class="nav-label">Conciliacao</span></a>
+      <a class="{% if request.resolver_match.url_name == 'glosas' %}is-active{% endif %}" href="{% url 'glosas' %}" title="Glosas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l3 3v15H5V3h3z"></path><path d="M15 3v4h4"></path><path d="M8 11h8"></path><path d="M8 15h8"></path></svg></span><span class="nav-label">Glosas</span></a>
+      <a class="{% if request.resolver_match.url_name == 'remessas' %}is-active{% endif %}" href="{% url 'remessas' %}" title="Remessas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"></ellipse><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"></path><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"></path></svg></span><span class="nav-label">Remessas</span></a>
+      <a class="{% if request.resolver_match.url_name == 'recursos' %}is-active{% endif %}" href="{% url 'recursos' %}" title="Recursos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 10-13h-7l1-7z"></path></svg></span><span class="nav-label">Recursos</span></a>
+      <a class="{% if request.resolver_match.url_name == 'recebimentos' %}is-active{% endif %}" href="{% url 'recebimentos' %}" title="Recebimentos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></span><span class="nav-label">Recebimentos</span></a>
+      <a class="{% if request.resolver_match.url_name == 'conciliacao' %}is-active{% endif %}" href="{% url 'conciliacao' %}" title="Conciliacao"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M15 9l-2 6-4 1 2-6 4-1z"></path></svg></span><span class="nav-label">Conciliacao</span></a>
+      <a class="{% if request.resolver_match.url_name == 'prazos_recurso_convenio' %}is-active{% endif %}" href="{% url 'prazos_recurso_convenio' %}" title="Administrativo"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"></path><path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.05.05-2.12 2.12-.05-.05a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.66V20.5h-3V20.4a1.8 1.8 0 0 0-1.1-1.66 1.8 1.8 0 0 0-1.98.36l-.05.05-2.12-2.12.05-.05A1.8 1.8 0 0 0 4.6 15a1.8 1.8 0 0 0-1.66-1.1H2.8v-3h.14A1.8 1.8 0 0 0 4.6 9.8a1.8 1.8 0 0 0-.36-1.98l-.05-.05 2.12-2.12.05.05a1.8 1.8 0 0 0 1.98.36 1.8 1.8 0 0 0 1.1-1.66V4.3h3v.1a1.8 1.8 0 0 0 1.1 1.66 1.8 1.8 0 0 0 1.98-.36l.05-.05 2.12 2.12-.05.05a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.66 1.1h.14v3h-.14A1.8 1.8 0 0 0 19.4 15z"></path></svg></span><span class="nav-label">Administrativo</span></a>
     </nav>
     <div class="sidebar-footer">
       <button type="button" class="sidebar-collapse-action" @click="sidebarOpen = !sidebarOpen" :aria-label="sidebarOpen ? 'Recolher menu' : 'Expandir menu'">
-        <span class="collapse-icon"></span>
+        <span class="collapse-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M9 5v14"></path><path d="M13 10l3 2-3 2"></path></svg></span>
         <span class="nav-label" x-text="sidebarOpen ? 'Recolher' : 'Expandir'"></span>
       </button>
     </div>

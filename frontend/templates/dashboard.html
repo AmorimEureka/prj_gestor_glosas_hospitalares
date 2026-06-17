@@ -1,27 +1,233 @@
 {% extends "base.html" %}
-{% load core_extras %}
-{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb_label %}Glosas MV > Indicadores{% endblock %}
+{% block page_title %}Indicadores{% endblock %}
 {% block content %}
-<section class="metrics-grid">
-  <div class="metric"><span>Total Glosado</span><strong>R$ {{ indicadores.total_glosado|default:"0"|br_currency }}</strong></div>
-  <div class="metric"><span>Total Recursado</span><strong>R$ {{ indicadores.total_recursado|default:"0"|br_currency }}</strong></div>
-  <div class="metric"><span>Total Recuperado</span><strong>R$ {{ indicadores.total_recuperado|default:"0"|br_currency }}</strong></div>
-  <div class="metric"><span>Total Recebido</span><strong>R$ {{ indicadores.total_recebido|default:"0"|br_currency }}</strong></div>
-  <div class="metric"><span>Recursos Pendentes</span><strong>{{ indicadores.recursos_pendentes|default:"0" }}</strong></div>
-  <div class="metric"><span>Glosas Sem Recebimento</span><strong>{{ indicadores.glosas_sem_recebimento|default:"0" }}</strong></div>
-</section>
-<section class="panel">
-  <div class="panel-title">Divergencias recentes</div>
-  <table class="table table-hover align-middle">
-    <thead><tr><th>Tipo</th><th>Referencia</th><th>Descricao</th></tr></thead>
-    <tbody>
-      {% for item in divergencias %}
-      <tr><td>{{ item.tipo }}</td><td>{{ item.referencia }}</td><td>{{ item.descricao }}</td></tr>
-      {% empty %}
-      <tr><td colspan="3">Nenhuma divergencia encontrada.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<section class="indicators-page">
+  <div class="indicator-toolbar">
+    <div>
+      <strong>Gestão operacional de glosas</strong>
+      <span>SLA calculado a partir da data de atendimento e prazo cadastrado por convênio</span>
+    </div>
+    <a class="indicator-config-link" href="{% url 'prazos_recurso_convenio' %}">
+      {{ indicadores.prazos.configurados }} convênios parametrizados
+    </a>
+  </div>
+
+  <section class="indicator-kpi-grid">
+    <article class="indicator-kpi indicator-kpi--primary">
+      <span>Total glosado</span>
+      <strong>{{ indicadores.kpis.total_glosado_formatado }}</strong>
+      <small>{{ indicadores.kpis.total_registros }} registros ativos</small>
+    </article>
+    <article class="indicator-kpi">
+      <span>Recursos de glosa</span>
+      <strong>{{ indicadores.kpis.total_recursos }}</strong>
+      <small>{{ indicadores.kpis.total_recursos_valor_formatado }}</small>
+    </article>
+    <article class="indicator-kpi">
+      <span>Acatos de glosa</span>
+      <strong>{{ indicadores.kpis.total_acatos }}</strong>
+      <small>{{ indicadores.kpis.total_acatos_valor_formatado }}</small>
+    </article>
+    <article class="indicator-kpi indicator-kpi--success">
+      <span>Recuperado</span>
+      <strong>{{ indicadores.kpis.total_recebido_formatado }}</strong>
+      <small>{{ indicadores.kpis.taxa_sucesso_financeira }}% sucesso financeiro</small>
+    </article>
+    <article class="indicator-kpi indicator-kpi--warning">
+      <span>Sem processo</span>
+      <strong>{{ indicadores.kpis.glosas_sem_processo }}</strong>
+      <small>Recursos sem processo ou data</small>
+    </article>
+    <article class="indicator-kpi indicator-kpi--danger">
+      <span>Sem recuperação</span>
+      <strong>{{ indicadores.kpis.sem_recuperacao }}</strong>
+      <small>Recursos sem valor recebido</small>
+    </article>
+  </section>
+
+  <section class="indicator-ratio-grid">
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Taxa de recurso</strong>
+        <span>{{ indicadores.kpis.taxa_recurso }}%</span>
+      </div>
+      <div class="progress-track">
+        <div style="width: {{ indicadores.kpis.taxa_recurso }}%"></div>
+      </div>
+      <p>{{ indicadores.kpis.total_recursos }} recursos sobre {{ indicadores.kpis.total_registros }} registros ativos.</p>
+    </article>
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Sucesso em quantidade</strong>
+        <span>{{ indicadores.kpis.taxa_sucesso_qtd }}%</span>
+      </div>
+      <div class="progress-track progress-track--success">
+        <div style="width: {{ indicadores.kpis.taxa_sucesso_qtd }}%"></div>
+      </div>
+      <p>Recursos com recuperação financeira registrada.</p>
+    </article>
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>SLA de tratativas</strong>
+        <span>{{ indicadores.sla.dentro_pct }}%</span>
+      </div>
+      <div class="sla-split">
+        <span style="width: {{ indicadores.sla.dentro_pct }}%">Dentro: {{ indicadores.sla.dentro }}</span>
+        <b style="width: {{ indicadores.sla.fora_pct }}%">Fora: {{ indicadores.sla.fora }}</b>
+      </div>
+      <p>Fallback sem cadastro: {{ indicadores.prazos.fallback }} dias. Sem parâmetro: {{ indicadores.sla.sem_parametro }}. Sem data de atendimento: {{ indicadores.sla.sem_atendimento }}.</p>
+    </article>
+  </section>
+
+  <section class="indicator-grid">
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Aging de glosas/acatos</strong>
+        <span>Data da glosa</span>
+      </div>
+      <div class="indicator-bars">
+        {% for item in indicadores.aging %}
+          <div class="indicator-bar-row">
+            <span>{{ item.label }}</span>
+            <div><i style="width: {{ item.bar_width }}%"></i></div>
+            <b>{{ item.count }}</b>
+            <em>{{ item.value_formatado }}</em>
+          </div>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Volume mensal</strong>
+        <span>Quantidade e valor</span>
+      </div>
+      <div class="indicator-bars indicator-bars--monthly">
+        {% for item in indicadores.volume_mensal %}
+          <div class="indicator-bar-row">
+            <span>{{ item.label }}</span>
+            <div><i style="width: {{ item.bar_width }}%"></i></div>
+            <b>{{ item.count }}</b>
+            <em>{{ item.value_formatado }}</em>
+          </div>
+        {% empty %}
+          <p class="empty-state">Sem volume mensal para exibir.</p>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+
+  <section class="indicator-grid indicator-grid--three">
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Volume por convênio</strong>
+        <span>Top 6</span>
+      </div>
+      <div class="rank-list">
+        {% for item in indicadores.volume_convenio %}
+          <div class="rank-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.count }} · {{ item.value_formatado }}</strong>
+            <i style="width: {{ item.bar_width }}%"></i>
+          </div>
+        {% empty %}
+          <p class="empty-state">Nenhum convênio encontrado.</p>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Volume por prestador</strong>
+        <span>Top 6</span>
+      </div>
+      <div class="rank-list">
+        {% for item in indicadores.volume_prestador %}
+          <div class="rank-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.count }} · {{ item.value_formatado }}</strong>
+            <i style="width: {{ item.bar_width }}%"></i>
+          </div>
+        {% empty %}
+          <p class="empty-state">Nenhum prestador encontrado.</p>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Tipo de atendimento</strong>
+        <span>Quantidade e valor</span>
+      </div>
+      <div class="rank-list">
+        {% for item in indicadores.volume_tipo_atendimento %}
+          <div class="rank-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.count }} · {{ item.value_formatado }}</strong>
+            <i style="width: {{ item.bar_width }}%"></i>
+          </div>
+        {% empty %}
+          <p class="empty-state">Nenhum tipo encontrado.</p>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+
+  <section class="indicator-grid indicator-grid--three">
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Recuperado por convênio</strong>
+        <span>Top 6</span>
+      </div>
+      <div class="rank-list">
+        {% for item in indicadores.recuperado_convenio %}
+          <div class="rank-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value_formatado }}</strong>
+            <i style="width: {{ item.bar_width }}%"></i>
+          </div>
+        {% empty %}
+          <p class="empty-state">Nenhum recebimento registrado.</p>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Motivos por valor</strong>
+        <span>Top 6</span>
+      </div>
+      <div class="rank-list">
+        {% for item in indicadores.motivo_top %}
+          <div class="rank-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value_formatado }}</strong>
+            <i style="width: {{ item.bar_width }}%"></i>
+          </div>
+        {% empty %}
+          <p class="empty-state">Nenhum motivo encontrado.</p>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="indicator-panel">
+      <div class="indicator-panel-head">
+        <strong>Glosas em aberto sem processo</strong>
+        <span>Maior aging</span>
+      </div>
+      <div class="attention-list">
+        {% for item in indicadores.aberto_top %}
+          <div>
+            <strong>{{ item.processo }}</strong>
+            <span>{{ item.convenio }} · {{ item.aging }} dias · {{ item.valor }}</span>
+            <small>{{ item.motivo }}</small>
+          </div>
+        {% empty %}
+          <p class="empty-state">Nenhuma glosa aberta sem processo.</p>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
 </section>
 {% endblock %}
-

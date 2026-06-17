@@ -12,6 +12,7 @@ from .services import ApiError, api_delete, api_get, api_patch, api_post, api_pu
 
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
+PRAZOS_RECURSO_CONVENIO_PATH = "/app_glosas/prazos-recurso-convenio"
 
 
 def format_api_date(value):
@@ -363,13 +364,18 @@ def parse_api_date(value):
     return None
 
 
-def age_bucket(registro):
-    reference_date = (
-        parse_api_date(registro.get("data_criacao"))
+def bucket_reference_date(registro):
+    return (
+        parse_api_date(registro.get("dt_pagamento"))
+        or parse_api_date(registro.get("data_criacao"))
         or parse_api_date(registro.get("dt_recurso"))
         or parse_api_date(registro.get("data_glosa"))
         or date.today()
     )
+
+
+def age_bucket(registro):
+    reference_date = bucket_reference_date(registro)
     days = max((date.today() - reference_date).days, 0)
     if days < 30:
         return "ate_30"
@@ -464,13 +470,16 @@ def build_acompanhamento_cards(rows):
     cards = []
     for key, itens in grouped.items():
         all_received = all(item.get("dt_recebimento") for item in itens)
-        bucket_key = "recebidas" if all_received else age_bucket(itens[0])
+        oldest_item = min(itens, key=bucket_reference_date)
+        bucket_key = "recebidas" if all_received else age_bucket(oldest_item)
         total = sum(item["valor_recurso"] for item in itens)
         qtd = sum(item["qtd_recurso"] for item in itens)
+        reference_date = bucket_reference_date(oldest_item)
         cards.append(
             {
                 "key": str(key),
                 "bucket": bucket_key,
+                "reference_date": reference_date.isoformat(),
                 "ids": ",".join(str(item["id"]) for item in itens if item.get("id")),
                 "processos_originais": unique_join(
                     item.get("processo_controle_fatura_gab") for item in itens
@@ -493,11 +502,15 @@ def build_acompanhamento_cards(rows):
 def build_kanban_columns(cards):
     columns = []
     for key, label in ACOMPANHAMENTO_BUCKETS.items():
+        column_cards = [card for card in cards if card["bucket"] == key]
+        valor_total = sum(card["valor_total"] for card in column_cards)
         columns.append(
             {
                 "key": key,
                 "label": label,
-                "cards": [card for card in cards if card["bucket"] == key],
+                "cards": column_cards,
+                "valor_total": valor_total,
+                "valor_total_formatado": format_brl_input(valor_total),
             }
         )
     return columns
@@ -589,15 +602,446 @@ def build_registro_glosa_payload(data):
     }
 
 
-def dashboard(request):
+def normalize_flag(value):
+    return str(value or "").strip().lower()
+
+
+def is_active_registro(registro):
+    return normalize_flag(registro.get("sn_ativo")) in {"true", "sim", "s", "1"}
+
+
+def is_recurso_registro(registro):
+    return normalize_flag(registro.get("sn_glosado")) in {"true", "sim", "s", "1"}
+
+
+def is_acato_registro(registro):
+    return normalize_flag(registro.get("sn_glosado")) in {
+        "not",
+        "false",
+        "não",
+        "nao",
+        "n",
+        "0",
+    }
+
+
+def registro_valor_glosado(registro):
+    return as_float_or_zero(
+        registro.get("valor_glosado")
+        if registro.get("valor_glosado") not in (None, "")
+        else registro.get("valor")
+    )
+
+
+def percent_value(part, total):
+    if not total:
+        return 0
+    return round((part / total) * 100, 1)
+
+
+def aging_days(registro):
+    reference = (
+        parse_api_date(registro.get("data_glosa"))
+        or parse_api_date(registro.get("data_criacao"))
+        or date.today()
+    )
+    return max((date.today() - reference).days, 0)
+
+
+def aging_bucket_key(days):
+    if days <= 7:
+        return "0_7"
+    if days <= 15:
+        return "8_15"
+    if days <= 30:
+        return "16_30"
+    if days <= 60:
+        return "31_60"
+    return "mais_60"
+
+
+AGING_BUCKETS = {
+    "0_7": "0 a 7 dias",
+    "8_15": "8 a 15 dias",
+    "16_30": "16 a 30 dias",
+    "31_60": "31 a 60 dias",
+    "mais_60": "Acima de 60 dias",
+}
+
+
+def month_key(value):
+    parsed = parse_api_date(value)
+    if not parsed:
+        return "Sem data"
+    return parsed.strftime("%Y-%m")
+
+
+def month_label(key):
+    if key == "Sem data":
+        return key
     try:
-        indicadores = api_get("/dashboard/indicadores")
-        divergencias = api_get("/conciliacao/divergencias")
+        return datetime.strptime(key, "%Y-%m").strftime("%m/%Y")
+    except ValueError:
+        return key
+
+
+def top_groups(rows, key_name, value_name, limit=6):
+    groups = {}
+    for row in rows:
+        name = row.get(key_name) or "Não informado"
+        current = groups.setdefault(name, {"label": name, "count": 0, "value": 0})
+        current["count"] += 1
+        current["value"] += as_float_or_zero(row.get(value_name))
+
+    ordered = sorted(
+        groups.values(),
+        key=lambda item: (item["value"], item["count"]),
+        reverse=True,
+    )[:limit]
+    max_value = max((item["value"] for item in ordered), default=0)
+    for item in ordered:
+        item["value_formatado"] = format_brl_input(item["value"])
+        item["bar_width"] = percent_value(item["value"], max_value)
+    return ordered
+
+
+def top_count_groups(rows, key_name, limit=6):
+    groups = {}
+    for row in rows:
+        name = row.get(key_name) or "Não informado"
+        current = groups.setdefault(name, {"label": name, "count": 0, "value": 0})
+        current["count"] += 1
+        current["value"] += registro_valor_glosado(row)
+
+    ordered = sorted(
+        groups.values(),
+        key=lambda item: (item["count"], item["value"]),
+        reverse=True,
+    )[:limit]
+    max_count = max((item["count"] for item in ordered), default=0)
+    for item in ordered:
+        item["value_formatado"] = format_brl_input(item["value"])
+        item["bar_width"] = percent_value(item["count"], max_count)
+    return ordered
+
+
+def normalize_lookup_text(value):
+    return " ".join(str(value or "").strip().upper().split())
+
+
+def build_prazos_convenio_lookup(convenios):
+    lookup = {}
+    for convenio in convenios or []:
+        dias = as_positive_int(convenio.get("dias_para_recurso"), None)
+        if dias is None:
+            continue
+
+        cd_convenio = convenio.get("cd_convenio")
+        if cd_convenio not in (None, ""):
+            lookup[f"cd:{cd_convenio}"] = dias
+
+        nome = normalize_lookup_text(convenio.get("convenio"))
+        if nome:
+            lookup[f"nome:{nome}"] = dias
+    return lookup
+
+
+def prazo_recurso_registro(registro, prazos_lookup, prazo_padrao):
+    cd_convenio = registro.get("cd_convenio")
+    if cd_convenio not in (None, ""):
+        prazo = prazos_lookup.get(f"cd:{cd_convenio}")
+        if prazo is not None:
+            return prazo
+
+    nome = normalize_lookup_text(registro.get("convenio"))
+    if nome:
+        prazo = prazos_lookup.get(f"nome:{nome}")
+        if prazo is not None:
+            return prazo
+
+    return prazo_padrao
+
+
+def registro_tem_prazo_parametrizado(registro, prazos_lookup):
+    cd_convenio = registro.get("cd_convenio")
+    if cd_convenio not in (None, "") and f"cd:{cd_convenio}" in prazos_lookup:
+        return True
+
+    nome = normalize_lookup_text(registro.get("convenio"))
+    return bool(nome and f"nome:{nome}" in prazos_lookup)
+
+
+def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
+    prazos_lookup = build_prazos_convenio_lookup(prazos_convenio or [])
+    rows = [registro for registro in registros if is_active_registro(registro)]
+    recursos = [registro for registro in rows if is_recurso_registro(registro)]
+    acatos = [registro for registro in rows if is_acato_registro(registro)]
+    total_glosado = sum(registro_valor_glosado(registro) for registro in rows)
+    total_recursos_valor = sum(
+        registro_valor_glosado(registro) for registro in recursos
+    )
+    total_acatos_valor = sum(registro_valor_glosado(registro) for registro in acatos)
+    total_recebido = sum(
+        as_float_or_zero(registro.get("valor_recebido"))
+        for registro in rows
+        if registro.get("dt_recebimento")
+    )
+
+    recursos_com_sucesso = [
+        registro
+        for registro in recursos
+        if as_float_or_zero(registro.get("valor_recebido")) > 0
+    ]
+    glosas_sem_processo = [
+        registro
+        for registro in recursos
+        if not registro.get("processo_recurso") or not registro.get("dt_recurso")
+    ]
+    sem_recuperacao = [
+        registro
+        for registro in recursos
+        if as_float_or_zero(registro.get("valor_recebido")) <= 0
+    ]
+
+    aging = []
+    for key, label in AGING_BUCKETS.items():
+        bucket_rows = [
+            registro for registro in rows if aging_bucket_key(aging_days(registro)) == key
+        ]
+        value = sum(registro_valor_glosado(registro) for registro in bucket_rows)
+        aging.append(
+            {
+                "key": key,
+                "label": label,
+                "count": len(bucket_rows),
+                "value": value,
+                "value_formatado": format_brl_input(value),
+            }
+        )
+    max_aging = max((item["count"] for item in aging), default=0)
+    for item in aging:
+        item["bar_width"] = percent_value(item["count"], max_aging)
+
+    sla_dentro = 0
+    sla_fora = 0
+    sla_sem_atendimento = 0
+    sla_sem_parametro = 0
+    for registro in recursos:
+        data_atendimento = parse_api_date(registro.get("data_atendimento"))
+        if data_atendimento is None:
+            sla_sem_atendimento += 1
+        data_inicio = (
+            data_atendimento
+            or parse_api_date(registro.get("data_glosa"))
+            or parse_api_date(registro.get("data_criacao"))
+            or date.today()
+        )
+        data_tratativa = parse_api_date(registro.get("dt_recurso")) or date.today()
+        prazo_registro = prazo_recurso_registro(registro, prazos_lookup, prazo_sla)
+        if not registro_tem_prazo_parametrizado(registro, prazos_lookup):
+            sla_sem_parametro += 1
+        dias_tratativa = max((data_tratativa - data_inicio).days, 0)
+        if dias_tratativa <= prazo_registro:
+            sla_dentro += 1
+        else:
+            sla_fora += 1
+
+    mensal = {}
+    for registro in rows:
+        key = month_key(registro.get("data_glosa"))
+        current = mensal.setdefault(
+            key,
+            {
+                "label": month_label(key),
+                "count": 0,
+                "value": 0,
+                "recursos": 0,
+                "acatos": 0,
+            },
+        )
+        current["count"] += 1
+        current["value"] += registro_valor_glosado(registro)
+        if is_recurso_registro(registro):
+            current["recursos"] += 1
+        elif is_acato_registro(registro):
+            current["acatos"] += 1
+
+    volume_mensal = [
+        mensal[key]
+        for key in sorted(
+            mensal,
+            key=lambda item: "0000-00" if item == "Sem data" else item,
+        )
+    ][-8:]
+    max_volume = max((item["value"] for item in volume_mensal), default=0)
+    for item in volume_mensal:
+        item["value_formatado"] = format_brl_input(item["value"])
+        item["bar_width"] = percent_value(item["value"], max_volume)
+
+    recuperado_convenio = top_groups(
+        [
+            registro
+            for registro in rows
+            if registro.get("dt_recebimento")
+            and as_float_or_zero(registro.get("valor_recebido")) > 0
+        ],
+        "convenio",
+        "valor_recebido",
+    )
+    motivo_top = top_groups(rows, "motivo_glosa", "valor_glosado")
+    aberto_top = sorted(
+        glosas_sem_processo,
+        key=lambda registro: aging_days(registro),
+        reverse=True,
+    )[:6]
+    aberto_top = [
+        {
+            "processo": registro.get("processo_controle_fatura_gab") or "-",
+            "convenio": registro.get("convenio") or "-",
+            "motivo": registro.get("motivo_glosa") or "-",
+            "aging": aging_days(registro),
+            "valor": format_brl_input(registro_valor_glosado(registro)),
+        }
+        for registro in aberto_top
+    ]
+
+    return {
+        "kpis": {
+            "total_registros": len(rows),
+            "total_recursos": len(recursos),
+            "total_acatos": len(acatos),
+            "total_glosado": total_glosado,
+            "total_glosado_formatado": format_brl_input(total_glosado),
+            "total_recursos_valor": total_recursos_valor,
+            "total_recursos_valor_formatado": format_brl_input(
+                total_recursos_valor
+            ),
+            "total_acatos_valor": total_acatos_valor,
+            "total_acatos_valor_formatado": format_brl_input(total_acatos_valor),
+            "total_recebido": total_recebido,
+            "total_recebido_formatado": format_brl_input(total_recebido),
+            "glosas_sem_processo": len(glosas_sem_processo),
+            "sem_recuperacao": len(sem_recuperacao),
+            "taxa_recurso": percent_value(len(recursos), len(rows)),
+            "taxa_sucesso_qtd": percent_value(len(recursos_com_sucesso), len(recursos)),
+            "taxa_sucesso_financeira": percent_value(
+                total_recebido,
+                total_recursos_valor,
+            ),
+        },
+        "prazo_sla": prazo_sla,
+        "prazos": {
+            "configurados": len(
+                [
+                    convenio
+                    for convenio in (prazos_convenio or [])
+                    if convenio.get("dias_para_recurso") not in (None, "")
+                ]
+            ),
+            "fallback": prazo_sla,
+        },
+        "sla": {
+            "dentro": sla_dentro,
+            "fora": sla_fora,
+            "total": len(recursos),
+            "dentro_pct": percent_value(sla_dentro, len(recursos)),
+            "fora_pct": percent_value(sla_fora, len(recursos)),
+            "sem_atendimento": sla_sem_atendimento,
+            "sem_parametro": sla_sem_parametro,
+        },
+        "aging": aging,
+        "volume_mensal": volume_mensal,
+        "volume_convenio": top_count_groups(rows, "convenio"),
+        "volume_prestador": top_count_groups(rows, "prestador"),
+        "volume_tipo_atendimento": top_count_groups(rows, "tp_atendimento"),
+        "recuperado_convenio": recuperado_convenio,
+        "motivo_top": motivo_top,
+        "aberto_top": aberto_top,
+    }
+
+
+def dashboard(request):
+    prazo_sla = as_positive_int(request.GET.get("sla"), 10)
+    prazos_convenio = []
+    try:
+        prazos_payload = api_get(PRAZOS_RECURSO_CONVENIO_PATH)
+        prazos_convenio = prazos_payload.get("convenios", [])
     except ApiError as exc:
-        indicadores = {}
-        divergencias = []
-        messages.error(request, format_api_error(exc, "Dashboard"))
-    return render(request, "dashboard.html", {"indicadores": indicadores, "divergencias": divergencias[:6]})
+        messages.warning(request, format_api_error(exc, "Prazos por convênio"))
+
+    try:
+        payload = api_get(settings.API_REGISTRO_GLOSA_PATH, {"limit": 5000})
+        registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+        indicadores = build_dashboard_indicadores(
+            registros,
+            prazo_sla,
+            prazos_convenio,
+        )
+    except ApiError as exc:
+        indicadores = build_dashboard_indicadores([], prazo_sla, prazos_convenio)
+        messages.error(request, format_api_error(exc, "Indicadores"))
+    return render(request, "dashboard.html", {"indicadores": indicadores})
+
+
+@require_http_methods(["GET", "POST"])
+def prazos_recurso_convenio(request):
+    if request.method == "POST":
+        payload = []
+        errors = []
+        for cd_convenio in request.POST.getlist("cd_convenio"):
+            convenio = request.POST.get(f"convenio_{cd_convenio}", "").strip()
+            dias_raw = request.POST.get(f"dias_para_recurso_{cd_convenio}", "").strip()
+            if not dias_raw:
+                continue
+
+            dias = as_positive_int(dias_raw, None)
+            if dias is None:
+                errors.append(convenio or cd_convenio)
+                continue
+
+            payload.append(
+                {
+                    "cd_convenio": int(cd_convenio),
+                    "convenio": convenio,
+                    "dias_para_recurso": dias,
+                }
+            )
+
+        if errors:
+            messages.error(
+                request,
+                "Informe uma quantidade de dias válida para: "
+                + ", ".join(errors),
+            )
+        else:
+            try:
+                api_put(PRAZOS_RECURSO_CONVENIO_PATH, payload)
+                messages.success(request, "Prazos por convênio atualizados.")
+                return redirect("prazos_recurso_convenio")
+            except ApiError as exc:
+                messages.error(request, format_api_error(exc, "Prazos por convênio"))
+
+    try:
+        payload = api_get(PRAZOS_RECURSO_CONVENIO_PATH)
+        convenios = payload.get("convenios", [])
+    except ApiError as exc:
+        convenios = []
+        messages.error(request, format_api_error(exc, "Prazos por convênio"))
+
+    resumo = {
+        "convenios": len(convenios),
+        "configurados": sum(
+            1 for convenio in convenios if convenio.get("dias_para_recurso") not in (None, "")
+        ),
+    }
+    return render(
+        request,
+        "prazos_recurso_convenio.html",
+        {
+            "convenios": convenios,
+            "resumo": resumo,
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -852,11 +1296,14 @@ def acompanhamento(request):
     else:
         rows_filtradas = rows
 
+    cards_filtrados = build_acompanhamento_cards(rows_filtradas)
     resumo = {
-        "processos": len(cards),
-        "registros": len(rows),
-        "valor_total": sum(row["valor_recurso"] for row in rows),
-        "recebidos": sum(1 for row in rows if row.get("dt_recebimento")),
+        "processos": len(cards_filtrados),
+        "registros": len(rows_filtradas),
+        "valor_total": sum(row["valor_recurso"] for row in rows_filtradas),
+        "recebidos": sum(
+            1 for row in rows_filtradas if row.get("dt_recebimento")
+        ),
     }
 
     return render(
