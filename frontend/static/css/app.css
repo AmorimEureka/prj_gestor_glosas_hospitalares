@@ -1310,6 +1310,36 @@ body:not(.sidebar-collapsed) .indicator-grid--three {
   transform: translate(-50%, 0);
 }
 
+.indicator-filter-field--period .help-tip::after {
+  left: calc(100% + 8px);
+  top: 50%;
+  width: max-content;
+  max-width: min(260px, 62vw);
+  padding: 7px 10px;
+  bottom: auto;
+  transform: translate(0, -50%);
+}
+
+.indicator-filter-field--period .help-tip::before {
+  left: calc(100% + 3px);
+  top: 50%;
+  bottom: auto;
+  border: 0;
+  border-bottom: 1px solid #bdd8e2;
+  border-left: 1px solid #bdd8e2;
+  transform: translate(0, -50%) rotate(45deg);
+}
+
+.indicator-filter-field--period .help-tip:hover::after,
+.indicator-filter-field--period .help-tip:focus-visible::after {
+  transform: translate(0, -50%);
+}
+
+.indicator-filter-field--period .help-tip:hover::before,
+.indicator-filter-field--period .help-tip:focus-visible::before {
+  transform: translate(0, -50%) rotate(45deg);
+}
+
 .aging-heatmap {
   display: grid;
   gap: 6px;

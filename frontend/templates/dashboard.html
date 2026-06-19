@@ -6,7 +6,7 @@
   <div class="indicator-toolbar">
     <div>
       <strong>Gestão operacional de glosas</strong>
-      <span>SLA calculado de data da glosa até a tratativa interna registrada em dt_recurso</span>
+      <!-- <span>SLA calculado de data da glosa até a tratativa interna registrada em dt_recurso</span> -->
     </div>
     <a class="indicator-config-link" href="{% url 'prazos_recurso_convenio' %}">
       {{ indicadores.prazos.configurados }} convênios parametrizados
@@ -15,7 +15,15 @@
 
   <form class="indicator-filter-panel" method="get">
     <div class="indicator-filter-field indicator-filter-field--period">
-      <span>Período</span>
+      <span>
+        Período
+        <span
+          class="help-tip"
+          tabindex="0"
+          aria-label="Ajuda sobre o cálculo do heatmap"
+          data-tooltip="Filtro pela Data do Atendimento "
+        >?</span>
+      </span>
       <div>
         <input
           type="date"
@@ -128,7 +136,7 @@
       <div class="aging-section-head">
         <div>
           <strong>Aging de Glosas</strong>
-          <span>Tempo entre a sinalização da glosa pelo convênio e a tratativa interna do hospital</span>
+          <span>Tempo entre a data de glosa/pagamento e a data do Recurso/Acato</span>
         </div>
         <div class="aging-summary">
           <span>{{ indicadores.aging_glosas.tratados }} tratados</span>
@@ -140,15 +148,15 @@
       <article class="indicator-panel indicator-panel--wide">
         <div class="indicator-panel-head">
           <strong>
-            Heatmap de Aging
+            Mapa de Calor (Quantidade X Tempo de Avaliação da Glosa)
             <span
               class="help-tip"
               tabindex="0"
               aria-label="Ajuda sobre o cálculo do heatmap"
-              data-tooltip="Mostra a concentração de glosas por faixa de tempo de tratativa. O prazo começa na data em que a glosa foi sinalizada pelo convênio e termina na data em que o hospital registrou o recurso ou o acato. Quando ainda não há tratativa registrada, o cálculo considera a data de hoje. A data de pagamento é usada apenas como referência operacional."
+              data-tooltip="Mostra a concentração de glosas por faixa de tempo de tratativa. O prazo começa na data de glosa/pagamento e termina na data registrou o recurso/acato. Quando ainda não há tratativa registrada, o cálculo considera a data de hoje. "
             >?</span>
           </strong>
-          <span>Quantidade por mês da tratativa</span>
+          <span>Últimos 12 meses</span>
         </div>
         <div class="aging-heatmap">
           <div class="aging-heatmap-months">
@@ -175,12 +183,12 @@
         <article class="indicator-panel">
           <div class="indicator-panel-head">
             <strong>
-              Volume de tratativas internas
+              Quantidade - Tratativas Internas (Recurso/Acato)
               <span
                 class="help-tip"
                 tabindex="0"
                 aria-label="Ajuda sobre o cálculo do volume de tratativas"
-                data-tooltip="Mostra a quantidade mensal de glosas que já tiveram uma ação interna concluída, seja recurso ou acato. Entram apenas registros ativos com data de tratativa preenchida. O mês exibido corresponde ao mês em que a tratativa foi registrada pelo hospital."
+                data-tooltip="Quantidade mensal de glosas tratadas (recurso ou acato). O Mês/Ano corresponde a data de registrado da tratativa."
               >?</span>
             </strong>
             <span>Últimos 12 meses</span>
@@ -205,15 +213,15 @@
         <article class="indicator-panel">
           <div class="indicator-panel-head">
             <strong>
-              Convênios por tratativas
+              Tempo Médio - Tratativas Internas (Recurso/Acato)
               <span
                 class="help-tip"
                 tabindex="0"
                 aria-label="Ajuda sobre o cálculo por convênio"
-                data-tooltip="A barra mostra o tempo médio, em dias, que o hospital levou para tratar as glosas de cada convênio. O cálculo compara a data de sinalização da glosa com a data em que o recurso ou acato foi registrado. A marca vertical vermelha indica o prazo limite cadastrado para aquele convênio."
+                data-tooltip="A barra mostra o tempo médio, em dias, que o setor de glosas levou para tratar as glosas de cada convênio. A marca vertical vermelha indica o prazo limite cadastrado para aquele convênio."
               >?</span>
             </strong>
-            <span>Aging médio x prazo limite</span>
+            <span>Tempo Médio x Prazo Limite</span>
           </div>
           <div class="rank-list rank-list--toggle">
             {% for item in indicadores.aging_glosas.convenio_barras %}
@@ -244,20 +252,20 @@
   <section class="motivos-section">
     <div class="motivos-section-head">
       <div>
-        <strong>Motivos</strong>
-        <span>Motivos que concentram perdas e sua evolução mensal</span>
+        <strong>Motivos de Glosa (Tabela ANS)</strong>
+        <span>Motivos que concentram glosas e sua evolução por período</span>
       </div>
     </div>
     <section class="motivos-grid">
       <article class="indicator-panel">
         <div class="indicator-panel-head">
           <strong>
-            Pareto de Motivos
+            Pareto - Motivos de Glosa (80/20)
             <span
               class="help-tip"
               tabindex="0"
               aria-label="Ajuda sobre o gráfico Pareto de motivos"
-              data-tooltip="Mostra quais motivos concentram o maior valor glosado. As barras representam o valor financeiro de cada motivo. A linha vermelha mostra quanto das perdas já foi acumulado ao somar os motivos da esquerda para a direita. Quando a linha passa de 80%, os motivos até aquele ponto indicam a maior prioridade para planos de ação. Abaixo de cada motivo aparecem o valor glosado e a quantidade de glosas."
+              data-tooltip="Mostra quais motivos concentram o maior peso de valor glosado. As barras representam o valor total de cada motivo. A linha vermelha exibe o percentual acumulado do valor total da esquerda para a direita. Quando a linha passa de 80%, os motivos até aquele ponto indicam a maior prioridade para planos de ação. Abaixo de cada motivo aparecem o valor glosado e a quantidade de glosas."
             >?</span>
           </strong>
           <span>Barras: valor glosado · Linha: % acumulado</span>
@@ -300,15 +308,15 @@
       <article class="indicator-panel">
         <div class="indicator-panel-head">
           <strong>
-            Evolução Mensal dos Motivos
+            Evolução Mensal - Motivos de Glosa (TOP 5)
             <span
               class="help-tip"
               tabindex="0"
               aria-label="Ajuda sobre o gráfico de evolução mensal dos motivos"
-              data-tooltip="Mostra, mês a mês, a quantidade de glosas dos cinco motivos mais frequentes. Cada linha representa um motivo de glosa. Use este gráfico para perceber tendências, como motivos que estão aumentando, diminuindo ou concentrados em um período específico."
+              data-tooltip="Mostra, mês a mês, a quantidade de glosas dos cinco motivos mais frequentes. Cada linha representa um motivo de glosa."
             >?</span>
           </strong>
-          <span>Top 5 por quantidade de glosas · pico {{ indicadores.motivos.max_count }}</span>
+          <!-- <span>Top 5 por quantidade de glosas</span> -->
         </div>
         <div class="motivos-line-chart">
           <div class="motivos-line-plot">
