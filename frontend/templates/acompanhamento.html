@@ -4,7 +4,7 @@
 {% block page_title %}Acompanhamento{% endblock %}
 {% block content %}
 <section
-  class="acompanhamento-page"
+  class="acompanhamento-page {% if modo == 'kanban' %}acompanhamento-page--kanban{% else %}acompanhamento-page--table{% endif %}"
   x-data="{
     draggedCard: null,
     receiving: false,
