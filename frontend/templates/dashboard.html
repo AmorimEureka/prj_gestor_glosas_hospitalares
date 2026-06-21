@@ -13,15 +13,15 @@
     </a>
   </div>
 
-  <form class="indicator-filter-panel" method="get">
+  <form class="indicator-filter-panel" method="get" onsubmit="return window.validateSearchCriteria(this, ['periodo_inicio', 'periodo_fim', 'tratativa', 'convenio', 'prestador', 'tipo_atendimento', 'motivo_glosa']);">
     <div class="indicator-filter-field indicator-filter-field--period">
       <span>
         Período
         <span
           class="help-tip"
           tabindex="0"
-          aria-label="Ajuda sobre o cálculo do heatmap"
-          data-tooltip="Filtro pela Data do Atendimento "
+          aria-label="Ajuda sobre o filtro de período"
+          data-tooltip="Filtra os indicadores pela Data da Glosa. A data inicial e a data final são consideradas no período selecionado."
         >?</span>
       </span>
       <div>
@@ -29,13 +29,13 @@
           type="date"
           name="periodo_inicio"
           value="{{ filtros.periodo_inicio }}"
-          aria-label="Data inicial de atendimento"
+          aria-label="Data inicial da glosa"
         >
         <input
           type="date"
           name="periodo_fim"
           value="{{ filtros.periodo_fim }}"
-          aria-label="Data final de atendimento"
+          aria-label="Data final da glosa"
         >
       </div>
     </div>
@@ -60,14 +60,7 @@
 
     <label class="indicator-filter-field">
       <span>Convênio</span>
-      <input
-        type="search"
-        name="convenio"
-        list="dashboard-convenios"
-        value="{{ filtros.convenio }}"
-        placeholder="Todos"
-        autocomplete="off"
-      >
+      <input type="search" name="convenio" list="dashboard-convenios" class="searchable-combobox" value="{{ filtros.convenio }}" placeholder="Todos" autocomplete="off">
       <datalist id="dashboard-convenios">
         {% for convenio in opcoes_filtro.convenios %}
           <option value="{{ convenio }}"></option>
@@ -77,14 +70,7 @@
 
     <label class="indicator-filter-field">
       <span>Prestador</span>
-      <input
-        type="search"
-        name="prestador"
-        list="dashboard-prestadores"
-        value="{{ filtros.prestador }}"
-        placeholder="Todos"
-        autocomplete="off"
-      >
+      <input type="search" name="prestador" list="dashboard-prestadores" class="searchable-combobox" value="{{ filtros.prestador }}" placeholder="Todos" autocomplete="off">
       <datalist id="dashboard-prestadores">
         {% for prestador in opcoes_filtro.prestadores %}
           <option value="{{ prestador }}"></option>
@@ -94,14 +80,7 @@
 
     <label class="indicator-filter-field">
       <span>Tipo de atendimento</span>
-      <input
-        type="search"
-        name="tipo_atendimento"
-        list="dashboard-tipos-atendimento"
-        value="{{ filtros.tipo_atendimento }}"
-        placeholder="Todos"
-        autocomplete="off"
-      >
+      <input type="search" name="tipo_atendimento" list="dashboard-tipos-atendimento" class="searchable-combobox" value="{{ filtros.tipo_atendimento }}" placeholder="Todos" autocomplete="off">
       <datalist id="dashboard-tipos-atendimento">
         {% for tipo_atendimento in opcoes_filtro.tipos_atendimento %}
           <option value="{{ tipo_atendimento }}"></option>
@@ -111,14 +90,7 @@
 
     <label class="indicator-filter-field">
       <span>Motivo da glosa</span>
-      <input
-        type="search"
-        name="motivo_glosa"
-        list="dashboard-motivos-glosa"
-        value="{{ filtros.motivo_glosa }}"
-        placeholder="Todos"
-        autocomplete="off"
-      >
+      <input type="search" name="motivo_glosa" list="dashboard-motivos-glosa" class="searchable-combobox" value="{{ filtros.motivo_glosa }}" placeholder="Todos" autocomplete="off">
       <datalist id="dashboard-motivos-glosa">
         {% for motivo in opcoes_filtro.motivos_glosa %}
           <option value="{{ motivo }}"></option>
@@ -129,6 +101,9 @@
     <div class="indicator-filter-actions">
       <button type="submit">Filtrar</button>
       <a href="{% url 'dashboard' %}">Limpar</a>
+    </div>
+    <div class="filter-validation-message indicator-filter-validation" data-search-validation hidden role="alert">
+      Informe pelo menos um critério para realizar a pesquisa.
     </div>
   </form>
 
@@ -189,7 +164,6 @@
               data-tooltip="Cada bolha representa um motivo de glosa. O eixo horizontal mostra o valor glosado, o eixo vertical mostra a taxa de recuperação e o tamanho indica o valor recuperado."
             >?</span>
           </strong>
-          <span>Média: {{ indicadores.recuperacao.media_valor_glosado_formatado }} · {{ indicadores.recuperacao.media_taxa_recuperacao }}%</span>
         </div>
         <div class="recovery-scatter">
           <div class="recovery-zone recovery-zone--baixa" style="right: calc(100% - {{ indicadores.recuperacao.media_valor_glosado_pct }}%); bottom: calc(100% - {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%);">
@@ -225,7 +199,7 @@
               type="button"
               class="recovery-bubble recovery-bubble--{{ item.quadrant_key }}"
               style="left: {{ item.x_pct_css }}%; top: {{ item.y_pct_css }}%; --bubble-size: {{ item.bubble_size }}px;"
-              title="{{ item.tooltip }}"
+              data-chart-tooltip="{{ item.tooltip }}"
               aria-label="{{ item.tooltip }}"
             >
               <span class="recovery-point-label recovery-point-label--{{ item.label_side }} recovery-point-label--{{ item.label_flow }}">
@@ -248,34 +222,130 @@
         <div class="indicator-panel-head">
           <strong data-recovery-title>Valor Recuperado por Convênio</strong>
           <div class="metric-toggle" role="group" aria-label="Alternar visão de recuperação por convênio">
+            <button type="button" data-recovery-mode-button="recursado">Valor Recursado</button>
             <button type="button" class="is-active" data-recovery-mode-button="valor">Valor Recuperado</button>
-            <button type="button" data-recovery-mode-button="taxa">Taxa de Recuperação</button>
+            <button type="button" data-recovery-mode-button="sucesso">Sucesso do Recurso</button>
           </div>
         </div>
         <div class="recovery-bars is-active" data-recovery-mode="valor">
           {% for item in indicadores.recuperacao.convenio_valor %}
-            <div class="recovery-bar-row" title="{{ item.tooltip }}">
+            <div class="recovery-bar-row" data-chart-tooltip="{{ item.tooltip }}">
               <span>{{ item.label }}</span>
-              <div><i style="width: {{ item.bar_width }}%"></i></div>
+              <div><i style="width: {{ item.value_bar_width }}%"></i></div>
               <strong>{{ item.valor_recuperado_formatado }}</strong>
             </div>
           {% empty %}
             <p class="empty-state">Nenhum convênio com recuperação registrado.</p>
           {% endfor %}
         </div>
-        <div class="recovery-bars" data-recovery-mode="taxa">
-          {% for item in indicadores.recuperacao.convenio_taxa %}
-            <div class="recovery-bar-row" title="{{ item.tooltip }}">
+        <div class="recovery-bars" data-recovery-mode="recursado">
+          {% for item in indicadores.recuperacao.convenio_recursado %}
+            <div class="recovery-bar-row" data-chart-tooltip="{{ item.tooltip }}">
               <span>{{ item.label }}</span>
-              <div><i style="width: {{ item.bar_width }}%"></i></div>
-              <strong>{{ item.taxa_recuperacao }}%</strong>
+              <div><i style="width: {{ item.resource_bar_width }}%"></i></div>
+              <strong>{{ item.valor_recursado_formatado }}</strong>
             </div>
           {% empty %}
-            <p class="empty-state">Nenhum convênio com recuperação registrado.</p>
+            <p class="empty-state">Nenhum convênio com recurso registrado.</p>
+          {% endfor %}
+        </div>
+        <div class="recovery-bars" data-recovery-mode="sucesso">
+          {% for item in indicadores.recuperacao.convenio_sucesso %}
+            <div class="recovery-bar-row" data-chart-tooltip="{{ item.tooltip }}">
+              <span>{{ item.label }}</span>
+              <div><i style="width: {{ item.success_bar_width }}%"></i></div>
+              <strong>{{ item.taxa_sucesso_recurso }}%</strong>
+            </div>
+          {% empty %}
+            <p class="empty-state">Nenhum convênio com recurso registrado.</p>
           {% endfor %}
         </div>
       </article>
     </section>
+
+    <article class="indicator-panel recovery-trend-panel">
+      <div class="indicator-panel-head recovery-trend-head">
+        <strong>
+          Evolução Mensal da Recuperação
+          <span
+            class="help-tip help-tip--below"
+            tabindex="0"
+            aria-label="Ajuda sobre a evolução mensal da recuperação"
+            data-tooltip="Compara mensalmente o valor recursado, o valor recuperado e a taxa de sucesso financeira. A competência corresponde à data da glosa; assim, o valor recuperado é associado ao mesmo grupo de recursos que originou o valor recursado. As séries financeiras usam escala logarítmica para preservar a leitura dos meses menores mesmo quando existe um pico muito alto."
+          >?</span>
+        </strong>
+        <div class="recovery-trend-summary">
+          <span>Recursado <b>{{ indicadores.recuperacao.mensal.total_recursado_formatado }}</b></span>
+          <span>Recuperado <b>{{ indicadores.recuperacao.mensal.total_recuperado_formatado }}</b></span>
+          <span>Sucesso <b>{{ indicadores.recuperacao.mensal.taxa_sucesso }}%</b></span>
+        </div>
+      </div>
+      <div class="recovery-trend-legend" aria-label="Legenda do gráfico">
+        <span class="is-recursado"><i></i>Valor recursado</span>
+        <span class="is-recuperado"><i></i>Valor recuperado</span>
+        <span class="is-sucesso"><i></i>Taxa de sucesso</span>
+        <em>Valores em escala logarítmica</em>
+      </div>
+      <div class="recovery-trend-scroll">
+        <div class="recovery-trend-chart">
+          <div class="recovery-trend-y-axis recovery-trend-y-axis--value" aria-label="Escala de valores">
+            {% for tick in indicadores.recuperacao.mensal.value_ticks %}
+              <span>{{ tick }}</span>
+            {% endfor %}
+          </div>
+          <div class="recovery-trend-canvas" data-recovery-trend-canvas>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Evolução mensal dos valores recursado e recuperado e da taxa de sucesso">
+              <polyline class="recovery-trend-line recovery-trend-line--recursado" points="{{ indicadores.recuperacao.mensal.recursado_points }}"></polyline>
+              <polyline class="recovery-trend-line recovery-trend-line--recuperado" points="{{ indicadores.recuperacao.mensal.recuperado_points }}"></polyline>
+              <polyline class="recovery-trend-line recovery-trend-line--sucesso" points="{{ indicadores.recuperacao.mensal.sucesso_points }}"></polyline>
+            </svg>
+            <div class="recovery-trend-extrema-layer">
+              {% for point in indicadores.recuperacao.mensal.extrema %}
+                <span
+                  class="recovery-trend-extrema recovery-trend-extrema--{{ point.series }} recovery-trend-extrema--{{ point.label_flow }}"
+                  style="left: {{ point.x }}%; top: {{ point.y }}%;"
+                  aria-label="{{ point.series }} em {{ point.month }}: {{ point.label }}"
+                ><i></i><b>{{ point.label }}</b></span>
+              {% endfor %}
+            </div>
+            <div class="recovery-trend-hover-points" aria-hidden="true">
+              {% for point in indicadores.recuperacao.mensal.points %}
+                <i
+                  data-recovery-trend-point
+                  data-x="{{ point.x }}"
+                  data-recursado-y="{{ point.recursado_y }}"
+                  data-recuperado-y="{{ point.recuperado_y }}"
+                  data-sucesso-y="{{ point.sucesso_y }}"
+                  data-month="{{ point.label }}"
+                  data-recursado="{{ point.valor_recursado_formatado }}"
+                  data-recuperado="{{ point.valor_recuperado_formatado }}"
+                  data-sucesso="{{ point.taxa_sucesso }}%"
+                  data-qtd-recursada="{{ point.qtd_recursada }}"
+                  data-qtd-recuperada="{{ point.qtd_recuperada }}"
+                ></i>
+              {% endfor %}
+            </div>
+            <div class="recovery-trend-tooltip" data-recovery-trend-tooltip hidden>
+              <strong data-tooltip-month></strong>
+              <span><i class="is-recursado"></i>Recursado <b data-tooltip-recursado></b></span>
+              <span><i class="is-recuperado"></i>Recuperado <b data-tooltip-recuperado></b></span>
+              <span><i class="is-sucesso"></i>Sucesso <b data-tooltip-sucesso></b></span>
+              <small data-tooltip-quantities></small>
+            </div>
+          </div>
+          <div class="recovery-trend-y-axis recovery-trend-y-axis--rate" aria-label="Escala percentual">
+            {% for tick in indicadores.recuperacao.mensal.rate_ticks %}
+              <span>{{ tick }}</span>
+            {% endfor %}
+          </div>
+          <div class="recovery-trend-months" aria-hidden="true">
+            {% for month in indicadores.recuperacao.mensal.months %}
+              <span>{{ month }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </article>
   </section>
 
   <section class="aging-section">
@@ -300,7 +370,7 @@
               class="help-tip"
               tabindex="0"
               aria-label="Ajuda sobre o cálculo do heatmap"
-              data-tooltip="Mostra a concentração de glosas por faixa de tempo de tratativa. O prazo começa na data de glosa/pagamento e termina na data registrou o recurso/acato. Quando ainda não há tratativa registrada, o cálculo considera a data de hoje. "
+              data-tooltip="Mostra a concentração das glosas com tratativa interna registrada (recurso ou acato), por faixa de tempo. Glosas em aberto não participam do cálculo. A competência (Mês/Ano) corresponde à data da glosa. O prazo começa na data da glosa e termina na data em que foi registrado o recurso/acato."
             >?</span>
           </strong>
           <span>Últimos 12 meses</span>
@@ -318,7 +388,7 @@
               {% for cell in row.cells %}
                 <b
                 class="heatmap-cell heatmap-cell--{{ cell.intensity_level }}"
-                title="Competência: {{ cell.label }}
+                data-chart-tooltip="Competência: {{ cell.label }}
 Quantidade: {{ cell.count }}
 Valor glosado: {{ cell.value_formatado }}
 Aging médio: {{ cell.aging_medio }} dias
@@ -340,7 +410,7 @@ Fora do prazo: {{ cell.fora }}"
                 class="help-tip"
                 tabindex="0"
                 aria-label="Ajuda sobre o cálculo do volume de tratativas"
-                data-tooltip="Quantidade mensal de glosas tratadas (recurso ou acato). O Mês/Ano corresponde a data de registrado da tratativa."
+                data-tooltip="Quantidade mensal de glosas tratadas (recurso ou acato). A competência (Mês/Ano) corresponde à data da glosa."
               >?</span>
             </strong>
             <span>Últimos 12 meses</span>
@@ -350,7 +420,7 @@ Fora do prazo: {{ cell.fora }}"
               <div
                 class="aging-line-point"
                 style="--height: {{ item.bar_height }}px;"
-                title="Faixa: {{ item.label }}
+                data-chart-tooltip="Competência: {{ item.label }}
 Quantidade: {{ item.count }}
 Valor glosado tratado: {{ item.value_formatado }}
 Aging médio: {{ item.aging_medio }} dias
@@ -389,7 +459,8 @@ Fora do prazo: {{ item.fora_pct }}%"
                   {% if item.dias_para_recurso %}
                     <em
                       style="left: {{ item.prazo_marker_width }}%;"
-                      title="Prazo para recurso: {{ item.dias_para_recurso }} dias"
+                      data-chart-tooltip="Convênio: {{ item.label }}
+Prazo para recurso: {{ item.dias_para_recurso }} dias"
                     >{{ item.dias_para_recurso }}</em>
                   {% else %}
                     <small>Sem prazo</small>
@@ -422,12 +493,12 @@ Fora do prazo: {{ item.fora_pct }}%"
               class="help-tip"
               tabindex="0"
               aria-label="Ajuda sobre o gráfico Pareto de motivos"
-              data-tooltip="Mostra quais motivos concentram o maior peso de valor glosado. As barras representam o valor total de cada motivo. A linha vermelha exibe o percentual acumulado do valor total da esquerda para a direita. Quando a linha passa de 80%, os motivos até aquele ponto indicam a maior prioridade para planos de ação. Abaixo de cada motivo aparecem o valor glosado e a quantidade de glosas."
+              data-tooltip="Mostra quais motivos concentram o maior peso de valor glosado. As barras representam o valor total de cada motivo. A linha vermelha exibe o percentual acumulado do valor total da esquerda para a direita. São exibidos motivos individuais até atingir 80%; os demais são agrupados em Outros. Passe o cursor sobre essa barra para ver os percentuais detalhados."
             >?</span>
           </strong>
           <span>Barras: valor glosado · Linha: % acumulado</span>
         </div>
-        <div class="pareto-combo">
+        <div class="pareto-combo {% if indicadores.motivos.pareto_count > 8 %}is-scrollable{% endif %}" style="--pareto-count: {{ indicadores.motivos.pareto_count }};">
           <div class="pareto-combo-plot">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <line x1="0" y1="24.8" x2="100" y2="24.8"></line>
@@ -439,12 +510,13 @@ Fora do prazo: {{ item.fora_pct }}%"
                 <span
                   class="pareto-accumulated-label {% if forloop.last %}is-edge-end{% endif %}"
                   style="left: {{ point.left_css }}%; top: {{ point.top_css }}%;"
-                  title="% acumulado: {{ point.value }}%"
+                      data-chart-tooltip="Pareto acumulado
+Percentual: {{ point.value }}%"
                 ><i></i><b>{{ point.value }}%</b></span>
               {% endfor %}
             </div>
             {% for item in indicadores.motivos.pareto %}
-              <div class="pareto-combo-column {% if item.is_cut %}is-cut{% endif %}">
+              <div class="pareto-combo-column {% if item.is_cut %}is-cut{% endif %} {% if item.is_other %}is-other{% endif %}" data-chart-tooltip="{{ item.tooltip }}">
                 <b>{{ item.share_pct }}%</b>
                 <i style="height: {{ item.bar_height }}%"></i>
               </div>
@@ -452,7 +524,9 @@ Fora do prazo: {{ item.fora_pct }}%"
           </div>
           <div class="pareto-combo-axis">
             {% for item in indicadores.motivos.pareto %}
-              <span title="{{ item.label }}">
+              <span data-chart-tooltip="Motivo da glosa: {{ item.label }}
+Valor glosado: {{ item.value_formatado }}
+Quantidade: {{ item.count }}">
                 <em>{{ item.label }}</em>
                 <strong>{{ item.value_formatado }}</strong>
                 <b>{{ item.count }} glosa{% if item.count != 1 %}s{% endif %}</b>
@@ -485,9 +559,8 @@ Fora do prazo: {{ item.fora_pct }}%"
             <div class="motivos-line-canvas">
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Evolução mensal dos cinco principais motivos de glosa por quantidade">
                 {% for serie in indicadores.motivos.series %}
-                  <polyline points="{{ serie.points }}" style="--line-color: {{ serie.color }}">
-                    <title>{{ serie.label }}</title>
-                  </polyline>
+                  <polyline points="{{ serie.points }}" style="--line-color: {{ serie.color }}" data-chart-tooltip="Motivo da glosa: {{ serie.label }}
+Quantidade total: {{ serie.total }}"></polyline>
                 {% endfor %}
               </svg>
             </div>
@@ -513,6 +586,10 @@ Fora do prazo: {{ item.fora_pct }}%"
   </section>
 
 </section>
+<div class="chart-tooltip" data-chart-tooltip-layer hidden role="tooltip">
+  <strong data-chart-tooltip-title></strong>
+  <div data-chart-tooltip-body></div>
+</div>
 <script>
   (() => {
     const rectRelativeTo = (element, containerRect) => {
@@ -632,12 +709,186 @@ Fora do prazo: {{ item.fora_pct }}%"
       });
     };
 
+    const layoutRecoveryTrendLabels = () => {
+      document.querySelectorAll('[data-recovery-trend-canvas]').forEach((canvas) => {
+        const canvasRect = canvas.getBoundingClientRect();
+        const labels = [...canvas.querySelectorAll('.recovery-trend-extrema b')];
+        labels.forEach((label) => {
+          label.style.transform = '';
+        });
+        labels.sort((first, second) => {
+          const firstMarker = first.closest('.recovery-trend-extrema');
+          const secondMarker = second.closest('.recovery-trend-extrema');
+          return firstMarker.getBoundingClientRect().left - secondMarker.getBoundingClientRect().left;
+        });
+
+        const occupied = [];
+        labels.forEach((label) => {
+          const marker = label.closest('.recovery-trend-extrema');
+          const prefersDown = marker.classList.contains('recovery-trend-extrema--down');
+          let rect = label.getBoundingClientRect();
+          let shiftX = 0;
+          if (rect.left < canvasRect.left + 4) {
+            shiftX += canvasRect.left + 4 - rect.left;
+          }
+          if (rect.right + shiftX > canvasRect.right - 4) {
+            shiftX -= rect.right + shiftX - (canvasRect.right - 4);
+          }
+
+          const direction = prefersDown ? 1 : -1;
+          const candidates = [0, 20 * direction, -20 * direction, 40 * direction, -40 * direction, 60 * direction, -60 * direction, 80 * direction, -80 * direction, 100 * direction, -100 * direction];
+          let selectedShiftY = 0;
+          let bestCollisionArea = Number.POSITIVE_INFINITY;
+          for (const shiftY of candidates) {
+            label.style.transform = `translate(calc(-50% + ${shiftX}px), ${shiftY}px)`;
+            rect = label.getBoundingClientRect();
+            const inside = rect.top >= canvasRect.top + 4 && rect.bottom <= canvasRect.bottom - 4;
+            if (!inside) continue;
+            const collisionArea = occupied.reduce(
+              (total, item) => total + intersectionArea(rect, item, 3),
+              0,
+            );
+            if (collisionArea < bestCollisionArea) {
+              selectedShiftY = shiftY;
+              bestCollisionArea = collisionArea;
+            }
+            if (collisionArea === 0) {
+              break;
+            }
+          }
+          label.style.transform = `translate(calc(-50% + ${shiftX}px), ${selectedShiftY}px)`;
+          occupied.push(label.getBoundingClientRect());
+        });
+      });
+    };
+
+    const setupRecoveryTrendHover = () => {
+      document.querySelectorAll('[data-recovery-trend-canvas]').forEach((canvas) => {
+        const points = [...canvas.querySelectorAll('[data-recovery-trend-point]')];
+        const tooltip = canvas.querySelector('[data-recovery-trend-tooltip]');
+        if (!points.length || !tooltip) return;
+
+        const hideTooltip = () => {
+          tooltip.hidden = true;
+        };
+        canvas.addEventListener('mouseleave', hideTooltip);
+        canvas.addEventListener('mousemove', (event) => {
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = ((event.clientX - rect.left) / rect.width) * 100;
+          const nearestPoint = points.reduce((nearest, point) => (
+            Math.abs(Number(point.dataset.x) - mouseX)
+              < Math.abs(Number(nearest.dataset.x) - mouseX)
+              ? point
+              : nearest
+          ));
+          const series = [
+            ['recursado', Number(nearestPoint.dataset.recursadoY)],
+            ['recuperado', Number(nearestPoint.dataset.recuperadoY)],
+            ['sucesso', Number(nearestPoint.dataset.sucessoY)],
+          ];
+          const nearestSeries = series.reduce((nearest, current) => {
+            const currentY = rect.top + ((current[1] / 100) * rect.height);
+            const nearestY = rect.top + ((nearest[1] / 100) * rect.height);
+            return Math.abs(event.clientY - currentY) < Math.abs(event.clientY - nearestY)
+              ? current
+              : nearest;
+          });
+          const seriesY = rect.top + ((nearestSeries[1] / 100) * rect.height);
+          if (Math.abs(event.clientY - seriesY) > 18) {
+            hideTooltip();
+            return;
+          }
+
+          tooltip.querySelector('[data-tooltip-month]').textContent = nearestPoint.dataset.month;
+          tooltip.querySelector('[data-tooltip-recursado]').textContent = nearestPoint.dataset.recursado;
+          tooltip.querySelector('[data-tooltip-recuperado]').textContent = nearestPoint.dataset.recuperado;
+          tooltip.querySelector('[data-tooltip-sucesso]').textContent = nearestPoint.dataset.sucesso;
+          tooltip.querySelector('[data-tooltip-quantities]').textContent = `Quantidade: ${nearestPoint.dataset.qtdRecursada} recursada · ${nearestPoint.dataset.qtdRecuperada} recuperada`;
+          tooltip.dataset.activeSeries = nearestSeries[0];
+          tooltip.hidden = false;
+
+          const pointX = (Number(nearestPoint.dataset.x) / 100) * rect.width;
+          const pointY = (nearestSeries[1] / 100) * rect.height;
+          const tooltipRect = tooltip.getBoundingClientRect();
+          const left = Math.min(
+            Math.max(pointX - (tooltipRect.width / 2), 8),
+            rect.width - tooltipRect.width - 8,
+          );
+          const above = pointY - tooltipRect.height - 16;
+          tooltip.style.left = `${left}px`;
+          tooltip.style.top = `${above >= 8 ? above : pointY + 16}px`;
+        });
+      });
+    };
+
+    const setupChartTooltips = () => {
+      const tooltip = document.querySelector('[data-chart-tooltip-layer]');
+      if (!tooltip) return;
+      const title = tooltip.querySelector('[data-chart-tooltip-title]');
+      const body = tooltip.querySelector('[data-chart-tooltip-body]');
+
+      const positionTooltip = (clientX, clientY) => {
+        const margin = 10;
+        const offset = 14;
+        const rect = tooltip.getBoundingClientRect();
+        let left = clientX + offset;
+        let top = clientY + offset;
+        if (left + rect.width > window.innerWidth - margin) {
+          left = clientX - rect.width - offset;
+        }
+        if (top + rect.height > window.innerHeight - margin) {
+          top = clientY - rect.height - offset;
+        }
+        tooltip.style.left = `${Math.max(margin, left)}px`;
+        tooltip.style.top = `${Math.max(margin, top)}px`;
+      };
+
+      const showTooltip = (element, event) => {
+        const lines = String(element.dataset.chartTooltip || '')
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (!lines.length) return;
+        title.textContent = lines.shift();
+        body.replaceChildren();
+        lines.forEach((line) => {
+          const row = document.createElement('span');
+          const separator = line.indexOf(':');
+          if (separator > 0) {
+            const label = document.createElement('i');
+            const value = document.createElement('b');
+            label.textContent = line.slice(0, separator);
+            value.textContent = line.slice(separator + 1).trim();
+            row.append(label, value);
+          } else {
+            row.textContent = line;
+          }
+          body.appendChild(row);
+        });
+        tooltip.hidden = false;
+        positionTooltip(event.clientX, event.clientY);
+      };
+
+      document.querySelectorAll('[data-chart-tooltip]').forEach((element) => {
+        element.addEventListener('mouseenter', (event) => showTooltip(element, event));
+        element.addEventListener('mousemove', (event) => positionTooltip(event.clientX, event.clientY));
+        element.addEventListener('mouseleave', () => {
+          tooltip.hidden = true;
+        });
+      });
+    };
+
     let layoutFrame;
     const scheduleRecoveryLayout = () => {
       window.cancelAnimationFrame(layoutFrame);
-      layoutFrame = window.requestAnimationFrame(layoutRecoveryLabels);
+      layoutFrame = window.requestAnimationFrame(() => {
+        layoutRecoveryLabels();
+        layoutRecoveryTrendLabels();
+      });
     };
 
+    setupRecoveryTrendHover();
+    setupChartTooltips();
     scheduleRecoveryLayout();
     window.addEventListener('resize', scheduleRecoveryLayout);
     if (document.fonts?.ready) {
@@ -649,8 +900,9 @@ Fora do prazo: {{ item.fora_pct }}%"
       const buttons = panel.querySelectorAll('[data-recovery-mode-button]');
       const views = panel.querySelectorAll('[data-recovery-mode]');
       const titles = {
+        recursado: 'Valor Recursado por Convênio',
         valor: 'Valor Recuperado por Convênio',
-        taxa: 'Taxa de Recuperação por Convênio',
+        sucesso: 'Taxa de Sucesso do Recurso por Convênio',
       };
 
       buttons.forEach((button) => {

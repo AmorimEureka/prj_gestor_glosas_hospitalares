@@ -4,14 +4,30 @@
 {% block page_title %}Triagem{% endblock %}
 {% block content %}
 
-<datalist id="tiss-motivos">
+<datalist id="tiss-motivo-options">
   {% for motivo in tiss_motivos %}
-  <option value="{{ motivo.codigo_termo }} - {{ motivo.termo }}"></option>
+    <option value="{{ motivo.codigo_termo }} - {{ motivo.termo }}">{{ motivo.codigo_termo }} - {{ motivo.termo }}</option>
   {% endfor %}
 </datalist>
 
-<section class="panel filter-panel" x-data="{ loading: false }">
-  <form class="remessa-filters" method="get" @submit="loading = true">
+<section class="panel filter-panel" x-data="{
+  loading: false,
+  searchError: false,
+  submitSearch(event) {
+    const formData = new FormData(event.currentTarget);
+    const fields = ['cd_remessa', 'cd_atendimento', 'cd_reg', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
+    const hasCriteria = fields.some((field) => String(formData.get(field) || '').trim());
+    if (!hasCriteria) {
+      event.preventDefault();
+      this.loading = false;
+      this.searchError = true;
+      return;
+    }
+    this.searchError = false;
+    this.loading = true;
+  }
+}">
+  <form class="remessa-filters" method="get" @submit="submitSearch($event)" @input="searchError = false" @change="searchError = false">
     <div class="filter-row">
       <div class="filter-group">
         <label>Remessa</label>
@@ -54,6 +70,9 @@
         <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
       </div>
     </div>
+    <div class="filter-validation-message" x-show="searchError" x-cloak role="alert">
+      Informe pelo menos um critério para realizar a pesquisa.
+    </div>
     <div class="filter-loading" x-show="loading" x-cloak aria-live="polite">
       <span class="filter-loading-spinner" aria-hidden="true"></span>
       <span>Consultando contas faturadas...</span>
@@ -66,11 +85,11 @@
     <div class="results-heading">
       <div>
         <span class="panel-title">Contas faturadas</span>
-        {% if request.GET and pagination.total %}
+        {% if pesquisa_executada and pagination.total %}
         <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} pacientes exibidos</span>
         {% endif %}
       </div>
-      {% if request.GET %}
+      {% if pesquisa_executada %}
       <div class="collapse-actions">
         <button
           type="button"
@@ -86,7 +105,7 @@
       {% endif %}
     </div>
 
-    {% if request.GET %}
+    {% if pesquisa_executada %}
     <div class="results-toolbar">
       <div class="results-totals">
         <span class="result-total">
@@ -140,7 +159,7 @@
       <p>Não foi possível consultar as contas no momento. Informe à TI para verificar a disponibilidade do banco de dados da API.</p>
     </div>
   </div>
-  {% elif request.GET %}
+  {% elif pesquisa_executada %}
   <div class="results-list">
     {% for grupo in grupos %}
     <div class="pac-card" x-data="{ open: false }" @expand-results-level-1.window="open = true" @collapse-all-results.window="open = false">
@@ -162,7 +181,7 @@
 
       <div class="pac-body" x-show="open">
         {% for rem in grupo.remessas %}
-        <div class="rem-block" x-data="{ remOpen: {% if grupo.num_remessas > 1 %}false{% else %}true{% endif %} }" @expand-results-level-2.window="remOpen = true" @collapse-all-results.window="remOpen = false">
+        <div class="rem-block" x-data="{ remOpen: false }" @expand-results-level-2.window="remOpen = true" @collapse-all-results.window="remOpen = false">
           <button class="rem-header" @click="remOpen = !remOpen" :aria-expanded="remOpen">
             <span class="rem-chevron" :class="{ 'rem-chevron--open': remOpen }">&#9654;</span>
             <span class="rem-title">Remessa <strong>#{{ rem.cd_remessa }}</strong></span>
@@ -201,6 +220,7 @@
                           <col class="account-col-procedimento">
                           <col class="account-col-descricao">
                           <col class="account-col-guia">
+                          <col class="account-col-alta">
                           <col class="account-col-lancamento">
                           <col class="account-col-tipo">
                           <col class="account-col-qtd">
@@ -214,6 +234,7 @@
                             <th>Procedimento</th>
                             <th class="col-desc">Descricao</th>
                             <th>Guia</th>
+                            <th>Data da alta</th>
                             <th>DT Lanç.</th>
                             <th>Tipo Atendimento</th>
                             <th class="account-col-label-qtd">Qtd Lanç.</th>
@@ -253,6 +274,7 @@
                         <td><span class="badge-proc">{{ conta.cd_pro_fat|default:"-" }}</span></td>
                         <td class="col-desc">{{ conta.descricao|default:"-" }}</td>
                         <td class="cell-mono">{{ conta.nr_guia|default:"-" }}</td>
+                        <td class="cell-mono">{{ conta.dt_alta_formatada|default:"-" }}</td>
                         <td class="cell-mono">{{ conta.hr_lancamento_formatada|default:"-" }}</td>
                         <td>{{ conta.tp_atendimento|default:"-" }}</td>
                         <td class="cell-mono cell-center">{{ conta.qt_lancamento|default:"-" }}</td>
@@ -302,19 +324,19 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo / N Controle / N Fatura / N GAB (Processo Original)</label>
-                                        <input name="processo_controle_fatura_gab" class="form-control" value="{{ conta.registro_glosa.processo_controle_fatura_gab|default:'' }}" placeholder="Informe o identificador usado pelo convenio">
+                                        <input name="processo_controle_fatura_gab" class="form-control" value="{{ conta.registro_glosa.processo_controle_fatura_gab|default:'' }}" placeholder="Informe o identificador usado pelo convenio" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Data da glosa</label>
-                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_glosa.data_glosa_input|default:'' }}">
+                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_glosa.data_glosa_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt pagamento</label>
-                                        <input type="date" name="dt_pagamento" class="form-control" value="{{ conta.registro_glosa.dt_pagamento_input|default:'' }}">
+                                        <input type="date" name="dt_pagamento" class="form-control" value="{{ conta.registro_glosa.dt_pagamento_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Motivo da glosa</label>
-                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" value="{{ conta.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite codigo ou termo TISS">
+                                        <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ conta.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
                                       </div>
                                     </div>
                                   </section>
@@ -323,19 +345,19 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
-                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
+                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso</label>
-                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_glosa.dt_recurso_input|default:'' }}">
+                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_glosa.dt_recurso_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Qtd glosada</label>
-                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_glosa.qtd_glosada_input|default:'' }}" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                        <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_glosa.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Valor glosado</label>
-                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" x-model="valorGlosado" @input="valorGlosado = $event.target.value; formatValorGlosado()">
+                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorGlosado" required @input="valorGlosado = $event.target.value; formatValorGlosado()">
                                       </div>
                                       <div class="glosa-field glosa-field--full">
                                         <label>Descricao</label>
@@ -396,19 +418,19 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo / N Controle / N Fatura / N GAB (Processo Original)</label>
-                                        <input name="processo_controle_fatura_gab" class="form-control" value="{{ conta.registro_glosa.processo_controle_fatura_gab|default:'' }}" placeholder="Informe o identificador usado pelo convenio">
+                                        <input name="processo_controle_fatura_gab" class="form-control" value="{{ conta.registro_glosa.processo_controle_fatura_gab|default:'' }}" placeholder="Informe o identificador usado pelo convenio" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Data da glosa</label>
-                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_glosa.data_glosa_input|default:'' }}">
+                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_glosa.data_glosa_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt pagamento</label>
-                                        <input type="date" name="dt_pagamento" class="form-control" value="{{ conta.registro_glosa.dt_pagamento_input|default:'' }}">
+                                        <input type="date" name="dt_pagamento" class="form-control" value="{{ conta.registro_glosa.dt_pagamento_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Motivo da glosa</label>
-                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" value="{{ conta.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite codigo ou termo TISS">
+                                        <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ conta.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
                                       </div>
                                     </div>
                                   </section>
@@ -417,19 +439,19 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
-                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
+                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso</label>
-                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_glosa.dt_recurso_input|default:'' }}">
+                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_glosa.dt_recurso_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Qtd glosada</label>
-                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_glosa.qtd_glosada_input|default:'' }}" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                        <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_glosa.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Valor glosado</label>
-                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" x-model="valorAcatado" @input="valorAcatado = $event.target.value; formatValorAcatado()">
+                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorAcatado" required @input="valorAcatado = $event.target.value; formatValorAcatado()">
                                       </div>
                                       <div class="glosa-field glosa-field--full">
                                         <label>Descricao</label>
@@ -489,4 +511,7 @@
     </div>
     {% endif %}
   {% endif %}
+  <script>
+    window.triagemExpandLevel = 0;
+  </script>
 {% endblock %}

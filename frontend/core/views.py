@@ -17,6 +17,7 @@ TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
 PRAZOS_RECURSO_CONVENIO_PATH = "/app_glosas/prazos-recurso-convenio"
 DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
 DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
+DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = "acompanhamento:registros-glosa"
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 
@@ -491,6 +492,10 @@ def build_acompanhamento_cards(rows):
         oldest_item = min(itens, key=bucket_reference_date)
         bucket_key = "recebidas" if all_received else age_bucket(oldest_item)
         total_recurso = sum(item["valor_recurso"] for item in itens)
+        valor_recebimento_maximo = min(
+            (item["valor_recurso"] for item in itens),
+            default=0,
+        )
         total_recebido = sum(
             as_float_or_zero(item.get("valor_recebido")) for item in itens
         )
@@ -510,6 +515,9 @@ def build_acompanhamento_cards(rows):
                     item.get("processo_recurso") for item in itens
                 ),
                 "remessas": unique_join(item.get("cd_remessa") for item in itens),
+                "atendimentos": unique_join(
+                    item.get("cd_atendimento") for item in itens
+                ),
                 "datas_glosa": unique_join(
                     item.get("data_glosa_formatada") for item in itens
                 ),
@@ -518,6 +526,7 @@ def build_acompanhamento_cards(rows):
                 "qtd_total": qtd,
                 "valor_total": total,
                 "valor_recurso_total": total_recurso,
+                "valor_recebimento_maximo": valor_recebimento_maximo,
                 "valor_recebido_total": total_recebido,
                 "valor_total_formatado": format_brl_input(total),
                 "itens": itens,
@@ -627,6 +636,7 @@ def build_registro_glosa_payload(data):
         "data_glosa": data.get("data_glosa") or None,
         "motivo_glosa": data.get("motivo_glosa") or "",
         "descricao_glosa": data.get("descricao_glosa") or "",
+        "qtd_registro": as_float_or_none(data.get("qt_lancamento")),
         "qtd_glosada": as_int_or_none(data.get("qtd_glosada")),
         "valor_glosado": as_float_or_none(data.get("valor_glosado")),
         "dt_recurso": data.get("dt_recurso") or None,
@@ -644,6 +654,10 @@ def is_active_registro(registro):
 
 def is_recurso_registro(registro):
     return normalize_flag(registro.get("sn_glosado")) in {"true", "sim", "s", "1"}
+
+
+def has_internal_treatment(registro):
+    return bool(registro.get("processo_recurso") and registro.get("dt_recurso"))
 
 
 def is_acato_registro(registro):
@@ -739,7 +753,7 @@ def normalize_motivo_label(value):
     return text
 
 
-def build_motivos_indicators(rows, pareto_limit=8, series_limit=5):
+def build_motivos_indicators(rows, series_limit=5):
     motivo_groups = {}
     for registro in rows:
         label = normalize_motivo_label(registro.get("motivo_glosa"))
@@ -747,12 +761,40 @@ def build_motivos_indicators(rows, pareto_limit=8, series_limit=5):
         current["count"] += 1
         current["value"] += registro_valor_glosado(registro)
 
-    pareto_items = sorted(
+    sorted_pareto_items = sorted(
         motivo_groups.values(),
         key=lambda item: (item["value"], item["count"]),
         reverse=True,
-    )[:pareto_limit]
+    )
     total_value = sum(item["value"] for item in motivo_groups.values())
+    pareto_items = []
+    priority_value = 0
+    for item in sorted_pareto_items:
+        pareto_items.append(dict(item))
+        priority_value += item["value"]
+        if percent_value(priority_value, total_value) >= 80:
+            break
+
+    remaining_items = sorted_pareto_items[len(pareto_items):]
+    if remaining_items:
+        other_value = sum(item["value"] for item in remaining_items)
+        other_details = [
+            (
+                f"{item['label']}: "
+                f"{percent_value(item['value'], total_value)}%"
+            )
+            for item in remaining_items
+        ]
+        pareto_items.append(
+            {
+                "label": "Outros",
+                "count": sum(item["count"] for item in remaining_items),
+                "value": other_value,
+                "is_other": True,
+                "tooltip": "Outros motivos:\n" + "\n".join(other_details),
+            }
+        )
+
     max_value = max((item["value"] for item in pareto_items), default=0)
     accumulated = 0
     pareto = []
@@ -774,6 +816,8 @@ def build_motivos_indicators(rows, pareto_limit=8, series_limit=5):
                 "accumulated_pct": accumulated_pct,
                 "marker_left": percent_int(accumulated_pct, 100),
                 "is_cut": pareto_cut_index == index,
+                "is_other": item.get("is_other", False),
+                "tooltip": item.get("tooltip", item["label"]),
             }
         )
     point_count = max(len(pareto) - 1, 1)
@@ -895,6 +939,7 @@ def build_motivos_indicators(rows, pareto_limit=8, series_limit=5):
         "pareto_accumulated_labels": pareto_accumulated_labels,
         "pareto_total_formatado": format_brl_input(total_value),
         "pareto_cut_index": pareto_cut_index or 0,
+        "pareto_count": len(pareto),
         "months": [month_label(key) for key in month_keys],
         "series": series,
         "max_count": max_count,
@@ -906,12 +951,15 @@ def recovery_tooltip_lines(item, group_label):
     return "\n".join(
         [
             f"{group_label}: {item['label']}",
-            f"Valor glosado: {item['valor_glosado_total_formatado']}",
+            f"Valor recursado: {item['valor_recursado_formatado']}",
             f"Valor recuperado: {item['valor_recuperado_formatado']}",
-            f"Taxa de recuperação: {item['taxa_recuperacao']}%",
-            f"Quantidade de glosas: {item['qtd_glosas']}",
-            f"Quantidade de recursos: {item['qtd_recursos']}",
-            f"Quantidade de acatos: {item['qtd_acatos']}",
+            (
+                "Taxa de sucesso do recurso "
+                f"(valor recuperado / valor recursado): "
+                f"{item['taxa_sucesso_recurso']}%"
+            ),
+            f"Quantidade recursada: {item['qtd_recursos']}",
+            f"Quantidade recuperada: {item['qtd_recuperados']}",
         ]
     )
 
@@ -931,8 +979,10 @@ def build_recovery_group(rows, key_name, label_normalizer=None):
                 "label": label,
                 "qtd_glosas": 0,
                 "valor_glosado_total": 0,
+                "valor_recursado": 0,
                 "valor_recuperado": 0,
                 "qtd_recursos": 0,
+                "qtd_recuperados": 0,
                 "qtd_acatos": 0,
             },
         )
@@ -941,6 +991,9 @@ def build_recovery_group(rows, key_name, label_normalizer=None):
         current["valor_recuperado"] += as_float_or_zero(registro.get("valor_recebido"))
         if is_recurso_registro(registro):
             current["qtd_recursos"] += 1
+            current["valor_recursado"] += registro_valor_glosado(registro)
+            if as_float_or_zero(registro.get("valor_recebido")) > 0:
+                current["qtd_recuperados"] += 1
         elif is_acato_registro(registro):
             current["qtd_acatos"] += 1
 
@@ -949,8 +1002,15 @@ def build_recovery_group(rows, key_name, label_normalizer=None):
             item["valor_recuperado"],
             item["valor_glosado_total"],
         )
+        item["taxa_sucesso_recurso"] = percent_value(
+            item["valor_recuperado"],
+            item["valor_recursado"],
+        )
         item["valor_glosado_total_formatado"] = format_brl_input(
             item["valor_glosado_total"]
+        )
+        item["valor_recursado_formatado"] = format_brl_input(
+            item["valor_recursado"]
         )
         item["valor_recuperado_formatado"] = format_brl_input(
             item["valor_recuperado"]
@@ -1000,11 +1060,14 @@ def format_css_number(value):
     return f"{value:.2f}"
 
 
-def build_recuperacao_indicators(rows, scatter_limit=12, convenio_limit=10):
+def build_recuperacao_indicators(rows, scatter_limit=12):
     recovery_rows = [
         registro
         for registro in rows
-        if is_active_registro(registro) and registro_valor_glosado(registro) > 0
+        if is_active_registro(registro)
+        and is_recurso_registro(registro)
+        and has_internal_treatment(registro)
+        and registro_valor_glosado(registro) > 0
     ]
 
     motivo_groups = build_recovery_group(
@@ -1082,26 +1145,232 @@ def build_recuperacao_indicators(rows, scatter_limit=12, convenio_limit=10):
         convenio_groups,
         key=lambda item: (item["valor_recuperado"], item["valor_glosado_total"]),
         reverse=True,
-    )[:convenio_limit]
-    convenio_taxa = sorted(
+    )
+    convenio_recursado = sorted(
         convenio_groups,
-        key=lambda item: (item["taxa_recuperacao"], item["valor_recuperado"]),
+        key=lambda item: (item["valor_recursado"], item["qtd_recursos"]),
         reverse=True,
-    )[:convenio_limit]
+    )
+    convenio_sucesso = sorted(
+        convenio_groups,
+        key=lambda item: (
+            item["taxa_sucesso_recurso"],
+            item["qtd_recuperados"],
+        ),
+        reverse=True,
+    )
     max_convenio_valor = max(
         (item["valor_recuperado"] for item in convenio_valor),
         default=0,
     )
-    max_convenio_taxa = max(
-        (item["taxa_recuperacao"] for item in convenio_taxa),
+    max_convenio_recursado = max(
+        (item["valor_recursado"] for item in convenio_recursado),
         default=0,
     )
     for item in convenio_valor:
-        item["bar_width"] = percent_int(item["valor_recuperado"], max_convenio_valor)
+        item["value_bar_width"] = percent_int(
+            item["valor_recuperado"],
+            max_convenio_valor,
+        )
         item["tooltip"] = recovery_tooltip_lines(item, "Convênio")
-    for item in convenio_taxa:
-        item["bar_width"] = percent_int(item["taxa_recuperacao"], max_convenio_taxa)
+    for item in convenio_recursado:
+        item["resource_bar_width"] = percent_int(
+            item["valor_recursado"],
+            max_convenio_recursado,
+        )
         item["tooltip"] = recovery_tooltip_lines(item, "Convênio")
+    for item in convenio_sucesso:
+        item["success_bar_width"] = percent_int(
+            item["taxa_sucesso_recurso"],
+            100,
+        )
+        item["tooltip"] = recovery_tooltip_lines(item, "Convênio")
+
+    today = date.today()
+    twelve_months_start = (
+        date(today.year - 1, today.month + 1, 1)
+        if today.month < 12
+        else date(today.year, 1, 1)
+    )
+    recovery_month_keys = month_keys_between(
+        twelve_months_start,
+        date(today.year, today.month, 1),
+    )
+    recovery_monthly = {
+        key: {
+            "label": month_label(key),
+            "valor_recursado": 0,
+            "valor_recuperado": 0,
+            "qtd_recursada": 0,
+            "qtd_recuperada": 0,
+        }
+        for key in recovery_month_keys
+    }
+    for registro in recovery_rows:
+        key = month_key(registro.get("data_glosa"))
+        if key not in recovery_monthly:
+            continue
+        current = recovery_monthly[key]
+        current["valor_recursado"] += registro_valor_glosado(registro)
+        current["valor_recuperado"] += as_float_or_zero(
+            registro.get("valor_recebido")
+        )
+        current["qtd_recursada"] += 1
+        if as_float_or_zero(registro.get("valor_recebido")) > 0:
+            current["qtd_recuperada"] += 1
+
+    max_monthly_value = max(
+        (
+            max(item["valor_recursado"], item["valor_recuperado"])
+            for item in recovery_monthly.values()
+        ),
+        default=0,
+    )
+    monthly_divisor = max(max_monthly_value, 1)
+    monthly_point_count = max(len(recovery_month_keys) - 1, 1)
+    recursado_points = []
+    recuperado_points = []
+    sucesso_points = []
+    recovery_monthly_points = []
+    for index, key in enumerate(recovery_month_keys):
+        item = recovery_monthly[key]
+        taxa_sucesso = percent_value(
+            item["valor_recuperado"],
+            item["valor_recursado"],
+        )
+        x = round(4 + ((index / monthly_point_count) * 92), 2)
+        recursado_y = round(
+            92
+            - recovery_log_position(
+                item["valor_recursado"],
+                monthly_divisor,
+                0,
+                76,
+            ),
+            2,
+        )
+        recuperado_y = round(
+            92
+            - recovery_log_position(
+                item["valor_recuperado"],
+                monthly_divisor,
+                0,
+                76,
+            ),
+            2,
+        )
+        sucesso_y = round(92 - ((min(taxa_sucesso, 100) / 100) * 76), 2)
+        recursado_points.append(f"{x},{recursado_y}")
+        recuperado_points.append(f"{x},{recuperado_y}")
+        sucesso_points.append(f"{x},{sucesso_y}")
+        recovery_monthly_points.append(
+            {
+                **item,
+                "taxa_sucesso": taxa_sucesso,
+                "valor_recursado_formatado": format_brl_input(
+                    item["valor_recursado"]
+                ),
+                "valor_recuperado_formatado": format_brl_input(
+                    item["valor_recuperado"]
+                ),
+                "x": format_css_number(x),
+                "recursado_y": format_css_number(recursado_y),
+                "recuperado_y": format_css_number(recuperado_y),
+                "sucesso_y": format_css_number(sucesso_y),
+            }
+        )
+
+    total_monthly_recursado = sum(
+        item["valor_recursado"] for item in recovery_monthly.values()
+    )
+    total_monthly_recuperado = sum(
+        item["valor_recuperado"] for item in recovery_monthly.values()
+    )
+    recovery_extrema = []
+    extrema_series = (
+        (
+            "recursado",
+            "valor_recursado",
+            "recursado_y",
+            lambda value: format_brl_compact(value),
+        ),
+        (
+            "recuperado",
+            "valor_recuperado",
+            "recuperado_y",
+            lambda value: format_brl_compact(value),
+        ),
+        (
+            "sucesso",
+            "taxa_sucesso",
+            "sucesso_y",
+            lambda value: f"{value}%",
+        ),
+    )
+    for series_key, value_key, y_key, label_formatter in extrema_series:
+        if not recovery_monthly_points:
+            continue
+        valid_indexes = [
+            index
+            for index, point in enumerate(recovery_monthly_points)
+            if point["qtd_recursada"] > 0
+        ]
+        if not valid_indexes:
+            continue
+        indexes = {
+            min(
+                valid_indexes,
+                key=lambda index: recovery_monthly_points[index][value_key],
+            ),
+            max(
+                valid_indexes,
+                key=lambda index: recovery_monthly_points[index][value_key],
+            ),
+        }
+        for index in sorted(indexes):
+            point = recovery_monthly_points[index]
+            recovery_extrema.append(
+                {
+                    "series": series_key,
+                    "x": point["x"],
+                    "y": point[y_key],
+                    "label": label_formatter(point[value_key]),
+                    "label_flow": "down"
+                    if float(point[y_key]) <= 24
+                    else "up",
+                    "month": point["label"],
+                    "valor_recursado_formatado": point[
+                        "valor_recursado_formatado"
+                    ],
+                    "valor_recuperado_formatado": point[
+                        "valor_recuperado_formatado"
+                    ],
+                    "taxa_sucesso": point["taxa_sucesso"],
+                    "qtd_recursada": point["qtd_recursada"],
+                    "qtd_recuperada": point["qtd_recuperada"],
+                }
+            )
+    recovery_monthly_indicators = {
+        "months": [month_label(key) for key in recovery_month_keys],
+        "points": recovery_monthly_points,
+        "recursado_points": " ".join(recursado_points),
+        "recuperado_points": " ".join(recuperado_points),
+        "sucesso_points": " ".join(sucesso_points),
+        "extrema": recovery_extrema,
+        "value_ticks": [
+            format_brl_compact(
+                ((max_monthly_value + 1) ** fraction) - 1
+            )
+            for fraction in (1, 0.75, 0.5, 0.25, 0)
+        ],
+        "rate_ticks": ["100%", "75%", "50%", "25%", "0%"],
+        "total_recursado_formatado": format_brl_input(total_monthly_recursado),
+        "total_recuperado_formatado": format_brl_input(total_monthly_recuperado),
+        "taxa_sucesso": percent_value(
+            total_monthly_recuperado,
+            total_monthly_recursado,
+        ),
+    }
 
     media_valor_glosado_pct = recovery_log_position(
         media_valor_glosado,
@@ -1119,7 +1388,9 @@ def build_recuperacao_indicators(rows, scatter_limit=12, convenio_limit=10):
     return {
         "scatter": scatter,
         "convenio_valor": convenio_valor,
-        "convenio_taxa": convenio_taxa,
+        "convenio_recursado": convenio_recursado,
+        "convenio_sucesso": convenio_sucesso,
+        "mensal": recovery_monthly_indicators,
         "media_valor_glosado": media_valor_glosado,
         "media_valor_glosado_formatado": format_brl_input(media_valor_glosado),
         "media_taxa_recuperacao": round(media_taxa_recuperacao, 1),
@@ -1258,9 +1529,12 @@ def build_vw_indicadores_aging_glosas(rows, prazos_lookup):
                 "data_glosa": data_glosa,
                 "dt_pagamento": parse_api_date(registro.get("dt_pagamento")),
                 "dt_recurso": dt_recurso,
+                "processo_recurso": registro.get("processo_recurso"),
                 "sn_glosado": registro.get("sn_glosado"),
                 "tipo_tratativa": tipo_tratativa_registro(registro),
-                "status_tratativa": "Tratado" if dt_recurso else "Em aberto",
+                "status_tratativa": (
+                    "Tratado" if has_internal_treatment(registro) else "Em aberto"
+                ),
                 "valor": as_float_or_zero(registro.get("valor")),
                 "valor_glosado": registro_valor_glosado(registro),
                 "valor_recebido": as_float_or_zero(registro.get("valor_recebido")),
@@ -1281,6 +1555,11 @@ def build_aging_indicators(vw_rows):
     today = date.today()
     twelve_months_start = date(today.year - 1, today.month + 1, 1) if today.month < 12 else date(today.year, 1, 1)
     month_keys = month_keys_between(twelve_months_start, date(today.year, today.month, 1))
+    treated_rows = [
+        row
+        for row in vw_rows
+        if row["dt_recurso"] is not None and row["processo_recurso"]
+    ]
 
     heatmap_lookup = {}
     for key in month_keys:
@@ -1293,8 +1572,8 @@ def build_aging_indicators(vw_rows):
                 "fora": 0,
             }
 
-    for row in vw_rows:
-        key = row["ano_mes_tratativa"]
+    for row in treated_rows:
+        key = row["ano_mes_glosa"]
         if key not in month_keys:
             continue
         cell = heatmap_lookup[(row["bucket_aging"], key)]
@@ -1336,7 +1615,6 @@ def build_aging_indicators(vw_rows):
             )
         heatmap_rows.append({"label": bucket_label, "cells": cells})
 
-    treated_rows = [row for row in vw_rows if row["dt_recurso"] is not None]
     monthly_lookup = {
         key: {
             "label": month_label(key),
@@ -1349,7 +1627,7 @@ def build_aging_indicators(vw_rows):
         for key in month_keys
     }
     for row in treated_rows:
-        key = row["ano_mes_tratativa"]
+        key = row["ano_mes_glosa"]
         if key not in monthly_lookup:
             continue
         current = monthly_lookup[key]
@@ -1448,7 +1726,11 @@ def build_aging_indicators(vw_rows):
 
 def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
     prazos_lookup = build_prazos_convenio_lookup(prazos_convenio or [])
-    rows = [registro for registro in registros if is_active_registro(registro)]
+    rows = [
+        registro
+        for registro in registros
+        if is_active_registro(registro) and has_internal_treatment(registro)
+    ]
     aging_view = build_vw_indicadores_aging_glosas(rows, prazos_lookup)
     aging_indicators = build_aging_indicators(aging_view)
     recursos = [registro for registro in rows if is_recurso_registro(registro)]
@@ -1651,10 +1933,10 @@ def apply_dashboard_filters(registros, filters):
 
     filtered = []
     for registro in registros:
-        data_atendimento = parse_api_date(registro.get("data_atendimento"))
-        if periodo_inicio and (not data_atendimento or data_atendimento < periodo_inicio):
+        data_glosa = parse_api_date(registro.get("data_glosa"))
+        if periodo_inicio and (not data_glosa or data_glosa < periodo_inicio):
             continue
-        if periodo_fim and (not data_atendimento or data_atendimento > periodo_fim):
+        if periodo_fim and (not data_glosa or data_glosa > periodo_fim):
             continue
         if convenio and normalize_lookup_text(registro.get("convenio")) != convenio:
             continue
@@ -1705,7 +1987,11 @@ def apply_acompanhamento_filters(registros, filters):
             continue
         if not same_numeric_text(registro.get("conta"), filters.get("cd_reg")):
             continue
-        if not normalized_contains(registro.get("convenio"), filters.get("nm_convenio")):
+        convenio_filter = normalize_lookup_text(filters.get("nm_convenio"))
+        if (
+            convenio_filter
+            and normalize_lookup_text(registro.get("convenio")) != convenio_filter
+        ):
             continue
         if not normalized_contains(
             registro.get("processo_controle_fatura_gab"),
@@ -1770,7 +2056,13 @@ def get_cached_api_payload(namespace, path, params=None, force_refresh=False):
 
 
 def clear_dashboard_cache():
-    cache.delete_many([DASHBOARD_GLOSAS_CACHE_KEY, DASHBOARD_PRAZOS_CACHE_KEY])
+    cache.delete_many(
+        [
+            DASHBOARD_GLOSAS_CACHE_KEY,
+            DASHBOARD_PRAZOS_CACHE_KEY,
+            DASHBOARD_TISS_CACHE_KEY,
+        ]
+    )
 
 
 def clear_filter_caches():
@@ -1799,6 +2091,23 @@ def dashboard(request):
     except ApiError as exc:
         dashboard_errors.append(("Prazos por convênio", exc))
 
+    tiss_motivos = []
+    try:
+        tiss_payload = get_cached_dashboard_payload(
+            DASHBOARD_TISS_CACHE_KEY,
+            settings.API_TISS_PATH,
+            {"limit": 600},
+            force_refresh=force_refresh,
+        )
+        tiss_rows = tiss_payload.get("itens", []) if isinstance(tiss_payload, dict) else []
+        tiss_motivos = [
+            f"{item.get('codigo_termo')} - {item.get('termo')}"
+            for item in tiss_rows
+            if item.get("codigo_termo") and item.get("termo")
+        ]
+    except ApiError as exc:
+        dashboard_errors.append(("Motivos TISS", exc))
+
     try:
         payload = get_cached_dashboard_payload(
             DASHBOARD_GLOSAS_CACHE_KEY,
@@ -1808,6 +2117,8 @@ def dashboard(request):
         )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
         opcoes_filtro = build_dashboard_filter_options(registros)
+        if tiss_motivos:
+            opcoes_filtro["motivos_glosa"] = tiss_motivos
         registros_filtrados = apply_dashboard_filters(registros, filtros)
         indicadores = build_dashboard_indicadores(
             registros_filtrados,
@@ -1970,6 +2281,24 @@ def conta_atendimento(request):
     filtros.pop("limit", None)
     filtros.pop("offset", None)
     page = as_positive_int(filtros.pop("page", None), 1)
+    search_fields = {
+        "cd_remessa",
+        "cd_atendimento",
+        "cd_reg",
+        "nm_paciente",
+        "nm_convenio",
+        "descricao",
+        "tp_atendimento",
+    }
+    pesquisa_executada = any(
+        str(filtros.get(key) or "").strip()
+        for key in search_fields
+    )
+    if request.GET and not pesquisa_executada:
+        messages.warning(
+            request,
+            "Informe pelo menos um critério para realizar a pesquisa.",
+        )
     limit = PATIENTS_PER_PAGE
     offset = (page - 1) * limit
     api_filtros = {k: v for k, v in filtros.items() if v}
@@ -1990,7 +2319,7 @@ def conta_atendimento(request):
         messages.error(request, format_api_error(exc, "Consulta TISS"))
 
     try:
-        if request.GET:
+        if pesquisa_executada:
             payload = get_cached_api_payload(
                 "conta-atendimento:contas",
                 settings.API_CONTA_ATENDIMENTO_PATH,
@@ -2031,12 +2360,12 @@ def conta_atendimento(request):
                 conta.get("hr_lancamento"),
             )
     grupos = _group_contas(contas)
-    if request.GET and not total_pacientes:
+    if pesquisa_executada and not total_pacientes:
         total_pacientes = len(grupos)
 
     base_query = {k: v for k, v in filtros.items() if v}
     total_pages = max(ceil(total_pacientes / PATIENTS_PER_PAGE), 1)
-    if request.GET and page > total_pages:
+    if pesquisa_executada and page > total_pages:
         return redirect(
             f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
         )
@@ -2085,6 +2414,7 @@ def conta_atendimento(request):
             "consulta_indisponivel": consulta_indisponivel,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
             "tiss_motivos": tiss_motivos,
+            "pesquisa_executada": pesquisa_executada,
         },
     )
 
@@ -2146,6 +2476,7 @@ def acompanhamento(request):
         }
         and value
     }
+    convenios = []
     try:
         payload = get_cached_dashboard_payload(
             ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
@@ -2153,6 +2484,19 @@ def acompanhamento(request):
             {"limit": 5000},
         )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+        registros = [
+            registro
+            for registro in registros
+            if is_recurso_registro(registro) and has_internal_treatment(registro)
+        ]
+        convenios = sorted(
+            {
+                str(registro.get("convenio") or "").strip()
+                for registro in registros
+                if str(registro.get("convenio") or "").strip()
+            },
+            key=normalize_lookup_text,
+        )
         registros = apply_acompanhamento_filters(registros, api_filtros)
     except ApiError as exc:
         registros = []
@@ -2179,6 +2523,11 @@ def acompanhamento(request):
         "recebidos": sum(
             1 for row in rows_filtradas if row.get("dt_recebimento")
         ),
+        "sem_recuperacao": sum(
+            1
+            for row in rows_filtradas
+            if as_float_or_zero(row.get("valor_recebido")) <= 0
+        ),
     }
 
     return render(
@@ -2193,6 +2542,7 @@ def acompanhamento(request):
             "rows": rows_filtradas,
             "resumo": resumo,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
+            "convenios": convenios,
             "current_full_path": request.get_full_path(),
         },
     )

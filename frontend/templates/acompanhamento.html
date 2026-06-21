@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load core_extras %}
 {% block breadcrumb_label %}Glosas MV > Análise de Contas{% endblock %}
-{% block page_title %}Acompanhamento{% endblock %}
+{% block page_title %}Acompanhamento de Recursos{% endblock %}
 {% block content %}
 <section
   class="acompanhamento-page {% if modo == 'kanban' %}acompanhamento-page--kanban{% else %}acompanhamento-page--table{% endif %}"
@@ -10,6 +10,11 @@
     receiving: false,
     receivingTitle: '',
     receivingIds: '',
+    receivingPatient: '',
+    receivingRemittance: '',
+    receivingAttendance: '',
+    receivingResourceValue: 0,
+    valorRecebido: '',
     sortDirections: {},
     toggleColumnSort(columnKey) {
       const current = this.sortDirections[columnKey] || 'asc';
@@ -30,13 +35,25 @@
     openRecebimento(card) {
       this.receivingIds = card.ids;
       this.receivingTitle = card.title;
+      this.receivingPatient = card.patient || '-';
+      this.receivingRemittance = card.remittance || '-';
+      this.receivingAttendance = card.attendance || '-';
+      this.receivingResourceValue = Number(card.resourceValue || 0);
+      this.valorRecebido = card.valorRecebido || '';
       this.receiving = true;
       this.$nextTick(() => {
         if (this.$refs.dtRecebimento) this.$refs.dtRecebimento.value = card.dtRecebimento || '';
-        if (this.$refs.valorRecebido) this.$refs.valorRecebido.value = card.valorRecebido || '';
         if (this.$refs.observacaoRecebimento) this.$refs.observacaoRecebimento.value = card.observacao || '';
         this.$refs.dtRecebimento?.focus();
       });
+    },
+    formatValorRecebido() {
+      const digits = String(this.valorRecebido || '').replace(/\D/g, '');
+      const cents = Number(digits || 0);
+      this.valorRecebido = new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(cents / 100);
     },
     dropRecebimento() {
       if (!this.draggedCard) return;
@@ -45,11 +62,16 @@
     }
   }"
 >
-  <form method="get" class="filter-panel acompanhamento-filters">
+  <form method="get" class="filter-panel acompanhamento-filters" onsubmit="return window.validateSearchCriteria(this, ['nm_convenio', 'processo_original', 'processo_recurso', 'cd_atendimento', 'cd_remessa', 'cd_reg', 'nm_paciente', 'tp_atendimento']);">
     <div class="filter-row">
       <div class="filter-group">
         <label>Convênio</label>
-        <input class="form-control" name="nm_convenio" value="{{ filtros.nm_convenio|default:'' }}" placeholder="Ex: CASSI">
+        <select class="form-select" name="nm_convenio">
+          <option value="">Todos</option>
+          {% for convenio in convenios %}
+            <option value="{{ convenio }}" {% if filtros.nm_convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="filter-group">
         <label>Proc. original</label>
@@ -91,6 +113,9 @@
         <a class="btn btn-outline-secondary" href="{% url 'acompanhamento' %}">Limpar</a>
       </div>
     </div>
+    <div class="filter-validation-message" data-search-validation hidden role="alert">
+      Informe pelo menos um critério para realizar a pesquisa.
+    </div>
   </form>
 
   <div class="acompanhamento-toolbar">
@@ -98,6 +123,7 @@
       <span>{{ resumo.processos }} processos</span>
       <span>{{ resumo.registros }} registros</span>
       <span>{{ resumo.recebidos }} recebidos</span>
+      <span>{{ resumo.sem_recuperacao }} sem recuperação</span>
       <strong>R$ {{ resumo.valor_total|br_currency }}</strong>
     </div>
     <div class="view-switch">
@@ -155,6 +181,10 @@
                     @click="openRecebimento({
                       ids: '{{ row.id }}',
                       title: '{{ row.processo_recurso|default:row.processo_controle_fatura_gab|escapejs }}',
+                      patient: '{{ row.paciente_label|escapejs }}',
+                      remittance: '{{ row.cd_remessa|default:"-"|escapejs }}',
+                      attendance: '{{ row.cd_atendimento|default:"-"|escapejs }}',
+                      resourceValue: '{{ row.valor_recurso|stringformat:"g" }}',
                       dtRecebimento: '{{ row.dt_recebimento_input|default:'' }}',
                       valorRecebido: '{{ row.valor_recebido_formatado|default:''|escapejs }}',
                       observacao: '{{ row.observacao_recebimento|default:''|escapejs }}'
@@ -202,7 +232,7 @@
                 class="kanban-card"
                 data-reference-date="{{ card.reference_date }}"
                 draggable="{% if column.key != 'recebidas' %}true{% else %}false{% endif %}"
-                @dragstart="draggedCard = { ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}' }"
+                @dragstart="draggedCard = { ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}' }"
               >
                 <div class="kanban-card-head">
                   <span><b>Proc. Original</b> {{ card.processos_originais }}</span>
@@ -250,7 +280,7 @@
                   <button
                     type="button"
                     class="btn btn-outline-primary btn-sm"
-                    @click="openRecebimento({ ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}' })"
+                    @click="openRecebimento({ ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}' })"
                   >Receber</button>
                 {% endif %}
               </article>
@@ -266,25 +296,31 @@
   <div class="glosa-modal" x-show="receiving" x-cloak @keydown.escape.window="receiving = false">
     <div class="glosa-modal-backdrop" @click="receiving = false"></div>
     <div class="glosa-modal-dialog acompanhamento-recebimento-dialog" role="dialog" aria-modal="true">
-      <form method="post" class="glosa-modal-form">
+      <form method="post" class="glosa-modal-form" onsubmit="return window.validateRecebimentoForm(this);">
         {% csrf_token %}
         <input type="hidden" name="registro_ids" :value="receivingIds">
         <input type="hidden" name="next" value="{{ current_full_path }}">
         <div class="glosa-modal-header">
           <div>
             <span class="glosa-modal-eyebrow">Recebimento</span>
-            <h2 x-text="receivingTitle || 'Processo de recurso'"></h2>
+            <h2>Registrar recebimento</h2>
           </div>
           <button type="button" class="glosa-modal-close" @click="receiving = false" aria-label="Fechar">x</button>
         </div>
+        <div class="glosa-modal-context">
+          <span x-text="`Proc. recurso: ${receivingTitle || '-'}`"></span>
+          <span x-text="`Paciente: ${receivingPatient}`"></span>
+          <span x-text="`Remessa: ${receivingRemittance}`"></span>
+          <span x-text="`Atendimento: ${receivingAttendance}`"></span>
+        </div>
         <div class="glosa-section-grid">
           <div class="glosa-field">
-            <label>Data do recebimento</label>
+            <label>Data do recebimento *</label>
             <input x-ref="dtRecebimento" type="date" name="dt_recebimento" class="form-control" required>
           </div>
           <div class="glosa-field">
-            <label>Valor recebido</label>
-            <input x-ref="valorRecebido" name="valor_recebido" class="form-control" placeholder="R$ 0,00" required>
+            <label>Valor recebido *</label>
+            <input x-ref="valorRecebido" name="valor_recebido" class="form-control" placeholder="R$ 0,00" inputmode="numeric" x-model="valorRecebido" :data-max-resource="receivingResourceValue" @input="valorRecebido = $event.target.value; formatValorRecebido()" required>
           </div>
           <div class="glosa-field glosa-field--full">
             <label>Observação</label>
