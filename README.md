@@ -85,3 +85,81 @@ Servicos:
 - O Django consome apenas a API HTTP configurada em `API_BASE_URL`.
 - Nao ha upload de planilhas, pandas, openpyxl, ETL ou importadores.
 - Os endpoints foram preparados no frontend como se ja existissem na API unica.
+
+## Fluxo operacional de glosas
+
+```mermaid
+flowchart TD
+
+subgraph FAT["FATURAMENTO"]
+A["Fecha contas"]
+B["Cria remessas"]
+A --> B
+end
+
+subgraph FIN["FINANCEIRO"]
+C["Confere autorizacoes"]
+D["Emite NF"]
+E["Relatorio autorizado"]
+F["Relatorio glosado"]
+G["Preenche DEMO"]
+H["Envia para Glosa"]
+C --> D
+D --> E
+D --> F
+E --> G
+F --> G
+G --> H
+end
+
+subgraph GLO["SETOR DE GLOSA"]
+I["Consulta glosa"]
+J["Analisa motivo"]
+K{"Decisao"}
+L["Abre recurso"]
+M["Acata glosa"]
+I --> J
+J --> K
+K -->|Recorrer| L
+K -->|Acatar| M
+end
+
+subgraph REC["GESTAO DE RECURSOS"]
+N["Acompanha recursos"]
+O["Consulta convenios"]
+P["Atualiza status"]
+Q["Registra retorno"]
+N --> O
+O --> P
+P --> Q
+end
+
+U{"Destino do recurso"}
+
+subgraph PROV["PROVISAO"]
+R["Registra provisao"]
+end
+
+subgraph PERDA["ACATO (PERDA)"]
+V["Registra acato"]
+end
+
+subgraph CONV["CONVERSAO"]
+S["Registra conversao"]
+end
+
+subgraph KPI["INDICADORES"]
+T["Metricas"]
+end
+
+B --> C
+H --> I
+L --> N
+Q --> U
+U -->|Gerar provisao| R
+U -->|Acatar perda| V
+R --> S
+S --> T
+V --> T
+M --> T
+```
