@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "core.middleware.ApiSessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -74,13 +75,17 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
-API_BEARER_TOKEN = os.getenv("API_BEARER_TOKEN", "")
 API_CONTA_ATENDIMENTO_PATH = os.getenv("API_CONTA_ATENDIMENTO_PATH", "/app_glosas/")
 API_REGISTRO_GLOSA_PATH = os.getenv("API_REGISTRO_GLOSA_PATH", "/app_glosas/glosas")
 API_TISS_PATH = os.getenv("API_TISS_PATH", "/app_glosas/tiss")
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "60"))
 DASHBOARD_CACHE_SECONDS = int(os.getenv("DASHBOARD_CACHE_SECONDS", "45"))
 APP_FILTER_CACHE_SECONDS = int(os.getenv("APP_FILTER_CACHE_SECONDS", str(DASHBOARD_CACHE_SECONDS)))
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
+SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(8 * 60 * 60)))
 
 CACHES = {
     "default": {

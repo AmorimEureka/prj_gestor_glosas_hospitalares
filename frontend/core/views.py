@@ -8,9 +8,18 @@ from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_http_methods
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_http_methods, require_POST
 
-from .services import ApiError, api_delete, api_get, api_patch, api_post, api_put
+from .services import (
+    ApiError,
+    api_authenticate,
+    api_delete,
+    api_get,
+    api_patch,
+    api_post,
+    api_put,
+)
 
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
@@ -22,6 +31,161 @@ DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = "acompanhamento:registros-glosa"
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
+
+
+def _safe_login_redirect(request):
+    next_url = request.POST.get("next") or request.GET.get("next") or "/"
+    if url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return "/"
+
+
+@require_http_methods(["GET", "POST"])
+def login_view(request):
+    next_url = _safe_login_redirect(request)
+    if request.method == "GET" and request.session.get("api_access_token"):
+        return redirect(next_url)
+
+    email = ""
+    error = ""
+    if request.method == "POST":
+        email = (request.POST.get("email") or "").strip().lower()
+        password = request.POST.get("password") or ""
+        if not email or not password:
+            error = "Informe seu e-mail e sua senha."
+        else:
+            try:
+                auth_payload = api_authenticate(email, password)
+                access_token = auth_payload.get("access_token")
+                if not access_token:
+                    raise ApiError("Token de acesso não retornado pela API.")
+                user = api_get("/usuarios/me", token=access_token)
+                request.session.cycle_key()
+                request.session["api_access_token"] = access_token
+                request.session["api_user"] = user
+                if request.POST.get("remember") == "1":
+                    request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+                else:
+                    request.session.set_expiry(0)
+                return redirect(next_url)
+            except ApiError as exc:
+                if exc.status_code == 401:
+                    error = "E-mail ou senha incorretos."
+                else:
+                    error = "Não foi possível acessar o sistema agora. Tente novamente."
+
+    return render(
+        request,
+        "login.html",
+        {"email": email, "error": error, "next": next_url},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def forgot_password(request):
+    sent = False
+    email = ""
+    if request.method == "POST":
+        email = (request.POST.get("email") or "").strip().lower()
+        if email:
+            try:
+                api_post("/autenticacao/esqueci-senha", {"email": email})
+                sent = True
+            except ApiError:
+                sent = True
+    return render(
+        request,
+        "forgot_password.html",
+        {"email": email, "sent": sent},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def reset_password(request):
+    token = request.POST.get("token") or request.GET.get("token") or ""
+    success = False
+    error = ""
+    if request.method == "POST":
+        password = request.POST.get("password") or ""
+        confirmation = request.POST.get("password_confirmation") or ""
+        if len(password) < 8:
+            error = "A senha deve ter pelo menos 8 caracteres."
+        elif password != confirmation:
+            error = "As senhas não coincidem."
+        else:
+            try:
+                api_post(
+                    "/autenticacao/redefinir-senha",
+                    {"token": token, "nova_senha": password},
+                )
+                success = True
+            except ApiError:
+                error = "Este link é inválido ou expirou. Solicite um novo."
+    return render(
+        request,
+        "reset_password.html",
+        {"token": token, "success": success, "error": error},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def user_access_management(request):
+    current_user = request.session.get("api_user") or {}
+    if current_user.get("perfil") != "ti":
+        messages.error(request, "Acesso restrito à equipe de TI.")
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "create":
+                api_post(
+                    "/usuarios/",
+                    {
+                        "nome": (request.POST.get("nome") or "").strip(),
+                        "email": (request.POST.get("email") or "").strip().lower(),
+                        "senha": request.POST.get("senha") or "",
+                        "perfil": request.POST.get("perfil") or "usuario",
+                    },
+                )
+                messages.success(request, "Acesso criado com sucesso.")
+            elif action == "status":
+                user_id = int(request.POST.get("user_id") or 0)
+                api_patch(
+                    f"/usuarios/{user_id}/status",
+                    {"ativo": request.POST.get("ativo") == "true"},
+                )
+                messages.success(request, "Status do acesso atualizado.")
+            elif action == "password":
+                user_id = int(request.POST.get("user_id") or 0)
+                api_patch(
+                    f"/usuarios/{user_id}/senha",
+                    {"senha": request.POST.get("senha_temporaria") or ""},
+                )
+                messages.success(request, "Senha temporária atualizada.")
+            return redirect("user_access_management")
+        except (ApiError, ValueError):
+            messages.error(
+                request,
+                "Não foi possível concluir a operação. Verifique os dados.",
+            )
+
+    try:
+        users = api_get("/usuarios/", {"limit": 200}).get("usuarios", [])
+    except ApiError:
+        users = []
+        messages.error(request, "Não foi possível carregar os acessos.")
+    return render(request, "user_access_management.html", {"users": users})
+
+
+@require_POST
+def logout_view(request):
+    request.session.flush()
+    return redirect("login")
 
 
 def format_api_date(value):
@@ -97,7 +261,7 @@ def format_lancamento_datetime(dt_lancamento, hr_lancamento):
 
 def format_api_error(exc: ApiError, endpoint_name: str) -> str:
     if exc.status_code == 401:
-        return f"{endpoint_name}: API exige autenticacao. Configure API_BEARER_TOKEN no ambiente do frontend."
+        return f"{endpoint_name}: sua sessão não é mais válida. Entre novamente."
     if exc.status_code == 404:
         return f"{endpoint_name}: endpoint ainda nao encontrado na API."
     return f"{endpoint_name}: {exc}"
@@ -2170,7 +2334,7 @@ def dashboard(request):
     if auth_errors and len(auth_errors) == len(dashboard_errors):
         messages.error(
             request,
-            "API exige autenticacao. Configure API_BEARER_TOKEN no ambiente do frontend.",
+            "Sua sessão não é mais válida. Saia e entre novamente no sistema.",
         )
     else:
         for endpoint_name, exc in dashboard_errors:

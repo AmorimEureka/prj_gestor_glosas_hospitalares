@@ -1,5 +1,10 @@
+from contextvars import ContextVar
+
 import requests
 from django.conf import settings
+
+
+_request_api_token = ContextVar("request_api_token", default=None)
 
 
 class ApiError(RuntimeError):
@@ -8,19 +13,28 @@ class ApiError(RuntimeError):
         self.status_code = status_code
 
 
-def api_headers() -> dict[str, str]:
+def set_request_api_token(token: str | None):
+    return _request_api_token.set(token)
+
+
+def reset_request_api_token(context_token):
+    _request_api_token.reset(context_token)
+
+
+def api_headers(token: str | None = None) -> dict[str, str]:
     headers = {"Accept": "application/json"}
-    if settings.API_BEARER_TOKEN:
-        headers["Authorization"] = f"Bearer {settings.API_BEARER_TOKEN}"
+    access_token = token or _request_api_token.get()
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
     return headers
 
 
-def api_request(method: str, path: str, **kwargs):
+def api_request(method: str, path: str, token: str | None = None, **kwargs):
     try:
         response = requests.request(
             method,
             f"{settings.API_BASE_URL}{path}",
-            headers=api_headers(),
+            headers=api_headers(token),
             timeout=settings.API_TIMEOUT,
             **kwargs,
         )
@@ -39,10 +53,11 @@ def api_request(method: str, path: str, **kwargs):
     return response
 
 
-def api_get(path: str, params: dict | None = None):
+def api_get(path: str, params: dict | None = None, token: str | None = None):
     response = api_request(
         "GET",
         path,
+        token=token,
         params={k: v for k, v in (params or {}).items() if v},
     )
     try:
@@ -77,3 +92,15 @@ def api_patch(path: str, data: dict):
 
 def api_delete(path: str):
     api_request("DELETE", path)
+
+
+def api_authenticate(email: str, password: str):
+    response = api_request(
+        "POST",
+        "/autenticacao/token",
+        data={"username": email, "password": password},
+    )
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc

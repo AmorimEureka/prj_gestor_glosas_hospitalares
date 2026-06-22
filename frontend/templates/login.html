@@ -1,0 +1,136 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · Gestão de Glosas</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}">
+  <link rel="stylesheet" href="{% static 'css/login.css' %}?v=20260622-login-excellence">
+</head>
+<body>
+  <main class="login-shell">
+    <section class="login-form-panel">
+      <div class="login-form-wrap">
+        <div class="login-brand">
+          <svg class="login-heart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 273 273" aria-hidden="true">
+            <g class="login-heart-pulse" transform="translate(141.73 141.73)">
+              <g transform="translate(-141.73 -141.73)">
+                <path class="login-heart-muted" d="M142.47,153.96c1.19-13.18,2.66-18.21,17.24-23.63c11.92-4.43,25.35-9.99,28.41-24.23c-1.55-1.8-7.82-12.02-24.38-10.14c-8.53,1.22-17.11,3.34-21.28,5.05c5.22-1.45,14.2-3.17,20.74-3.46c12.68-0.55,25.13,7.55,2.47,21.58C145.33,131.74,142.32,128.63,142.47,153.96"/>
+                <path class="login-heart-main" d="M140.99,157.98c-55.01-35.22-59.53-71.19,0-56.82c-67.98-22.21-62.28,32.57,0,75.4V157.98z"/>
+                <path class="login-heart-main" d="M175,93.45c6.71,1.46,10.76,5.21,14.8,9.59c1.53-5.1,2.39-10.37,0.32-15.55l0,0c-2.4-5.99-8-9-14.34-10.08c-12.32-2.09-23.2,3.78-33.33,9.71v11.25C151.66,95.1,165.12,91.3,175,93.45"/>
+                <path class="login-heart-muted" d="M140.99,103.76v13.77l-0.86-0.36c-15.32-7.72-34.26-8.82-27.64,6.47c7.36,14.33,16.96,22.6,28.5,32.2c-12.1-8.31-27.67-19.22-37.45-35.7c-5.75-10.35-2.52-18.24,11.26-20.15C123.93,99.4,131.98,101,140.99,103.76"/>
+              </g>
+            </g>
+          </svg>
+          <span class="login-brand-slogan" aria-label="Hospital Prontocardio">
+            <small>Hospital</small>
+            <strong><span>PRONTO</span><b>CARDIO</b></strong>
+          </span>
+        </div>
+        <div class="login-heading">
+          <span>Bem-vindo(a)</span>
+          <h1>Acesse sua conta</h1>
+          <p>Entre com suas credenciais para continuar.</p>
+        </div>
+
+        <form method="post" class="login-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          {% if error %}
+            <div class="login-error" role="alert">
+              <span aria-hidden="true">!</span>
+              {{ error }}
+            </div>
+          {% endif %}
+          <label>
+            <span>E-mail</span>
+            <div class="login-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path></svg>
+              <input type="email" name="email" value="{{ email }}" placeholder="nome@prontocardio.com.br" autocomplete="username" required autofocus>
+            </div>
+            <small class="login-field-help">Utilize o e-mail corporativo.</small>
+          </label>
+          <label>
+            <span>Senha</span>
+            <div class="login-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+              <input id="login-password" type="password" name="password" placeholder="Digite sua senha" autocomplete="current-password" required>
+              <button type="button" class="password-toggle" aria-label="Mostrar senha" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+              </button>
+            </div>
+          </label>
+          <div class="login-options">
+            <label class="login-remember">
+              <input type="checkbox" name="remember" value="1" checked>
+              <span>Lembrar meu acesso</span>
+            </label>
+            <a href="{% url 'forgot_password' %}">Esqueci minha senha</a>
+          </div>
+          <button class="login-submit" type="submit">
+            <span class="login-submit-label">Entrar no sistema</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m14 7 5 5-5 5"></path></svg>
+          </button>
+        </form>
+        <p class="login-support"><span></span>Acesso restrito aos profissionais autorizados.<span></span></p>
+        <p class="login-security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3z"></path><path d="m9 12 2 2 4-4"></path></svg>Seus dados estão protegidos com segurança de nível hospitalar.</p>
+      </div>
+    </section>
+
+    <section class="login-visual" aria-label="Equipe assistencial do Hospital Prontocardio">
+      <div class="login-visual-copy">
+        <span>Precisão que cuida</span>
+        <h2>Excelência que cuida.<br>Resultados que transformam.</h2>
+        <p>Tecnologia e inteligência operacional elevando a qualidade em cada etapa do cuidado.</p>
+      </div>
+      <div class="login-pillars">
+        <div class="login-pillar"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3z"></path></svg></span><p><strong>Segurança</strong><small>Proteção de dados de nível hospitalar</small></p></div>
+        <div class="login-pillar"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-7"></path><path d="M12 20V5"></path><path d="M19 20v-11"></path></svg></span><p><strong>Eficiência</strong><small>Processos otimizados para melhores resultados</small></p></div>
+        <div class="login-pillar"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="10" r="2"></circle><path d="M3 20v-2a5 5 0 0 1 10 0v2"></path><path d="M14 15a4 4 0 0 1 7 3v2"></path></svg></span><p><strong>Excelência</strong><small>Compromisso com o cuidado e a vida</small></p></div>
+      </div>
+      <div class="login-visual-index" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3z"></path><path d="m9 12 2 2 4-4"></path></svg><b>01</b><i></i><span>Hospital Prontocardio</span></div>
+    </section>
+  </main>
+  <div class="login-transition" aria-hidden="true">
+    <svg class="login-transition-heart" xmlns="http://www.w3.org/2000/svg" viewBox="82 68 125 125">
+      <g class="login-heart-pulse" transform="translate(141.73 141.73)">
+        <g transform="translate(-141.73 -141.73)">
+          <path class="login-transition-heart-muted" d="M142.47,153.96c1.19-13.18,2.66-18.21,17.24-23.63c11.92-4.43,25.35-9.99,28.41-24.23c-1.55-1.8-7.82-12.02-24.38-10.14c-8.53,1.22-17.11,3.34-21.28,5.05c5.22-1.45,14.2-3.17,20.74-3.46c12.68-0.55,25.13,7.55,2.47,21.58C145.33,131.74,142.32,128.63,142.47,153.96"/>
+          <path class="login-transition-heart-main" d="M140.99,157.98c-55.01-35.22-59.53-71.19,0-56.82c-67.98-22.21-62.28,32.57,0,75.4V157.98z"/>
+          <path class="login-transition-heart-main" d="M175,93.45c6.71,1.46,10.76,5.21,14.8,9.59c1.53-5.1,2.39-10.37,0.32-15.55l0,0c-2.4-5.99-8-9-14.34-10.08c-12.32-2.09-23.2,3.78-33.33,9.71v11.25C151.66,95.1,165.12,91.3,175,93.45"/>
+          <path class="login-transition-heart-muted" d="M140.99,103.76v13.77l-0.86-0.36c-15.32-7.72-34.26-8.82-27.64,6.47c7.36,14.33,16.96,22.6,28.5,32.2c-12.1-8.31-27.67-19.22-37.45-35.7c-5.75-10.35-2.52-18.24,11.26-20.15C123.93,99.4,131.98,101,140.99,103.76"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <script>
+    const toggle = document.querySelector('.password-toggle');
+    const password = document.querySelector('#login-password');
+    toggle?.addEventListener('click', () => {
+      const visible = password.type === 'text';
+      password.type = visible ? 'password' : 'text';
+      toggle.setAttribute('aria-pressed', String(!visible));
+      toggle.setAttribute('aria-label', visible ? 'Mostrar senha' : 'Ocultar senha');
+    });
+
+    const form = document.querySelector('.login-form');
+    form?.addEventListener('submit', (event) => {
+      if (form.dataset.submitting === 'true') return;
+      form.dataset.submitting = 'true';
+      const submit = form.querySelector('.login-submit');
+      const submitLabel = form.querySelector('.login-submit-label');
+      submit?.classList.add('is-loading');
+      submit?.setAttribute('aria-busy', 'true');
+      if (submitLabel) submitLabel.textContent = 'Autenticando';
+
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        event.preventDefault();
+        sessionStorage.setItem('prontocardioLoginReveal', 'true');
+        document.body.classList.add('login-leaving');
+        window.setTimeout(() => form.submit(), 520);
+      }
+    });
+  </script>
+</body>
+</html>

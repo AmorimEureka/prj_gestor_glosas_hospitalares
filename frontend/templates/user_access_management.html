@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Administrativo > Segurança{% endblock %}
+{% block page_title %}Gestão de acessos{% endblock %}
+{% block content %}
+<section class="access-admin-page">
+  <div class="access-admin-intro">
+    <div><strong>Acessos do sistema</strong><span>Crie contas, defina perfis e controle acessos.</span></div>
+    <span class="access-admin-count">{{ users|length }} usuários</span>
+  </div>
+
+  <div class="access-admin-grid">
+    <form method="post" class="access-create-card">
+      {% csrf_token %}<input type="hidden" name="action" value="create">
+      <div class="access-card-head"><span>+</span><div><strong>Novo acesso</strong><small>Cadastro exclusivo da TI</small></div></div>
+      <label>Nome completo<input name="nome" required maxlength="120" autocomplete="off"></label>
+      <label>E-mail corporativo<input type="email" name="email" required autocomplete="off"></label>
+      <label>Senha temporária<input type="password" name="senha" minlength="8" required autocomplete="new-password"><small>Mínimo de 8 caracteres.</small></label>
+      <label>Perfil<select name="perfil"><option value="usuario">Usuário</option><option value="ti">Administrador de TI</option></select></label>
+      <button type="submit">Criar acesso</button>
+    </form>
+
+    <div class="access-list-card">
+      <div class="access-list-head"><strong>Usuários cadastrados</strong><span>Controle individual de status e senha</span></div>
+      <div class="access-user-list">
+        {% for user in users %}
+          <article class="access-user-row">
+            <span class="access-avatar">{{ user.nome|slice:":1"|upper }}</span>
+            <div class="access-user-data"><strong>{{ user.nome }}</strong><span>{{ user.email }}</span></div>
+            <span class="access-role access-role--{{ user.perfil }}">{% if user.perfil == 'ti' %}TI{% else %}Usuário{% endif %}</span>
+            <span class="access-state {% if user.ativo %}is-active{% endif %}">{% if user.ativo %}Ativo{% else %}Inativo{% endif %}</span>
+            <details class="access-actions">
+              <summary>Gerenciar</summary>
+              <div>
+                <form method="post">
+                  {% csrf_token %}<input type="hidden" name="action" value="password"><input type="hidden" name="user_id" value="{{ user.id }}">
+                  <label>Senha temporária<input type="password" name="senha_temporaria" minlength="8" required autocomplete="new-password"></label>
+                  <button type="submit">Atualizar senha</button>
+                </form>
+                <form method="post">
+                  {% csrf_token %}<input type="hidden" name="action" value="status"><input type="hidden" name="user_id" value="{{ user.id }}">
+                  <input type="hidden" name="ativo" value="{% if user.ativo %}false{% else %}true{% endif %}">
+                  <button class="access-status-action" type="submit">{% if user.ativo %}Desativar acesso{% else %}Reativar acesso{% endif %}</button>
+                </form>
+              </div>
+            </details>
+          </article>
+        {% empty %}<p class="access-empty">Nenhum usuário cadastrado.</p>{% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
