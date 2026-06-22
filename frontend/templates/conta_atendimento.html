@@ -47,7 +47,12 @@
       </div>
       <div class="filter-group">
         <label>Convênio</label>
-        <input name="nm_convenio" value="{{ filtros.nm_convenio }}" class="form-control" placeholder="Nome parcial">
+        <select name="nm_convenio" class="form-select">
+          <option value="">Todos</option>
+          {% for convenio in convenios %}
+            <option value="{{ convenio }}" {% if filtros.nm_convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="filter-group">
         <label>Procedimento</label>
@@ -282,7 +287,7 @@
                         <td class="account-action-cell">
                           <div class="account-action-buttons">
                           <button type="button" class="btn-glosar {% if conta.registro_glosa_status == 'true' %}btn-glosar--filled{% endif %}" @click="acatar = false; glosar = true" :class="{ 'btn-glosar--active': glosar }">
-                            + Glosar
+                            +Recusar
                           </button>
                           <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar

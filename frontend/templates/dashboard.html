@@ -153,7 +153,7 @@
     </div>
 
     <section class="recovery-grid">
-      <article class="indicator-panel indicator-panel--wide">
+      <article class="indicator-panel indicator-panel--wide recovery-scatter-panel">
         <div class="indicator-panel-head">
           <strong>
             Eficiência dos Recursos por Motivo
@@ -218,43 +218,25 @@
         </div>
       </article>
 
-      <article class="indicator-panel" data-recovery-bars>
+      <article class="indicator-panel">
         <div class="indicator-panel-head">
-          <strong data-recovery-title>Valor Recuperado por Convênio</strong>
-          <div class="metric-toggle" role="group" aria-label="Alternar visão de recuperação por convênio">
-            <button type="button" data-recovery-mode-button="recursado">Valor Recursado</button>
-            <button type="button" class="is-active" data-recovery-mode-button="valor">Valor Recuperado</button>
-            <button type="button" data-recovery-mode-button="sucesso">Sucesso do Recurso</button>
-          </div>
+          <strong>Valor Recursado por Convênio</strong>
         </div>
-        <div class="recovery-bars is-active" data-recovery-mode="valor">
-          {% for item in indicadores.recuperacao.convenio_valor %}
-            <div class="recovery-bar-row" data-chart-tooltip="{{ item.tooltip }}">
-              <span>{{ item.label }}</span>
-              <div><i style="width: {{ item.value_bar_width }}%"></i></div>
-              <strong>{{ item.valor_recuperado_formatado }}</strong>
-            </div>
-          {% empty %}
-            <p class="empty-state">Nenhum convênio com recuperação registrado.</p>
-          {% endfor %}
-        </div>
-        <div class="recovery-bars" data-recovery-mode="recursado">
+        <div class="recovery-bars">
           {% for item in indicadores.recuperacao.convenio_recursado %}
             <div class="recovery-bar-row" data-chart-tooltip="{{ item.tooltip }}">
               <span>{{ item.label }}</span>
-              <div><i style="width: {{ item.resource_bar_width }}%"></i></div>
-              <strong>{{ item.valor_recursado_formatado }}</strong>
-            </div>
-          {% empty %}
-            <p class="empty-state">Nenhum convênio com recurso registrado.</p>
-          {% endfor %}
-        </div>
-        <div class="recovery-bars" data-recovery-mode="sucesso">
-          {% for item in indicadores.recuperacao.convenio_sucesso %}
-            <div class="recovery-bar-row" data-chart-tooltip="{{ item.tooltip }}">
-              <span>{{ item.label }}</span>
-              <div><i style="width: {{ item.success_bar_width }}%"></i></div>
-              <strong>{{ item.taxa_sucesso_recurso }}%</strong>
+              <div class="recovery-bar-scale">
+                <div class="recovery-bar-total" style="width: {{ item.resource_bar_width }}%">
+                  <i class="recovery-bar-recovered" style="width: {{ item.success_bar_width }}%">
+                    <b>{{ item.taxa_sucesso_recurso }}%</b>
+                  </i>
+                  <em class="recovery-bar-recovered-value" style="left: max(42px, {{ item.success_bar_width }}%)">
+                    {{ item.valor_recuperado_formatado }}
+                  </em>
+                  <strong class="recovery-bar-recursed-value">{{ item.valor_recursado_formatado }}</strong>
+                </div>
+              </div>
             </div>
           {% empty %}
             <p class="empty-state">Nenhum convênio com recurso registrado.</p>
@@ -357,8 +339,6 @@
         </div>
         <div class="aging-summary">
           <span>{{ indicadores.aging_glosas.tratados }} tratados</span>
-          <span>{{ indicadores.aging_glosas.em_aberto }} em aberto</span>
-          <span>{{ indicadores.aging_glosas.sem_prazo }} sem prazo configurado</span>
         </div>
       </div>
 
@@ -895,29 +875,6 @@ Quantidade total: {{ serie.total }}"></polyline>
       document.fonts.ready.then(scheduleRecoveryLayout);
     }
 
-    document.querySelectorAll('[data-recovery-bars]').forEach((panel) => {
-      const title = panel.querySelector('[data-recovery-title]');
-      const buttons = panel.querySelectorAll('[data-recovery-mode-button]');
-      const views = panel.querySelectorAll('[data-recovery-mode]');
-      const titles = {
-        recursado: 'Valor Recursado por Convênio',
-        valor: 'Valor Recuperado por Convênio',
-        sucesso: 'Taxa de Sucesso do Recurso por Convênio',
-      };
-
-      buttons.forEach((button) => {
-        button.addEventListener('click', () => {
-          const mode = button.dataset.recoveryModeButton;
-          buttons.forEach((item) => item.classList.toggle('is-active', item === button));
-          views.forEach((view) => {
-            view.classList.toggle('is-active', view.dataset.recoveryMode === mode);
-          });
-          if (title) {
-            title.textContent = titles[mode] || titles.valor;
-          }
-        });
-      });
-    });
   })();
 </script>
 {% endblock %}

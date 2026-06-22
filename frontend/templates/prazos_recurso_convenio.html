@@ -1,21 +1,16 @@
 {% extends "base.html" %}
 {% block breadcrumb_label %}Glosas MV > Administrativo{% endblock %}
-{% block page_title %}Prazos por Convênio{% endblock %}
+{% block page_title %}Configuração por Convênio{% endblock %}
 {% block content %}
 <section class="admin-page">
   <div class="admin-summary">
     <span>{{ resumo.convenios }} convênios</span>
     <span>{{ resumo.configurados }} parametrizados</span>
-    <span>Movimentação desde janeiro</span>
   </div>
 
   <form method="post" class="admin-panel">
     {% csrf_token %}
-    <div class="admin-panel-head">
-      <div>
-        <strong>Abertura de processo de recurso</strong>
-        <span>Informe o prazo em dias corridos a partir da data de atendimento.</span>
-      </div>
+    <div class="admin-panel-head admin-panel-head--actions-only">
       <button type="submit" class="btn btn-primary">Salvar prazos</button>
     </div>
 
@@ -27,6 +22,7 @@
             <th>Convênio</th>
             <th>Base de cálculo</th>
             <th>Dias para recurso</th>
+            <th>Habilitado</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -41,7 +37,6 @@
               <td>
                 <div class="admin-convenio-cell">
                   <strong>{{ convenio.convenio }}</strong>
-                  <span>Convênio movimentado desde janeiro</span>
                 </div>
               </td>
               <td>
@@ -61,6 +56,18 @@
                 </label>
               </td>
               <td>
+                <label class="admin-enabled-toggle">
+                  <input
+                    type="checkbox"
+                    name="habilitado_{{ convenio.cd_convenio }}"
+                    value="true"
+                    {% if convenio.habilitado %}checked{% endif %}
+                    aria-label="Habilitar {{ convenio.convenio }}"
+                  >
+                  <span aria-hidden="true"></span>
+                </label>
+              </td>
+              <td>
                 {% if convenio.configurado %}
                   <span class="status status--success">Configurado</span>
                 {% else %}
@@ -70,7 +77,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="5">Nenhum convênio encontrado na movimentação desde janeiro.</td>
+              <td colspan="6">Nenhum convênio ativo encontrado.</td>
             </tr>
           {% endfor %}
         </tbody>

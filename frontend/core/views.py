@@ -15,8 +15,10 @@ from .services import ApiError, api_delete, api_get, api_patch, api_post, api_pu
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
 PRAZOS_RECURSO_CONVENIO_PATH = "/app_glosas/prazos-recurso-convenio"
+CONVENIOS_PATH = "/app_glosas/convenios"
 DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
 DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
+DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = "acompanhamento:registros-glosa"
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
@@ -1725,11 +1727,22 @@ def build_aging_indicators(vw_rows):
 
 
 def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
-    prazos_lookup = build_prazos_convenio_lookup(prazos_convenio or [])
+    prazos_convenio = prazos_convenio or []
+    prazos_lookup = build_prazos_convenio_lookup(prazos_convenio)
+    convenios_desabilitados = {
+        as_int_or_zero(item.get("cd_convenio"))
+        for item in prazos_convenio
+        if item.get("habilitado") is False
+    }
     rows = [
         registro
         for registro in registros
-        if is_active_registro(registro) and has_internal_treatment(registro)
+        if (
+            is_active_registro(registro)
+            and has_internal_treatment(registro)
+            and as_int_or_zero(registro.get("cd_convenio"))
+            not in convenios_desabilitados
+        )
     ]
     aging_view = build_vw_indicadores_aging_glosas(rows, prazos_lookup)
     aging_indicators = build_aging_indicators(aging_view)
@@ -1915,7 +1928,6 @@ def unique_filter_options(rows, key_name):
 def build_dashboard_filter_options(registros):
     rows = [registro for registro in registros if is_active_registro(registro)]
     return {
-        "convenios": unique_filter_options(rows, "convenio"),
         "prestadores": unique_filter_options(rows, "prestador"),
         "tipos_atendimento": unique_filter_options(rows, "tp_atendimento"),
         "motivos_glosa": unique_filter_options(rows, "motivo_glosa"),
@@ -2055,11 +2067,29 @@ def get_cached_api_payload(namespace, path, params=None, force_refresh=False):
     return payload
 
 
+def get_convenio_filter_options(force_refresh=False):
+    payload = get_cached_api_payload(
+        DASHBOARD_CONVENIOS_CACHE_KEY,
+        CONVENIOS_PATH,
+        force_refresh=force_refresh,
+    )
+    rows = payload.get("convenios", []) if isinstance(payload, dict) else []
+    return sorted(
+        {
+            str(item.get("nm_convenio") or "").strip()
+            for item in rows
+            if str(item.get("nm_convenio") or "").strip()
+        },
+        key=normalize_lookup_text,
+    )
+
+
 def clear_dashboard_cache():
     cache.delete_many(
         [
             DASHBOARD_GLOSAS_CACHE_KEY,
             DASHBOARD_PRAZOS_CACHE_KEY,
+            DASHBOARD_CONVENIOS_CACHE_KEY,
             DASHBOARD_TISS_CACHE_KEY,
         ]
     )
@@ -2080,6 +2110,7 @@ def dashboard(request):
         "motivos_glosa": [],
     }
     prazos_convenio = []
+    convenio_options = []
     dashboard_errors = []
     try:
         prazos_payload = get_cached_dashboard_payload(
@@ -2089,7 +2120,12 @@ def dashboard(request):
         )
         prazos_convenio = prazos_payload.get("convenios", [])
     except ApiError as exc:
-        dashboard_errors.append(("Prazos por convênio", exc))
+        dashboard_errors.append(("Configuração por convênio", exc))
+
+    try:
+        convenio_options = get_convenio_filter_options(force_refresh)
+    except ApiError as exc:
+        dashboard_errors.append(("Convênios", exc))
 
     tiss_motivos = []
     try:
@@ -2117,6 +2153,7 @@ def dashboard(request):
         )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
         opcoes_filtro = build_dashboard_filter_options(registros)
+        opcoes_filtro["convenios"] = convenio_options
         if tiss_motivos:
             opcoes_filtro["motivos_glosa"] = tiss_motivos
         registros_filtrados = apply_dashboard_filters(registros, filtros)
@@ -2170,6 +2207,9 @@ def prazos_recurso_convenio(request):
                     "cd_convenio": int(cd_convenio),
                     "convenio": convenio,
                     "dias_para_recurso": dias,
+                    "habilitado": (
+                        request.POST.get(f"habilitado_{cd_convenio}") == "true"
+                    ),
                 }
             )
 
@@ -2185,17 +2225,23 @@ def prazos_recurso_convenio(request):
             try:
                 api_put(PRAZOS_RECURSO_CONVENIO_PATH, payload)
                 clear_filter_caches()
-                messages.success(request, "Prazos por convênio atualizados.")
+                messages.success(request, "Configurações por convênio atualizadas.")
                 return redirect("prazos_recurso_convenio")
             except ApiError as exc:
-                messages.error(request, format_api_error(exc, "Prazos por convênio"))
+                messages.error(
+                    request,
+                    format_api_error(exc, "Configuração por convênio"),
+                )
 
     try:
         payload = api_get(PRAZOS_RECURSO_CONVENIO_PATH)
         convenios = payload.get("convenios", [])
+        for convenio in convenios:
+            if convenio.get("habilitado") is None:
+                convenio["habilitado"] = True
     except ApiError as exc:
         convenios = []
-        messages.error(request, format_api_error(exc, "Prazos por convênio"))
+        messages.error(request, format_api_error(exc, "Configuração por convênio"))
 
     resumo = {
         "convenios": len(convenios),
@@ -2307,6 +2353,12 @@ def conta_atendimento(request):
     consulta_indisponivel = False
     total_pacientes = 0
     tiss_motivos = []
+    convenios = []
+    try:
+        convenios = get_convenio_filter_options()
+    except ApiError as exc:
+        messages.error(request, format_api_error(exc, "Consulta de convênios"))
+
     try:
         payload_tiss = get_cached_api_payload(
             CONTA_TISS_CACHE_KEY,
@@ -2414,6 +2466,7 @@ def conta_atendimento(request):
             "consulta_indisponivel": consulta_indisponivel,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
             "tiss_motivos": tiss_motivos,
+            "convenios": convenios,
             "pesquisa_executada": pesquisa_executada,
         },
     )
@@ -2478,6 +2531,11 @@ def acompanhamento(request):
     }
     convenios = []
     try:
+        convenios = get_convenio_filter_options()
+    except ApiError as exc:
+        messages.error(request, format_api_error(exc, "Consulta de convênios"))
+
+    try:
         payload = get_cached_dashboard_payload(
             ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
             settings.API_REGISTRO_GLOSA_PATH,
@@ -2489,14 +2547,6 @@ def acompanhamento(request):
             for registro in registros
             if is_recurso_registro(registro) and has_internal_treatment(registro)
         ]
-        convenios = sorted(
-            {
-                str(registro.get("convenio") or "").strip()
-                for registro in registros
-                if str(registro.get("convenio") or "").strip()
-            },
-            key=normalize_lookup_text,
-        )
         registros = apply_acompanhamento_filters(registros, api_filtros)
     except ApiError as exc:
         registros = []
