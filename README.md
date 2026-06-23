@@ -92,18 +92,18 @@ Servicos:
 flowchart TD
 
 subgraph FAT["FATURAMENTO"]
-A["Fecha contas"]
-B["Cria remessas"]
+A["Fatura Contas"]
+B["Cria Remessas"]
 A --> B
 end
 
 subgraph FIN["FINANCEIRO"]
-C["Confere autorizacoes"]
+C["Confere Convenio"]
 D["Emite NF"]
-E["Relatorio autorizado"]
-F["Relatorio glosado"]
-G["Preenche DEMO"]
-H["Envia para Glosa"]
+E["Relatorio Pagamento"]
+F["Relatorio Glosas"]
+G["Preenche Planilha DEMO"]
+H["Envio Setor Glosa"]
 C --> D
 D --> E
 D --> F
@@ -113,11 +113,11 @@ G --> H
 end
 
 subgraph GLO["SETOR DE GLOSA"]
-I["Consulta glosa"]
-J["Analisa motivo"]
+I["Consulta Detalhamento Glosas"]
+J["Analisa Motivo/Provas"]
 K{"Decisao"}
-L["Abre recurso"]
-M["Acata glosa"]
+L["Abre Recurso"]
+M["Acata Glosa"]
 I --> J
 J --> K
 K -->|Recorrer| L
@@ -125,27 +125,27 @@ K -->|Acatar| M
 end
 
 subgraph REC["GESTAO DE RECURSOS"]
-N["Acompanha recursos"]
-O["Consulta convenios"]
-P["Atualiza status"]
-Q["Registra retorno"]
+N["Acompanha Recursos"]
+O["Consulta Resposta"]
+P["Atualiza Status"]
+Q["Registra Retorno"]
 N --> O
 O --> P
 P --> Q
 end
 
-U{"Destino do recurso"}
+U{"Destino do Recurso"}
 
 subgraph PROV["PROVISAO"]
-R["Registra provisao"]
+R["Registra Provisao Financeiro"]
 end
 
 subgraph PERDA["ACATO (PERDA)"]
-V["Registra acato"]
+V["Registra Acato"]
 end
 
 subgraph CONV["CONVERSAO"]
-S["Registra conversao"]
+S["Registra Conversao"]
 end
 
 subgraph KPI["INDICADORES"]
