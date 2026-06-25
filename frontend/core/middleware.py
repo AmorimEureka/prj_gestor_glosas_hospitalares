@@ -12,6 +12,8 @@ class ApiSessionMiddleware:
         "/logout/",
         "/esqueci-senha/",
         "/redefinir-senha/",
+        "/autenticacao/redefinir-senha",
+        "/autenticacao/redefinir-senha/",
     }
 
     def __init__(self, get_response):
