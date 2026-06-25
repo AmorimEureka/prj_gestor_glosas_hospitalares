@@ -120,6 +120,15 @@ class LoginFlowTests(TestCase):
         self.assertContains(response, 'Senha atualizada')
         api_post.assert_called_once()
 
+    def test_rota_redefinicao_compativel_com_api(self):
+        response = self.client.get(
+            '/autenticacao/redefinir-senha/',
+            {'token': 'token-seguro-com-tamanho-suficiente'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Crie uma nova senha')
+
     def test_bloqueia_gestao_de_acessos_para_usuario_comum(self):
         session = self.client.session
         session['api_access_token'] = 'token-seguro'

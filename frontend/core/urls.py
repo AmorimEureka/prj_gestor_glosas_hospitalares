@@ -7,6 +7,11 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path("esqueci-senha/", views.forgot_password, name="forgot_password"),
     path("redefinir-senha/", views.reset_password, name="reset_password"),
+    path(
+        "autenticacao/redefinir-senha/",
+        views.reset_password,
+        name="reset_password_auth",
+    ),
     path("", views.dashboard, name="dashboard"),
     path("administrativo/prazos-recurso/", views.prazos_recurso_convenio, name="prazos_recurso_convenio"),
     path("administrativo/acessos/", views.user_access_management, name="user_access_management"),
