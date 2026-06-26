@@ -1524,12 +1524,21 @@ def build_recuperacao_indicators(rows, scatter_limit=12):
         "sucesso_points": " ".join(sucesso_points),
         "extrema": recovery_extrema,
         "value_ticks": [
-            format_brl_compact(
-                ((max_monthly_value + 1) ** fraction) - 1
-            )
+            {
+                "label": format_brl_compact(
+                    ((max_monthly_value + 1) ** fraction) - 1
+                ),
+                "y": format_css_number(92 - (fraction * 76)),
+            }
             for fraction in (1, 0.75, 0.5, 0.25, 0)
         ],
-        "rate_ticks": ["100%", "75%", "50%", "25%", "0%"],
+        "rate_ticks": [
+            {
+                "label": f"{rate}%",
+                "y": format_css_number(92 - ((rate / 100) * 76)),
+            }
+            for rate in (100, 75, 50, 25, 0)
+        ],
         "total_recursado_formatado": format_brl_input(total_monthly_recursado),
         "total_recuperado_formatado": format_brl_input(total_monthly_recuperado),
         "taxa_sucesso": percent_value(

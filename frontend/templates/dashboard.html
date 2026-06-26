@@ -272,7 +272,7 @@
         <div class="recovery-trend-chart">
           <div class="recovery-trend-y-axis recovery-trend-y-axis--value" aria-label="Escala de valores">
             {% for tick in indicadores.recuperacao.mensal.value_ticks %}
-              <span>{{ tick }}</span>
+              <span style="top: {{ tick.y }}%;">{{ tick.label }}</span>
             {% endfor %}
           </div>
           <div class="recovery-trend-canvas" data-recovery-trend-canvas>
@@ -317,7 +317,7 @@
           </div>
           <div class="recovery-trend-y-axis recovery-trend-y-axis--rate" aria-label="Escala percentual">
             {% for tick in indicadores.recuperacao.mensal.rate_ticks %}
-              <span>{{ tick }}</span>
+              <span style="top: {{ tick.y }}%;">{{ tick.label }}</span>
             {% endfor %}
           </div>
           <div class="recovery-trend-months" aria-hidden="true">
