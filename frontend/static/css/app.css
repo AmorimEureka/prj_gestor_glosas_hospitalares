@@ -2299,6 +2299,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: grid;
   gap: 8px;
   min-height: 118px;
+  min-width: 0;
   padding: 16px;
 }
 
@@ -2336,8 +2337,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .indicator-kpi strong {
   color: #092a3a;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .indicator-kpi small {
