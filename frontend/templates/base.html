@@ -218,11 +218,26 @@
     window.validateRecebimentoForm = function (form) {
       const dateField = form.elements.dt_recebimento;
       const valueField = form.elements.valor_recebido;
+      const quantityField = form.elements.qtd_recebida;
+      const today = new Date();
+      const todayValue = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0')
+      ].join('-');
+      const parseConfiguredNumber = (value) => {
+        const text = String(value || '').trim();
+        if (!text) return 0;
+        if (text.includes(',')) {
+          return Number(text.replace(/\./g, '').replace(',', '.'));
+        }
+        return Number(text);
+      };
       if (valueField) {
         valueField.setCustomValidity('');
         const digits = String(valueField.value || '').replace(/\D/g, '');
         const amount = Number(digits || 0) / 100;
-        const maximum = Number(valueField.dataset.maxResource || 0);
+        const maximum = parseConfiguredNumber(valueField.dataset.maxValue || valueField.dataset.maxResource);
         if (amount <= 0) {
           valueField.setCustomValidity('Informe um valor recebido maior que zero.');
         } else if (maximum > 0 && amount > maximum) {
@@ -231,8 +246,20 @@
           );
         }
       }
+      if (quantityField) {
+        quantityField.setCustomValidity('');
+        const informedQuantity = Number(quantityField.value || 0);
+        const maximumQuantity = parseConfiguredNumber(quantityField.dataset.maxQuantity || quantityField.max);
+        if (!Number.isFinite(informedQuantity) || informedQuantity <= 0) {
+          quantityField.setCustomValidity('Informe uma quantidade recebida maior que zero.');
+        } else if (maximumQuantity > 0 && informedQuantity > maximumQuantity) {
+          quantityField.setCustomValidity(`A quantidade recebida não pode exceder ${maximumQuantity.toLocaleString('pt-BR')}.`);
+        }
+      }
       if (!dateField?.value) {
         dateField?.setCustomValidity('Informe a data do recebimento.');
+      } else if (dateField.value > todayValue) {
+        dateField.setCustomValidity('A data do recebimento não pode ser maior que a data atual.');
       } else {
         dateField.setCustomValidity('');
       }
@@ -243,31 +270,86 @@
       return true;
     };
 
-    window.validateGlosaForm = function (form) {
+    window.validateGlosaDates = function (form, changedField = null) {
       const dataGlosa = form.elements.data_glosa;
       const dataPagamento = form.elements.dt_pagamento;
       const dataRecurso = form.elements.dt_recurso;
-      const valor = form.elements.valor_glosado;
-
-      [dataPagamento, dataRecurso, valor].forEach((field) => {
+      const today = new Date();
+      const todayValue = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0')
+      ].join('-');
+      const setValidityIfClear = (field, message) => {
+        if (field && field.validity.valid) {
+          field.setCustomValidity(message);
+        }
+      };
+      [dataGlosa, dataPagamento, dataRecurso].forEach((field) => {
         if (field) field.setCustomValidity('');
       });
 
-      if (dataGlosa.value && dataPagamento.value && dataGlosa.value > dataPagamento.value) {
-        dataPagamento.setCustomValidity('A data do pagamento deve ser igual ou posterior à data da glosa.');
+      if (dataGlosa?.value && dataGlosa.value > todayValue) {
+        dataGlosa.setCustomValidity('A data da glosa não pode ser maior que a data atual.');
+      }
+      if (dataPagamento?.value && dataPagamento.value > todayValue) {
+        dataPagamento.setCustomValidity('A data do pagamento não pode ser maior que a data atual.');
+      }
+      if (dataRecurso?.value && dataRecurso.value > todayValue) {
+        dataRecurso.setCustomValidity('A data do recurso não pode ser maior que a data atual.');
+      }
+      if (dataGlosa?.value && dataPagamento?.value && dataGlosa.value > dataPagamento.value) {
+        const target = changedField?.name === 'data_glosa' ? dataGlosa : dataPagamento;
+        setValidityIfClear(
+          target,
+          target === dataGlosa
+            ? 'A data da glosa deve ser igual ou anterior à data do pagamento.'
+            : 'A data do pagamento deve ser igual ou posterior à data da glosa.'
+        );
       }
       if (
-        dataRecurso.value
-        && ((dataGlosa.value && dataRecurso.value < dataGlosa.value)
-          || (dataPagamento.value && dataRecurso.value < dataPagamento.value))
+        dataRecurso?.value
+        && ((dataGlosa?.value && dataRecurso.value < dataGlosa.value)
+          || (dataPagamento?.value && dataRecurso.value < dataPagamento.value))
       ) {
-        dataRecurso.setCustomValidity('A data do recurso não pode ser anterior às datas da glosa ou do pagamento.');
+        setValidityIfClear(dataRecurso, 'A data do recurso não pode ser anterior às datas da glosa ou do pagamento.');
+      }
+
+      return [dataGlosa, dataPagamento, dataRecurso].every((field) => !field || field.validity.valid);
+    };
+
+    window.validateGlosaForm = function (form) {
+      const quantidade = form.elements.qtd_glosada;
+      const valor = form.elements.valor_glosado;
+      const parseConfiguredNumber = (value) => {
+        const text = String(value || '').trim();
+        if (!text) return 0;
+        if (text.includes(',')) {
+          return Number(text.replace(/\./g, '').replace(',', '.'));
+        }
+        return Number(text);
+      };
+
+      [quantidade, valor].forEach((field) => {
+        if (field) field.setCustomValidity('');
+      });
+
+      window.validateGlosaDates(form);
+
+      if (quantidade) {
+        const informedQuantity = Number(quantidade.value || 0);
+        const maximumQuantity = parseConfiguredNumber(quantidade.dataset.maxQuantity || quantidade.max);
+        if (!Number.isFinite(informedQuantity) || informedQuantity <= 0) {
+          quantidade.setCustomValidity('Informe uma quantidade maior que zero.');
+        } else if (maximumQuantity > 0 && informedQuantity > maximumQuantity) {
+          quantidade.setCustomValidity(`A quantidade não pode exceder ${maximumQuantity.toLocaleString('pt-BR')}.`);
+        }
       }
 
       if (valor) {
         const digits = valor.value.replace(/\D/g, '');
         const informedValue = Number(digits || 0) / 100;
-        const maximumValue = Number(valor.dataset.maxValue || 0);
+        const maximumValue = parseConfiguredNumber(valor.dataset.maxValue);
         if (informedValue <= 0) {
           valor.setCustomValidity('Informe um valor maior que zero.');
         } else if (maximumValue > 0 && informedValue > maximumValue) {
@@ -281,6 +363,28 @@
       }
       return true;
     };
+
+    window.clearGlosaFieldValidity = function (field) {
+      if (!field) return;
+      const form = field.closest('.glosa-modal-form');
+      if (!form) return;
+      field.setCustomValidity('');
+      if (['data_glosa', 'dt_pagamento', 'dt_recurso'].includes(field.name)) {
+        window.validateGlosaDates(form, field);
+      }
+    };
+
+    document.addEventListener('input', (event) => {
+      if (event.target instanceof Element && event.target.closest('.glosa-modal-form')) {
+        window.clearGlosaFieldValidity(event.target);
+      }
+    });
+
+    document.addEventListener('change', (event) => {
+      if (event.target instanceof Element && event.target.closest('.glosa-modal-form')) {
+        window.clearGlosaFieldValidity(event.target);
+      }
+    });
 
     window.handleGlosaSubmit = function (form, event) {
       const submitter = event.submitter;
@@ -368,7 +472,50 @@
         });
     };
 
+    window.resetGlosaFormToInitialState = function (form) {
+      if (!form) return;
+      form.reset();
+      form.querySelectorAll('input[data-submit-proxy="true"]').forEach((input) => {
+        input.remove();
+      });
+      form.querySelectorAll('input, select, textarea').forEach((field) => {
+        field.setCustomValidity('');
+        if (field._x_model && typeof field._x_model.set === 'function') {
+          field._x_model.set(field.value);
+        }
+      });
+    };
+
+    window.clearGlosaFormFields = function (form) {
+      if (!form) return;
+      const fieldNames = [
+        'processo_controle_fatura_gab',
+        'data_glosa',
+        'dt_pagamento',
+        'motivo_glosa',
+        'processo_recurso',
+        'dt_recurso',
+        'qtd_glosada',
+        'valor_glosado',
+        'descricao_glosa'
+      ];
+      fieldNames.forEach((name) => {
+        form.querySelectorAll(`[name="${name}"]`).forEach((field) => {
+          field.value = '';
+          field.defaultValue = '';
+          field.setCustomValidity('');
+          if (field._x_model && typeof field._x_model.set === 'function') {
+            field._x_model.set('');
+          }
+        });
+      });
+    };
+
     window.showOperationMessage = function (data, form) {
+      if (form && !data.ok) {
+        window.resetGlosaFormToInitialState(form);
+      }
+
       const layer = document.createElement('div');
       layer.className = 'message-dialog-layer';
       layer.setAttribute('role', 'presentation');
@@ -490,6 +637,7 @@
       } else {
         forms.forEach((modalForm) => {
           window.updateRegistroFormActions(modalForm, false, '');
+          window.clearGlosaFormFields(modalForm);
         });
         glosarButton?.classList.remove('btn-glosar--filled');
         acatarButton?.classList.remove('btn-acatar--filled');

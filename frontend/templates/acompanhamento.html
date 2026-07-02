@@ -14,9 +14,18 @@
     receivingRemittance: '',
     receivingAttendance: '',
     receivingResourceValue: 0,
+    receivingResourceQuantity: 0,
     valorRecebido: '',
-    sortDirections: {},
-    toggleColumnSort(columnKey) {
+	    sortDirections: {},
+	    todayDate() {
+	      const today = new Date();
+	      return [
+	        today.getFullYear(),
+	        String(today.getMonth() + 1).padStart(2, '0'),
+	        String(today.getDate()).padStart(2, '0')
+	      ].join('-');
+	    },
+	    toggleColumnSort(columnKey) {
       const current = this.sortDirections[columnKey] || 'asc';
       const next = current === 'asc' ? 'desc' : 'asc';
       this.sortDirections[columnKey] = next;
@@ -39,10 +48,12 @@
       this.receivingRemittance = card.remittance || '-';
       this.receivingAttendance = card.attendance || '-';
       this.receivingResourceValue = Number(card.resourceValue || 0);
+      this.receivingResourceQuantity = Number(card.resourceQuantity || 0);
       this.valorRecebido = card.valorRecebido || '';
       this.receiving = true;
       this.$nextTick(() => {
         if (this.$refs.dtRecebimento) this.$refs.dtRecebimento.value = card.dtRecebimento || '';
+        if (this.$refs.qtdRecebida) this.$refs.qtdRecebida.value = card.qtdRecebida || '';
         if (this.$refs.observacaoRecebimento) this.$refs.observacaoRecebimento.value = card.observacao || '';
         this.$refs.dtRecebimento?.focus();
       });
@@ -121,10 +132,10 @@
   <div class="acompanhamento-toolbar">
     <div class="summary-strip">
       <span>{{ resumo.processos }} processos</span>
-      <span>{{ resumo.registros }} registros</span>
+      <span>{{ resumo.em_aberto }} em aberto</span>
+      <strong>Aberto: R$ {{ resumo.valor_em_aberto_total|br_currency }}</strong>
       <span>{{ resumo.recebidos }} recebidos</span>
-      <span>{{ resumo.sem_recuperacao }} sem recuperação</span>
-      <strong>R$ {{ resumo.valor_total|br_currency }}</strong>
+      <strong>Recebido: R$ {{ resumo.valor_recebido_total|br_currency }}</strong>
     </div>
     <div class="view-switch">
       <a class="{% if modo == 'kanban' %}active{% endif %}" href="?{% querystring modo='kanban' faixa='' %}">Kanban</a>
@@ -148,15 +159,20 @@
             <tr>
               <th class="col-processo-original">Proc. Original</th>
               <th class="col-processo-recurso">Proc. Recurso</th>
+              <th class="col-data-glosa">Data da Glosa</th>
+              <th class="col-recebido">Recebido</th>
+              <th class="col-data-glosa">Dt Recebimento</th>
               <th class="col-paciente">Paciente</th>
               <th class="col-convenio">Convênio</th>
-              <th class="col-procedimento">Proced.</th>
-              <th class="col-desc">Descrição</th>
               <th class="col-remessa">Remessa</th>
               <th class="col-atendimento">Atend.</th>
               <th class="col-conta">Conta</th>
-              <th class="col-qtd">Qtd.</th>
-              <th class="col-valor">Valor</th>
+              <th class="col-valor">Valor Glosado</th>
+              <th class="col-valor">Valor Recursado</th>
+              <th class="col-valor">Valor Recebido</th>
+              <th class="col-qtd">Qtd. Glosada</th>
+              <th class="col-qtd">Qtd. Recursada</th>
+              <th class="col-qtd">Qtd. Recebida</th>
               <th class="col-acao">Receber</th>
             </tr>
           </thead>
@@ -165,35 +181,42 @@
               <tr>
                 <td class="process-cell">{{ row.processo_controle_fatura_gab|default:"-" }}</td>
                 <td class="process-cell process-cell--strong">{{ row.processo_recurso|default:"-" }}</td>
+                <td class="center-cell ref-cell">{{ row.data_glosa_formatada|default:"-" }}</td>
+                <td class="center-cell">{{ row.recebido_label }}</td>
+                <td class="center-cell ref-cell">{{ row.dt_recebimento_formatada|default:"-" }}</td>
                 <td class="person-cell">{{ row.paciente_label }}</td>
                 <td class="center-cell">{{ row.convenio|default:"-" }}</td>
-                <td class="center-cell">{{ row.procedimento|default:"-" }}</td>
-                <td class="desc-cell">{{ row.descricao_glosa|default:"-" }}</td>
                 <td class="center-cell ref-cell">{{ row.cd_remessa|default:"-" }}</td>
                 <td class="center-cell ref-cell">{{ row.cd_atendimento|default:"-" }}</td>
                 <td class="center-cell ref-cell ref-cell--strong">{{ row.conta|default:"-" }}</td>
-                <td class="center-cell qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
+                <td class="center-cell value-cell">{{ row.valor_glosado_total_formatado|default:"-" }}</td>
                 <td class="center-cell value-cell">{{ row.valor_recurso_formatado|default:"-" }}</td>
+                <td class="center-cell value-cell">{{ row.valor_recebido_formatado|default:"-" }}</td>
+                <td class="center-cell qtd-cell">{{ row.qtd_glosada|floatformat:0 }}</td>
+                <td class="center-cell qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
+                <td class="center-cell qtd-cell">{{ row.qtd_recebida|floatformat:0 }}</td>
                 <td class="receive-action-cell">
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary btn-sm"
-                    @click="openRecebimento({
+	                  <button
+	                    type="button"
+	                    class="btn btn-sm {% if row.recebido %}btn-received-edit{% else %}btn-outline-primary{% endif %}"
+	                    @click="openRecebimento({
                       ids: '{{ row.id }}',
                       title: '{{ row.processo_recurso|default:row.processo_controle_fatura_gab|escapejs }}',
                       patient: '{{ row.paciente_label|escapejs }}',
                       remittance: '{{ row.cd_remessa|default:"-"|escapejs }}',
-                      attendance: '{{ row.cd_atendimento|default:"-"|escapejs }}',
-                      resourceValue: '{{ row.valor_recurso|stringformat:"g" }}',
-                      dtRecebimento: '{{ row.dt_recebimento_input|default:'' }}',
-                      valorRecebido: '{{ row.valor_recebido_formatado|default:''|escapejs }}',
-                      observacao: '{{ row.observacao_recebimento|default:''|escapejs }}'
-                    })"
-                  >Receber</button>
+	                      attendance: '{{ row.cd_atendimento|default:"-"|escapejs }}',
+	                      resourceValue: '{{ row.valor_recurso|stringformat:"g" }}',
+	                      resourceQuantity: '{{ row.qtd_recurso|stringformat:"g" }}',
+	                      dtRecebimento: '{{ row.dt_recebimento_input|default:'' }}',
+	                      valorRecebido: '{{ row.valor_recebido_formatado|default:''|escapejs }}',
+	                      qtdRecebida: '{% if row.recebido %}{{ row.qtd_recebida|floatformat:0 }}{% endif %}',
+	                      observacao: '{{ row.observacao_recebimento|default:''|escapejs }}'
+	                    })"
+	                  >{% if row.recebido %}Editar{% else %}Receber{% endif %}</button>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="12">Nenhum recurso encontrado para os filtros informados.</td></tr>
+              <tr><td colspan="17">Nenhum recurso encontrado para os filtros informados.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -232,7 +255,7 @@
                 class="kanban-card"
                 data-reference-date="{{ card.reference_date }}"
                 draggable="{% if column.key != 'recebidas' %}true{% else %}false{% endif %}"
-                @dragstart="draggedCard = { ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}' }"
+	                @dragstart="draggedCard = { ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}', resourceQuantity: '{{ card.qtd_total|stringformat:"g" }}' }"
               >
                 <div class="kanban-card-head">
                   <span><b>Proc. Original</b> {{ card.processos_originais }}</span>
@@ -280,7 +303,7 @@
                   <button
                     type="button"
                     class="btn btn-outline-primary btn-sm"
-                    @click="openRecebimento({ ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}' })"
+	                    @click="openRecebimento({ ids: '{{ card.ids }}', title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}', resourceQuantity: '{{ card.qtd_total|stringformat:"g" }}' })"
                   >Receber</button>
                 {% endif %}
               </article>
@@ -316,11 +339,15 @@
         <div class="glosa-section-grid">
           <div class="glosa-field">
             <label>Data do recebimento *</label>
-            <input x-ref="dtRecebimento" type="date" name="dt_recebimento" class="form-control" required>
+	            <input x-ref="dtRecebimento" type="date" name="dt_recebimento" class="form-control" :max="todayDate()" @input="$event.target.setCustomValidity('')" required>
           </div>
           <div class="glosa-field">
             <label>Valor recebido *</label>
-            <input x-ref="valorRecebido" name="valor_recebido" class="form-control" placeholder="R$ 0,00" inputmode="numeric" x-model="valorRecebido" :data-max-resource="receivingResourceValue" @input="valorRecebido = $event.target.value; formatValorRecebido()" required>
+            <input x-ref="valorRecebido" name="valor_recebido" class="form-control" placeholder="R$ 0,00" inputmode="numeric" x-model="valorRecebido" :data-max-value="receivingResourceValue" @input="valorRecebido = $event.target.value; formatValorRecebido(); $event.target.setCustomValidity('')" required>
+          </div>
+          <div class="glosa-field">
+            <label>Qtd. recebida *</label>
+            <input x-ref="qtdRecebida" type="number" step="1" min="1" name="qtd_recebida" class="form-control" inputmode="numeric" pattern="[0-9]*" :max="receivingResourceQuantity" :data-max-quantity="receivingResourceQuantity" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, ''); $event.target.setCustomValidity('')">
           </div>
           <div class="glosa-field glosa-field--full">
             <label>Observação</label>
