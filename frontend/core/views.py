@@ -1,5 +1,6 @@
 from calendar import monthrange
 from datetime import date, datetime
+import json
 from math import ceil, log10
 from hashlib import sha256
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
@@ -30,7 +31,7 @@ DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
 DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
 DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
-ACOMPANHAMENTO_GLOSAS_CACHE_KEY = "acompanhamento:registros-glosa"
+ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
 
@@ -266,7 +267,70 @@ def format_api_error(exc: ApiError, endpoint_name: str) -> str:
         return f"{endpoint_name}: sua sessão não é mais válida. Entre novamente."
     if exc.status_code == 404:
         return f"{endpoint_name}: endpoint ainda nao encontrado na API."
-    return f"{endpoint_name}: {exc}"
+    return f"{endpoint_name}: {extract_api_error_message(exc)}"
+
+
+def clean_api_validation_message(message):
+    text = str(message or "").strip()
+    prefixes = ("Value error, ", "value_error, ")
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            return text[len(prefix) :].strip()
+    return text
+
+
+def extract_api_error_message(exc: ApiError) -> str:
+    text = str(exc).strip()
+    if not text:
+        return "A API não retornou detalhes do erro."
+
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return text
+
+    detail = payload.get("detail") if isinstance(payload, dict) else payload
+    if isinstance(detail, str):
+        return clean_api_validation_message(detail)
+    if isinstance(detail, dict):
+        message = detail.get("msg") or detail.get("message") or detail.get("detail")
+        if message:
+            return clean_api_validation_message(message)
+    if isinstance(detail, list):
+        messages = []
+        for item in detail:
+            if isinstance(item, dict):
+                message = item.get("msg") or item.get("message") or item.get("detail")
+                if message:
+                    messages.append(clean_api_validation_message(message))
+            elif item:
+                messages.append(clean_api_validation_message(item))
+        if messages:
+            return " ".join(messages)
+
+    return text
+
+
+def contextualize_registro_glosa_error(message, is_acatar=False):
+    if is_acatar:
+        replacements = {
+            "valor glosado/acatado": "valor acatado",
+            "Valor glosado/acatado": "Valor acatado",
+            "quantidade glosada/acatada": "quantidade acatada",
+            "Quantidade glosada/acatada": "Quantidade acatada",
+        }
+    else:
+        replacements = {
+            "valor glosado/acatado": "valor recursado",
+            "Valor glosado/acatado": "Valor recursado",
+            "quantidade glosada/acatada": "quantidade recusada",
+            "Quantidade glosada/acatada": "Quantidade recusada",
+        }
+
+    text = str(message or "")
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    return text
 
 
 def is_service_unavailable_error(exc: ApiError) -> bool:
@@ -588,6 +652,14 @@ def qtd_registro_recurso(registro):
     )
 
 
+def qtd_registro_glosada(registro):
+    return as_float_or_zero(
+        registro.get("qtd_registro")
+        if registro.get("qtd_registro") not in (None, "")
+        else registro.get("qtd_glosada")
+    )
+
+
 def processo_card_key(registro):
     return (
         registro.get("processo_recurso")
@@ -613,12 +685,22 @@ def build_acompanhamento_rows(registros):
         )
         row["idade_bucket"] = age_bucket(row)
         row["idade_bucket_label"] = ACOMPANHAMENTO_BUCKETS[row["idade_bucket"]]
+        row["recebido"] = is_recebido_registro(row)
+        row["recebido_label"] = "Sim" if row["recebido"] else "Não"
         row["qtd_recurso"] = qtd_registro_recurso(row)
+        row["qtd_glosada"] = qtd_registro_glosada(row)
+        if row.get("qtd_recebida") not in (None, ""):
+            row["qtd_recebida"] = as_float_or_zero(row.get("qtd_recebida"))
+        else:
+            row["qtd_recebida"] = 0
+        row["valor_glosado_total"] = as_float_or_zero(row.get("valor"))
         row["valor_recurso"] = valor_registro_recurso(row)
-        row["valor_recurso_formatado"] = format_brl_input(row["valor_recurso"])
-        row["valor_recebido_formatado"] = format_brl_input(
-            row.get("valor_recebido")
+        row["valor_recebido"] = as_float_or_zero(row.get("valor_recebido"))
+        row["valor_glosado_total_formatado"] = format_brl_input(
+            row["valor_glosado_total"]
         )
+        row["valor_recurso_formatado"] = format_brl_input(row["valor_recurso"])
+        row["valor_recebido_formatado"] = format_brl_input(row["valor_recebido"])
         row["dt_recebimento_input"] = format_api_date_input(
             row.get("dt_recebimento")
         )
@@ -656,7 +738,7 @@ def build_acompanhamento_cards(rows):
 
     cards = []
     for key, itens in grouped.items():
-        all_received = all(item.get("dt_recebimento") for item in itens)
+        all_received = all(is_recebido_registro(item) for item in itens)
         oldest_item = min(itens, key=bucket_reference_date)
         bucket_key = "recebidas" if all_received else age_bucket(oldest_item)
         total_recurso = sum(item["valor_recurso"] for item in itens)
@@ -665,7 +747,9 @@ def build_acompanhamento_cards(rows):
             default=0,
         )
         total_recebido = sum(
-            as_float_or_zero(item.get("valor_recebido")) for item in itens
+            as_float_or_zero(item.get("valor_recebido"))
+            for item in itens
+            if is_recebido_registro(item)
         )
         total = total_recebido if bucket_key == "recebidas" else total_recurso
         qtd = sum(item["qtd_recurso"] for item in itens)
@@ -721,13 +805,43 @@ def build_kanban_columns(cards):
     return columns
 
 
+def build_acompanhamento_resumo(rows):
+    cards = build_acompanhamento_cards(rows)
+    rows_recebidas = [row for row in rows if is_recebido_registro(row)]
+    rows_em_aberto = [
+        row
+        for row in rows
+        if not is_recebido_registro(row)
+    ]
+    return {
+        "processos": len(cards),
+        "registros": len(rows),
+        "valor_total": sum(row["valor_recurso"] for row in rows),
+        "recebidos": len(rows_recebidas),
+        "em_aberto": len(rows_em_aberto),
+        "valor_recebido_total": sum(row["valor_recebido"] for row in rows_recebidas),
+        "valor_em_aberto_total": sum(row["valor_recurso"] for row in rows_em_aberto),
+    }
+
+
+def normalize_glosa_match_text(value):
+    text = str(value or "").strip()
+    if text in {"-", "None", "none", "NULL", "null"}:
+        return ""
+    return text
+
+
 def _glosa_match_key(item):
     return (
         str(as_int_or_zero(item.get("cd_remessa"))),
         str(as_int_or_zero(item.get("cd_atendimento"))),
         str(as_int_or_zero(item.get("cd_reg") or item.get("conta"))),
-        str(item.get("cd_pro_fat") or item.get("procedimento") or ""),
-        str(item.get("nr_guia") or item.get("cd_guia") or item.get("guia") or ""),
+        normalize_glosa_match_text(
+            item.get("cd_pro_fat") or item.get("procedimento")
+        ),
+        normalize_glosa_match_text(
+            item.get("nr_guia") or item.get("cd_guia") or item.get("guia")
+        ),
     )
 
 
@@ -773,11 +887,17 @@ def attach_registros_glosa(contas, filtros):
     for conta in contas:
         if not isinstance(conta, dict):
             continue
+        conta["registro_recusa"] = {}
+        conta["registro_acato"] = {}
         registro = registros_por_linha.get(_glosa_match_key(conta))
         if registro:
             conta["registro_glosa"] = registro
             conta["registro_glosa_id"] = registro.get("id")
             conta["registro_glosa_status"] = registro.get("sn_glosado")
+            if is_acato_registro(registro):
+                conta["registro_acato"] = registro
+            else:
+                conta["registro_recusa"] = registro
 
 
 def build_registro_glosa_payload(data):
@@ -837,6 +957,14 @@ def is_acato_registro(registro):
         "n",
         "0",
     }
+
+
+def is_recebido_registro(registro):
+    return bool(
+        registro.get("dt_recebimento")
+        and as_float_or_zero(registro.get("valor_recebido")) > 0
+        and as_float_or_zero(registro.get("qtd_recebida")) > 0
+    )
 
 
 def registro_valor_glosado(registro):
@@ -1171,11 +1299,12 @@ def build_recovery_group(rows, key_name, label_normalizer=None):
         )
         current["qtd_glosas"] += 1
         current["valor_glosado_total"] += registro_valor_glosado(registro)
-        current["valor_recuperado"] += as_float_or_zero(registro.get("valor_recebido"))
+        if is_recebido_registro(registro):
+            current["valor_recuperado"] += as_float_or_zero(registro.get("valor_recebido"))
         if is_recurso_registro(registro):
             current["qtd_recursos"] += 1
             current["valor_recursado"] += registro_valor_glosado(registro)
-            if as_float_or_zero(registro.get("valor_recebido")) > 0:
+            if is_recebido_registro(registro):
                 current["qtd_recuperados"] += 1
         elif is_acato_registro(registro):
             current["qtd_acatos"] += 1
@@ -1386,11 +1515,11 @@ def build_recuperacao_indicators(rows, period_start=None, period_end=None):
             continue
         current = recovery_monthly[key]
         current["valor_recursado"] += registro_valor_glosado(registro)
-        current["valor_recuperado"] += as_float_or_zero(
-            registro.get("valor_recebido")
-        )
         current["qtd_recursada"] += 1
-        if as_float_or_zero(registro.get("valor_recebido")) > 0:
+        if is_recebido_registro(registro):
+            current["valor_recuperado"] += as_float_or_zero(
+                registro.get("valor_recebido")
+            )
             current["qtd_recuperada"] += 1
 
     max_monthly_value = max(
@@ -1689,7 +1818,11 @@ def build_geral_indicators(rows, period_start=None, period_end=None):
         glosa = registro_valor_glosado(registro)
         recursado = glosa if is_recurso_registro(registro) else 0
         acato = glosa if is_acato_registro(registro) else 0
-        recuperado = as_float_or_zero(registro.get("valor_recebido"))
+        recuperado = (
+            as_float_or_zero(registro.get("valor_recebido"))
+            if is_recebido_registro(registro)
+            else 0
+        )
         motivo = normalize_motivo_label(registro.get("motivo_glosa"))
 
         current = convenio_groups.setdefault(
@@ -1793,7 +1926,7 @@ def build_geral_indicators(rows, period_start=None, period_end=None):
     funnel_value_lookup = {key: value for key, _label, _subtitle, value in funnel_stages}
     previous_value = None
     for index, (key, label, subtitle, value) in enumerate(funnel_stages):
-        reference_key = "glosa" if key in {"sucesso", "acato"} else None
+        reference_key = "recursado" if key in {"sucesso", "acato"} else None
         reference_value = (
             funnel_value_lookup.get(reference_key, 0)
             if reference_key
@@ -1825,7 +1958,7 @@ def build_geral_indicators(rows, period_start=None, period_end=None):
                 "label": label,
                 "subtitle": subtitle,
                 "reference_key": reference_key or "",
-                "reference_label": "Valor Glosado" if reference_key == "glosa" else "etapa anterior",
+                "reference_label": "Recursos" if reference_key == "recursado" else "etapa anterior",
                 "value": value,
                 "value_formatado": format_brl_input(value),
                 "share": percent_value(value, totals["fatura"]),
@@ -2019,6 +2152,18 @@ def build_prazos_convenio_lookup(convenios):
         if nome:
             lookup[f"nome:{nome}"] = dias
     return lookup
+
+
+def disabled_convenio_ids(convenios):
+    return {
+        as_int_or_zero(item.get("cd_convenio"))
+        for item in convenios or []
+        if item.get("habilitado") is False
+    }
+
+
+def is_enabled_convenio_registro(registro, convenios_desabilitados):
+    return as_int_or_zero(registro.get("cd_convenio")) not in convenios_desabilitados
 
 
 def prazo_recurso_registro(registro, prazos_lookup, prazo_padrao):
@@ -2314,19 +2459,14 @@ def build_dashboard_indicadores(
 ):
     prazos_convenio = prazos_convenio or []
     prazos_lookup = build_prazos_convenio_lookup(prazos_convenio)
-    convenios_desabilitados = {
-        as_int_or_zero(item.get("cd_convenio"))
-        for item in prazos_convenio
-        if item.get("habilitado") is False
-    }
+    convenios_desabilitados = disabled_convenio_ids(prazos_convenio)
     rows = [
         registro
         for registro in registros
         if (
             is_active_registro(registro)
             and has_internal_treatment(registro)
-            and as_int_or_zero(registro.get("cd_convenio"))
-            not in convenios_desabilitados
+            and is_enabled_convenio_registro(registro, convenios_desabilitados)
         )
     ]
     aging_view = build_vw_indicadores_aging_glosas(rows, prazos_lookup)
@@ -2341,14 +2481,14 @@ def build_dashboard_indicadores(
     total_recebido = sum(
         as_float_or_zero(registro.get("valor_recebido"))
         for registro in rows
-        if registro.get("dt_recebimento")
+        if is_recebido_registro(registro)
     )
-    recuperados = [registro for registro in rows if registro.get("dt_recebimento")]
+    recuperados = [registro for registro in rows if is_recebido_registro(registro)]
 
     recursos_com_sucesso = [
         registro
         for registro in recursos
-        if as_float_or_zero(registro.get("valor_recebido")) > 0
+        if is_recebido_registro(registro)
     ]
     glosas_sem_processo = [
         registro
@@ -2361,7 +2501,7 @@ def build_dashboard_indicadores(
     sem_recuperacao = [
         registro
         for registro in recursos
-        if as_float_or_zero(registro.get("valor_recebido")) <= 0
+        if not is_recebido_registro(registro)
     ]
     total_sem_recuperacao_valor = sum(
         registro_valor_glosado(registro) for registro in sem_recuperacao
@@ -2970,9 +3110,13 @@ def conta_atendimento(request):
             is_acatar = payload.get("sn_glosado") == "not"
             action_name = "acato" if is_acatar else "glosa"
             if form_action == "desfazer":
-                error_message = f"Falha ao desfazer registro: {exc}"
+                error_message = f"Falha ao desfazer registro: {extract_api_error_message(exc)}"
             else:
-                error_message = f"Falha ao salvar {action_name}: {exc}"
+                api_error = contextualize_registro_glosa_error(
+                    extract_api_error_message(exc),
+                    is_acatar,
+                )
+                error_message = f"Falha ao salvar {action_name}: {api_error}"
             return modal_action_response(
                 request,
                 error_message,
@@ -3144,6 +3288,7 @@ def acompanhamento(request):
         payload = {
             "dt_recebimento": request.POST.get("dt_recebimento") or None,
             "valor_recebido": as_float_or_zero(request.POST.get("valor_recebido")),
+            "qtd_recebida": as_int_or_none(request.POST.get("qtd_recebida")),
             "observacao_recebimento": (
                 request.POST.get("observacao_recebimento") or None
             ),
@@ -3191,10 +3336,19 @@ def acompanhamento(request):
         and value
     }
     convenios = []
+    prazos_convenio = []
     try:
         convenios = get_convenio_filter_options()
     except ApiError as exc:
         messages.error(request, format_api_error(exc, "Consulta de convênios"))
+    try:
+        prazos_payload = get_cached_dashboard_payload(
+            DASHBOARD_PRAZOS_CACHE_KEY,
+            PRAZOS_RECURSO_CONVENIO_PATH,
+        )
+        prazos_convenio = prazos_payload.get("convenios", [])
+    except ApiError as exc:
+        messages.error(request, format_api_error(exc, "Configuração por convênio"))
 
     try:
         payload = get_cached_dashboard_payload(
@@ -3208,6 +3362,13 @@ def acompanhamento(request):
             for registro in registros
             if is_recurso_registro(registro) and has_internal_treatment(registro)
         ]
+        convenios_desabilitados = disabled_convenio_ids(prazos_convenio)
+        registros = [
+            registro
+            for registro in registros
+            if is_active_registro(registro)
+            and is_enabled_convenio_registro(registro, convenios_desabilitados)
+        ]
         registros = apply_acompanhamento_filters(registros, api_filtros)
     except ApiError as exc:
         registros = []
@@ -3220,26 +3381,13 @@ def acompanhamento(request):
         rows_filtradas = [
             row
             for row in rows
-            if ("recebidas" if row.get("dt_recebimento") else row["idade_bucket"])
+            if ("recebidas" if row.get("recebido") else row["idade_bucket"])
             == faixa
         ]
     else:
         rows_filtradas = rows
 
-    cards_filtrados = build_acompanhamento_cards(rows_filtradas)
-    resumo = {
-        "processos": len(cards_filtrados),
-        "registros": len(rows_filtradas),
-        "valor_total": sum(row["valor_recurso"] for row in rows_filtradas),
-        "recebidos": sum(
-            1 for row in rows_filtradas if row.get("dt_recebimento")
-        ),
-        "sem_recuperacao": sum(
-            1
-            for row in rows_filtradas
-            if as_float_or_zero(row.get("valor_recebido")) <= 0
-        ),
-    }
+    resumo = build_acompanhamento_resumo(rows_filtradas)
 
     return render(
         request,
