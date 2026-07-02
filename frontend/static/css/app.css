@@ -4494,6 +4494,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .acompanhamento-table {
   width: 100%;
+  min-width: 1580px;
   table-layout: fixed;
   font-size: 12px;
   border-collapse: separate;
@@ -4529,18 +4530,30 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #fbfdfe;
 }
 
-.acompanhamento-table .col-processo-original { width: 7%; }
-.acompanhamento-table .col-processo-recurso { width: 12%; }
-.acompanhamento-table .col-paciente { width: 16%; }
-.acompanhamento-table .col-convenio { width: 6%; }
-.acompanhamento-table .col-procedimento { width: 8%; }
-.acompanhamento-table .col-desc { width: 17%; }
-.acompanhamento-table .col-remessa { width: 5%; }
-.acompanhamento-table .col-atendimento { width: 6%; }
-.acompanhamento-table .col-conta { width: 6%; }
-.acompanhamento-table .col-qtd { width: 4%; }
-.acompanhamento-table .col-valor { width: 7%; }
-.acompanhamento-table .col-acao { width: 6%; }
+.acompanhamento-table .col-processo-original { width: 120px; }
+.acompanhamento-table .col-processo-recurso { width: 130px; }
+.acompanhamento-table .col-data-glosa { width: 92px; }
+.acompanhamento-table .col-recebido { width: 74px; }
+.acompanhamento-table .col-paciente { width: 190px; }
+.acompanhamento-table .col-convenio { width: 90px; }
+.acompanhamento-table .col-remessa { width: 76px; }
+.acompanhamento-table .col-atendimento { width: 78px; }
+.acompanhamento-table .col-conta { width: 78px; }
+.acompanhamento-table .col-qtd { width: 84px; }
+.acompanhamento-table .col-valor { width: 110px; }
+.acompanhamento-table .col-acao { width: 92px; }
+
+.btn-received-edit {
+  background: #2f8a5f;
+  border-color: #2f8a5f;
+  color: #fff;
+}
+
+.btn-received-edit:hover {
+  background: #25704d;
+  border-color: #25704d;
+  color: #fff;
+}
 
 .process-cell,
 .person-cell,
@@ -5545,6 +5558,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #8a6500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.required-marker {
+  color: #c0392b;
+  font-weight: 800;
+}
+
+.form-control-readonly {
+  background: #f6f8fa;
+  color: #344054;
+  cursor: default;
 }
 
 .btn-danger-outline,
