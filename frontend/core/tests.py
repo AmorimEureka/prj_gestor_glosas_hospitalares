@@ -67,6 +67,16 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(contas[0]['registro_glosa_status'], 'true')
 
     @patch('core.views.get_cached_api_payload')
+    def test_recusa_com_status_booleano_e_identificada(self, get_cached_api_payload):
+        contas = [self._conta()]
+        get_cached_api_payload.return_value = {'glosas': [self._registro(True)]}
+
+        attach_registros_glosa(contas, {})
+
+        self.assertEqual(contas[0]['registro_recusa']['id'], 77)
+        self.assertEqual(contas[0]['registro_glosa_status'], 'true')
+
+    @patch('core.views.get_cached_api_payload')
     def test_acato_nao_preenche_dados_da_recusa(self, get_cached_api_payload):
         contas = [self._conta()]
         get_cached_api_payload.return_value = {'glosas': [self._registro('not')]}
@@ -97,6 +107,38 @@ class ContaAtendimentoRegistroTests(TestCase):
 
         self.assertEqual(conta['registro_recusa']['id'], 781)
         self.assertEqual(conta['registro_glosa_status'], 'true')
+
+    @patch('core.views.get_cached_api_payload')
+    def test_guia_divergente_casa_por_conta_atendimento_e_procedimento(
+        self,
+        get_cached_api_payload,
+    ):
+        conta = {**self._conta(), 'nr_guia': 'GUIA-CONTA'}
+        registro = {**self._registro('true'), 'guia': 'GUIA-REGISTRO'}
+        get_cached_api_payload.return_value = {'glosas': [registro]}
+
+        attach_registros_glosa([conta], {})
+
+        self.assertEqual(conta['registro_recusa']['id'], 77)
+        self.assertEqual(conta['registro_glosa_status'], 'true')
+
+    @patch('core.views.get_cached_api_payload')
+    def test_guia_divergente_nao_casa_quando_chave_sem_guia_e_ambigua(
+        self,
+        get_cached_api_payload,
+    ):
+        conta = {**self._conta(), 'nr_guia': 'GUIA-CONTA'}
+        get_cached_api_payload.return_value = {
+            'glosas': [
+                {**self._registro('true'), 'id': 77, 'guia': 'GUIA-1'},
+                {**self._registro('true'), 'id': 78, 'guia': 'GUIA-2'},
+            ]
+        }
+
+        attach_registros_glosa([conta], {})
+
+        self.assertNotIn('registro_glosa_id', conta)
+        self.assertEqual(conta['registro_recusa'], {})
 
 
 class AcompanhamentoRowsTests(TestCase):
@@ -169,6 +211,41 @@ class AcompanhamentoRowsTests(TestCase):
         self.assertEqual(row['qtd_glosada'], 4)
         self.assertEqual(row['qtd_recurso'], 2)
         self.assertEqual(row['qtd_recebida'], 1)
+        self.assertEqual(row['dt_recebimento_modal'], '2026-07-15')
+        self.assertEqual(row['valor_recebido_modal'], 'R$ 50,00')
+        self.assertEqual(row['qtd_recebida_modal'], '1')
+
+    def test_modal_de_recebimento_ignora_recebimento_incompleto(self):
+        rows = build_acompanhamento_rows(
+            [
+                {
+                    'id': 10,
+                    'sn_glosado': 'true',
+                    'processo_recurso': 'REC-1',
+                    'processo_controle_fatura_gab': 'ORI-1',
+                    'nm_paciente': 'Paciente Teste',
+                    'data_glosa': '2026-07-03',
+                    'dt_recebimento': '2026-07-15',
+                    'qtd_recebida': 0,
+                    'valor': 200,
+                    'valor_glosado': 80,
+                    'valor_recebido': 50,
+                    'observacao_recebimento': 'Recebimento parcial inválido',
+                }
+            ]
+        )
+
+        row = rows[0]
+
+        self.assertFalse(row['recebido'])
+        self.assertEqual(row['recebido_label'], 'Não')
+        self.assertEqual(row['dt_recebimento_formatada'], '15/07/2026')
+        self.assertEqual(row['valor_recebido_formatado'], 'R$ 50,00')
+        self.assertEqual(row['qtd_recebida'], 0)
+        self.assertEqual(row['dt_recebimento_modal'], '')
+        self.assertEqual(row['valor_recebido_modal'], '')
+        self.assertEqual(row['qtd_recebida_modal'], '')
+        self.assertEqual(row['observacao_recebimento_modal'], '')
 
     def test_resumo_em_aberto_exige_recebimento_completo(self):
         rows = [
