@@ -42,6 +42,7 @@
         .forEach((card) => list.appendChild(card));
     },
     openRecebimento(card) {
+      const isReceived = card.received === true || card.received === 'true';
       this.receivingIds = card.ids;
       this.receivingTitle = card.title;
       this.receivingPatient = card.patient || '-';
@@ -49,12 +50,12 @@
       this.receivingAttendance = card.attendance || '-';
       this.receivingResourceValue = Number(card.resourceValue || 0);
       this.receivingResourceQuantity = Number(card.resourceQuantity || 0);
-      this.valorRecebido = card.valorRecebido || '';
+      this.valorRecebido = isReceived ? (card.valorRecebido || '') : '';
       this.receiving = true;
       this.$nextTick(() => {
-        if (this.$refs.dtRecebimento) this.$refs.dtRecebimento.value = card.dtRecebimento || '';
-        if (this.$refs.qtdRecebida) this.$refs.qtdRecebida.value = card.qtdRecebida || '';
-        if (this.$refs.observacaoRecebimento) this.$refs.observacaoRecebimento.value = card.observacao || '';
+        if (this.$refs.dtRecebimento) this.$refs.dtRecebimento.value = isReceived ? (card.dtRecebimento || '') : '';
+        if (this.$refs.qtdRecebida) this.$refs.qtdRecebida.value = isReceived ? (card.qtdRecebida || '') : '';
+        if (this.$refs.observacaoRecebimento) this.$refs.observacaoRecebimento.value = isReceived ? (card.observacao || '') : '';
         this.$refs.dtRecebimento?.focus();
       });
     },
@@ -183,7 +184,7 @@
                 <td class="process-cell process-cell--strong">{{ row.processo_recurso|default:"-" }}</td>
                 <td class="center-cell ref-cell">{{ row.data_glosa_formatada|default:"-" }}</td>
                 <td class="center-cell">{{ row.recebido_label }}</td>
-                <td class="center-cell ref-cell">{{ row.dt_recebimento_formatada|default:"-" }}</td>
+                <td class="center-cell ref-cell">{% if row.recebido %}{{ row.dt_recebimento_formatada|default:"-" }}{% else %}-{% endif %}</td>
                 <td class="person-cell">{{ row.paciente_label }}</td>
                 <td class="center-cell">{{ row.convenio|default:"-" }}</td>
                 <td class="center-cell ref-cell">{{ row.cd_remessa|default:"-" }}</td>
@@ -191,26 +192,27 @@
                 <td class="center-cell ref-cell ref-cell--strong">{{ row.conta|default:"-" }}</td>
                 <td class="center-cell value-cell">{{ row.valor_glosado_total_formatado|default:"-" }}</td>
                 <td class="center-cell value-cell">{{ row.valor_recurso_formatado|default:"-" }}</td>
-                <td class="center-cell value-cell">{{ row.valor_recebido_formatado|default:"-" }}</td>
+                <td class="center-cell value-cell">{% if row.recebido %}{{ row.valor_recebido_formatado|default:"-" }}{% else %}R$ 0,00{% endif %}</td>
                 <td class="center-cell qtd-cell">{{ row.qtd_glosada|floatformat:0 }}</td>
                 <td class="center-cell qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
-                <td class="center-cell qtd-cell">{{ row.qtd_recebida|floatformat:0 }}</td>
+                <td class="center-cell qtd-cell">{% if row.recebido %}{{ row.qtd_recebida|floatformat:0 }}{% else %}0{% endif %}</td>
                 <td class="receive-action-cell">
 	                  <button
 	                    type="button"
 	                    class="btn btn-sm {% if row.recebido %}btn-received-edit{% else %}btn-outline-primary{% endif %}"
 	                    @click="openRecebimento({
                       ids: '{{ row.id }}',
+                      received: {% if row.recebido %}true{% else %}false{% endif %},
                       title: '{{ row.processo_recurso|default:row.processo_controle_fatura_gab|escapejs }}',
                       patient: '{{ row.paciente_label|escapejs }}',
                       remittance: '{{ row.cd_remessa|default:"-"|escapejs }}',
 	                      attendance: '{{ row.cd_atendimento|default:"-"|escapejs }}',
 	                      resourceValue: '{{ row.valor_recurso|stringformat:"g" }}',
 	                      resourceQuantity: '{{ row.qtd_recurso|stringformat:"g" }}',
-	                      dtRecebimento: '{{ row.dt_recebimento_input|default:'' }}',
-	                      valorRecebido: '{{ row.valor_recebido_formatado|default:''|escapejs }}',
-	                      qtdRecebida: '{% if row.recebido %}{{ row.qtd_recebida|floatformat:0 }}{% endif %}',
-	                      observacao: '{{ row.observacao_recebimento|default:''|escapejs }}'
+	                      dtRecebimento: '{{ row.dt_recebimento_modal|default:'' }}',
+	                      valorRecebido: '{{ row.valor_recebido_modal|default:''|escapejs }}',
+	                      qtdRecebida: '{{ row.qtd_recebida_modal|default:'' }}',
+	                      observacao: '{{ row.observacao_recebimento_modal|default:''|escapejs }}'
 	                    })"
 	                  >{% if row.recebido %}Editar{% else %}Receber{% endif %}</button>
                 </td>
@@ -347,7 +349,7 @@
           </div>
           <div class="glosa-field">
             <label>Qtd. recebida *</label>
-            <input x-ref="qtdRecebida" type="number" step="1" min="1" name="qtd_recebida" class="form-control" inputmode="numeric" pattern="[0-9]*" :max="receivingResourceQuantity" :data-max-quantity="receivingResourceQuantity" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, ''); $event.target.setCustomValidity('')">
+            <input x-ref="qtdRecebida" type="text" name="qtd_recebida" class="form-control" inputmode="numeric" pattern="[0-9]*" :data-max-quantity="receivingResourceQuantity" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, ''); $event.target.setCustomValidity('')">
           </div>
           <div class="glosa-field glosa-field--full">
             <label>Observação</label>

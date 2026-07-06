@@ -707,6 +707,18 @@ def build_acompanhamento_rows(registros):
         row["dt_recebimento_formatada"] = format_api_date(
             row.get("dt_recebimento")
         )
+        row["dt_recebimento_modal"] = (
+            row["dt_recebimento_input"] if row["recebido"] else ""
+        )
+        row["valor_recebido_modal"] = (
+            row["valor_recebido_formatado"] if row["recebido"] else ""
+        )
+        row["qtd_recebida_modal"] = (
+            str(int(row["qtd_recebida"])) if row["recebido"] else ""
+        )
+        row["observacao_recebimento_modal"] = (
+            (row.get("observacao_recebimento") or "") if row["recebido"] else ""
+        )
         row["data_glosa_formatada"] = format_api_date(row.get("data_glosa"))
         rows.append(row)
     return rows
@@ -845,6 +857,10 @@ def _glosa_match_key(item):
     )
 
 
+def _glosa_match_key_without_guia(item):
+    return _glosa_match_key(item)[:4]
+
+
 def _prepare_registro_glosa(registro):
     prepared = dict(registro)
     qtd_glosada = registro.get("qtd_glosada")
@@ -857,6 +873,14 @@ def _prepare_registro_glosa(registro):
     except (TypeError, ValueError):
         prepared["qtd_glosada_input"] = ""
     return prepared
+
+
+def canonical_glosa_status(registro):
+    if is_acato_registro(registro):
+        return "not"
+    if is_recurso_registro(registro):
+        return "true"
+    return normalize_flag(registro.get("sn_glosado"))
 
 
 def attach_registros_glosa(contas, filtros):
@@ -877,23 +901,34 @@ def attach_registros_glosa(contas, filtros):
     registros = payload.get("glosas", []) if isinstance(payload, dict) else []
 
     registros_por_linha = {}
+    registros_por_linha_sem_guia = {}
+    chaves_ambiguas_sem_guia = set()
     for registro in registros:
         if not isinstance(registro, dict):
             continue
         key = _glosa_match_key(registro)
         if key not in registros_por_linha:
-            registros_por_linha[key] = _prepare_registro_glosa(registro)
+            prepared = _prepare_registro_glosa(registro)
+            registros_por_linha[key] = prepared
+            key_sem_guia = _glosa_match_key_without_guia(registro)
+            if key_sem_guia in registros_por_linha_sem_guia:
+                chaves_ambiguas_sem_guia.add(key_sem_guia)
+            else:
+                registros_por_linha_sem_guia[key_sem_guia] = prepared
 
     for conta in contas:
         if not isinstance(conta, dict):
             continue
         conta["registro_recusa"] = {}
         conta["registro_acato"] = {}
+        key_sem_guia = _glosa_match_key_without_guia(conta)
         registro = registros_por_linha.get(_glosa_match_key(conta))
+        if not registro and key_sem_guia not in chaves_ambiguas_sem_guia:
+            registro = registros_por_linha_sem_guia.get(key_sem_guia)
         if registro:
             conta["registro_glosa"] = registro
             conta["registro_glosa_id"] = registro.get("id")
-            conta["registro_glosa_status"] = registro.get("sn_glosado")
+            conta["registro_glosa_status"] = canonical_glosa_status(registro)
             if is_acato_registro(registro):
                 conta["registro_acato"] = registro
             else:
@@ -3285,10 +3320,11 @@ def acompanhamento(request):
             for item in (request.POST.get("registro_ids") or "").split(",")
             if item.strip()
         ]
+        qtd_recebida = as_int_or_none(request.POST.get("qtd_recebida"))
         payload = {
             "dt_recebimento": request.POST.get("dt_recebimento") or None,
             "valor_recebido": as_float_or_zero(request.POST.get("valor_recebido")),
-            "qtd_recebida": as_int_or_none(request.POST.get("qtd_recebida")),
+            "qtd_recebida": qtd_recebida,
             "observacao_recebimento": (
                 request.POST.get("observacao_recebimento") or None
             ),
@@ -3296,6 +3332,12 @@ def acompanhamento(request):
         if not registro_ids:
             messages.error(request, "Nenhum registro selecionado para recebimento.")
             return redirect("acompanhamento")
+        if qtd_recebida is None or qtd_recebida < 1:
+            messages.error(
+                request,
+                "Informe uma quantidade recebida maior que zero.",
+            )
+            return redirect(request.POST.get("next") or "acompanhamento")
 
         try:
             for registro_id in registro_ids:
