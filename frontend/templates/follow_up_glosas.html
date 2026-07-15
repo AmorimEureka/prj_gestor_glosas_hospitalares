@@ -37,6 +37,20 @@
           <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} remessas exibidas</span>
         {% endif %}
       </div>
+      {% if cards %}
+      <div class="collapse-actions">
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.followUpExpandLevel = Math.min((window.followUpExpandLevel || 0) + 1, 3); window.dispatchEvent(new CustomEvent('expand-follow-up-level-' + window.followUpExpandLevel))"
+        >Expandir</button>
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.followUpExpandLevel = 0; window.dispatchEvent(new CustomEvent('collapse-all-follow-up'))"
+        >Colapsar todos</button>
+      </div>
+      {% endif %}
     </div>
     <div class="results-toolbar">
       <div class="results-totals">
@@ -81,8 +95,38 @@
   {% else %}
     <div class="results-list follow-up-glosa-list">
       {% for card in cards %}
-      <article class="follow-up-glosa-card" x-data="{ open: false }">
-        <button type="button" class="follow-up-glosa-card-header" @click="open = !open" :aria-expanded="open">
+      <article
+        class="follow-up-glosa-card"
+        x-data="{
+          open: false,
+          loadDetails() {
+            this.$nextTick(() => htmx.trigger(this.$refs.header, 'follow-up-load'));
+          },
+          toggle() {
+            this.open = !this.open;
+            if (this.open) this.loadDetails();
+          },
+          expand() {
+            this.open = true;
+            this.loadDetails();
+          }
+        }"
+        @expand-follow-up-level-1.window="expand()"
+        @collapse-all-follow-up.window="open = false"
+      >
+        <button
+          type="button"
+          class="follow-up-glosa-card-header"
+          x-ref="header"
+          @click="toggle()"
+          :aria-expanded="open"
+          aria-controls="follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}"
+          hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}"
+          hx-trigger="follow-up-load once"
+          hx-target="#follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}"
+          hx-select="#follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}"
+          hx-swap="outerHTML"
+        >
           <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
           <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ card.convenio|default:"-" }}</strong></span>
@@ -93,8 +137,15 @@
         </button>
 
         <div class="follow-up-glosa-card-body" x-show="open" x-cloak>
+          <div id="follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}" class="follow-up-glosa-card-content">
+          {% if card.detalhes_carregados %}
           {% for paciente in card.pacientes %}
-          <section class="follow-up-glosa-patient" x-data="{ patientOpen: false }">
+          <section
+            class="follow-up-glosa-patient"
+            x-data="{ patientOpen: (window.followUpExpandLevel || 0) >= 2 }"
+            @expand-follow-up-level-2.window="patientOpen = true"
+            @collapse-all-follow-up.window="patientOpen = false"
+          >
             <button type="button" class="follow-up-glosa-patient-header" @click="patientOpen = !patientOpen" :aria-expanded="patientOpen">
               <span class="follow-up-glosa-chevron" :class="{ 'is-open': patientOpen }">&#9654;</span>
               <span><small>PACIENTE</small><strong>{{ paciente.nm_paciente }}</strong></span>
@@ -105,7 +156,12 @@
               <div class="follow-up-glosa-patient-body">
                 <div class="follow-up-glosa-records-scroll">
                 {% for atendimento in paciente.atendimentos %}
-                <div class="atd-block follow-up-glosa-atendimento" x-data="{ atdOpen: false }">
+                <div
+                  class="atd-block follow-up-glosa-atendimento"
+                  x-data="{ atdOpen: (window.followUpExpandLevel || 0) >= 3 }"
+                  @expand-follow-up-level-3.window="atdOpen = true"
+                  @collapse-all-follow-up.window="atdOpen = false"
+                >
                   <button type="button" class="atd-header" @click="atdOpen = !atdOpen" :aria-expanded="atdOpen">
                     <span class="atd-chevron" :class="{ 'atd-chevron--open': atdOpen }">&#9654;</span>
                     <span class="atd-title">Atendimento <strong>#{{ atendimento.cd_atendimento|default:"-" }}</strong></span>
@@ -284,6 +340,10 @@
           {% empty %}
             <p class="empty-state">Nenhum paciente analítico encontrado nesta remessa.</p>
           {% endfor %}
+          {% else %}
+            <p class="follow-up-glosa-loading" role="status">Carregando detalhamento da remessa...</p>
+          {% endif %}
+          </div>
         </div>
       </article>
       {% empty %}
@@ -292,4 +352,7 @@
     </div>
   {% endif %}
 </section>
+<script>
+  window.followUpExpandLevel = 0;
+</script>
 {% endblock %}
