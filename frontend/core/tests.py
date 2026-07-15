@@ -874,6 +874,8 @@ class FollowUpGlosasTests(TestCase):
                                     'cd_pro_fat': 'PROC-10',
                                     'cd_gru_pro': 10,
                                     'ds_gru_pro': 'Diagnóstico',
+                                    'cd_gru_fat': 1,
+                                    'ds_gru_fat': 'EXAMES E DIAGNÓSTICOS',
                                     'descricao': 'Procedimento analítico',
                                     'nr_guia': 'GUIA-20',
                                     'dt_atendimento': '2026-07-01T08:00:00',
@@ -942,8 +944,7 @@ class FollowUpGlosasTests(TestCase):
             'Maria da Silva',
             'Procedimento analítico',
             'Atendimento <strong>#789</strong>',
-            'GRU_PRO 10',
-            'Diagnóstico',
+            'EXAMES E DIAGNÓSTICOS',
             'Data da alta',
             'DT Lanç.',
             'Tipo Atendimento',
@@ -975,8 +976,10 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(paciente['total_atendimentos'], 1)
         self.assertEqual(paciente['atendimentos'][0]['total_grupos'], 1)
         self.assertEqual(
-            paciente['atendimentos'][0]['grupos_pro'][0]['cd_gru_pro'],
-            10,
+            paciente['atendimentos'][0]['grupos_procedimento'][0][
+                'cd_gru_fat'
+            ],
+            1,
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
@@ -1004,6 +1007,8 @@ class FollowUpGlosasTests(TestCase):
                 'cd_pro_fat': 'PROC-10',
                 'cd_gru_pro': '10',
                 'ds_gru_pro': 'Diagnóstico',
+                'cd_gru_fat': '1',
+                'ds_gru_fat': 'EXAMES E DIAGNÓSTICOS',
                 'descricao': 'Procedimento analítico',
                 'nr_guia': 'GUIA-20',
                 'dt_atendimento': '2026-07-01T08:00:00',
@@ -1044,6 +1049,8 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['descricao_item'], 'Procedimento analítico')
         self.assertEqual(payload['cd_gru_pro'], 10)
         self.assertEqual(payload['ds_gru_pro'], 'Diagnóstico')
+        self.assertEqual(payload['cd_gru_fat'], 1)
+        self.assertEqual(payload['ds_gru_fat'], 'EXAMES E DIAGNÓSTICOS')
         self.assertEqual(payload['processo_recurso'], 'REC-71')
         self.assertEqual(payload['valor_recursado'], 75.0)
 

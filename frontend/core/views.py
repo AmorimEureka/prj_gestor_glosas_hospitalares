@@ -1137,6 +1137,8 @@ def build_registro_glosa_payload(data):
         "data_lancamento": data.get("dt_lancamento") or None,
         "cd_gru_pro": as_int_or_none(data.get("cd_gru_pro")),
         "ds_gru_pro": data.get("ds_gru_pro") or None,
+        "cd_gru_fat": as_int_or_none(data.get("cd_gru_fat")),
+        "ds_gru_fat": data.get("ds_gru_fat") or None,
         "qtd_recursado": as_int_or_none(data.get("qtd_glosada")),
         "valor_recursado": as_float_or_none(data.get("valor_glosado")),
         "dt_recurso": data.get("dt_recurso") or None,
@@ -1188,38 +1190,40 @@ def prepare_follow_up_glosas_cards(cards):
                         "dt_atendimento_formatada": item.get(
                             "dt_atendimento_formatada"
                         ),
-                        "grupos_pro_map": {},
-                        "ordem_grupos_pro": [],
+                        "grupos_procedimento_map": {},
+                        "ordem_grupos_procedimento": [],
                         "total_itens": 0,
                     }
                     ordem_atendimentos.append(atendimento_key)
                 atendimento = atendimentos[atendimento_key]
                 grupo_key = (
-                    item.get("cd_gru_pro") or 0,
-                    item.get("ds_gru_pro") or "Grupo não informado",
+                    item.get("cd_gru_fat") or 0,
+                    item.get("ds_gru_fat") or "Grupo não informado",
                 )
-                if grupo_key not in atendimento["grupos_pro_map"]:
-                    atendimento["grupos_pro_map"][grupo_key] = {
-                        "cd_gru_pro": grupo_key[0],
-                        "ds_gru_pro": grupo_key[1],
+                if grupo_key not in atendimento["grupos_procedimento_map"]:
+                    atendimento["grupos_procedimento_map"][grupo_key] = {
+                        "cd_gru_fat": grupo_key[0],
+                        "ds_gru_fat": grupo_key[1],
                         "itens": [],
                     }
-                    atendimento["ordem_grupos_pro"].append(grupo_key)
-                atendimento["grupos_pro_map"][grupo_key]["itens"].append(
-                    item
-                )
+                    atendimento["ordem_grupos_procedimento"].append(grupo_key)
+                atendimento["grupos_procedimento_map"][grupo_key][
+                    "itens"
+                ].append(item)
                 atendimento["total_itens"] += 1
             atendimentos_preparados = []
             for atendimento_key in ordem_atendimentos:
                 atendimento = atendimentos[atendimento_key]
-                grupos_pro = []
-                for grupo_key in atendimento.pop("ordem_grupos_pro"):
-                    grupo = atendimento["grupos_pro_map"][grupo_key]
+                grupos_procedimento = []
+                for grupo_key in atendimento.pop(
+                    "ordem_grupos_procedimento"
+                ):
+                    grupo = atendimento["grupos_procedimento_map"][grupo_key]
                     grupo["total_itens"] = len(grupo["itens"])
-                    grupos_pro.append(grupo)
-                atendimento.pop("grupos_pro_map")
-                atendimento["grupos_pro"] = grupos_pro
-                atendimento["total_grupos"] = len(grupos_pro)
+                    grupos_procedimento.append(grupo)
+                atendimento.pop("grupos_procedimento_map")
+                atendimento["grupos_procedimento"] = grupos_procedimento
+                atendimento["total_grupos"] = len(grupos_procedimento)
                 atendimentos_preparados.append(atendimento)
             paciente["itens"] = itens
             paciente["atendimentos"] = atendimentos_preparados

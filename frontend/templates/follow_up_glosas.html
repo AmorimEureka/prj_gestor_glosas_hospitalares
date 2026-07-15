@@ -110,18 +110,16 @@
                     <span class="atd-title">Atendimento <strong>#{{ atendimento.cd_atendimento|default:"-" }}</strong></span>
                     <span class="atd-meta">
                       {{ atendimento.dt_atendimento_formatada }} &middot; {{ atendimento.tp_atendimento|default:"Tipo não informado" }}
-                      &middot; {{ atendimento.total_grupos }} GRU_PRO &middot; {{ atendimento.total_itens }} item(ns)
+                      &middot; {{ atendimento.total_grupos }} grupo(s) &middot; {{ atendimento.total_itens }} lançamento(ões)
                     </span>
                   </button>
                   <div class="atd-body" x-show="atdOpen" x-cloak>
                     <div class="account-groups">
-                      {% for grupo_pro in atendimento.grupos_pro %}
-                      <section class="account-group-section follow-up-glosa-gru-pro">
+                      {% for grupo_procedimento in atendimento.grupos_procedimento %}
+                      <section class="account-group-section follow-up-glosa-grupo-procedimento">
                         <header class="account-group-header">
-                          <span class="account-group-title">
-                            GRU_PRO {% if grupo_pro.cd_gru_pro %}{{ grupo_pro.cd_gru_pro }} &middot; {% endif %}{{ grupo_pro.ds_gru_pro }}
-                          </span>
-                          <strong class="account-group-count">{{ grupo_pro.total_itens }} item(ns)</strong>
+                          <span class="account-group-title">{{ grupo_procedimento.ds_gru_fat }}</span>
+                          <strong class="account-group-count">{{ grupo_procedimento.total_itens }} lanç.</strong>
                         </header>
                         <div class="table-responsive detail-table-wrap follow-up-glosa-table-wrap account-group-table-wrap">
                           <table class="table align-middle account-table">
@@ -138,7 +136,7 @@
                       <th class="account-col-label-qtd">Qtd Lanç.</th><th class="col-valor">Valor</th><th>Ação</th>
                     </tr>
                   </thead>
-                  {% for item in grupo_pro.itens %}
+                  {% for item in grupo_procedimento.itens %}
                   <tbody x-data="{
                     modal: '',
                     valorTratado: '{{ item.registro_glosa.valor_glosado_input|default:""|escapejs }}',
@@ -185,6 +183,8 @@
                               <input type="hidden" name="cd_pro_fat" value="{{ item.cd_pro_fat }}">
                               <input type="hidden" name="cd_gru_pro" value="{{ item.cd_gru_pro|default:'0' }}">
                               <input type="hidden" name="ds_gru_pro" value="{{ item.ds_gru_pro|default:'Grupo não informado' }}">
+                              <input type="hidden" name="cd_gru_fat" value="{{ item.cd_gru_fat|default:'0' }}">
+                              <input type="hidden" name="ds_gru_fat" value="{{ item.ds_gru_fat|default:'Grupo não informado' }}">
                               <input type="hidden" name="descricao" value="{{ item.descricao|default:'' }}">
                               <input type="hidden" name="nr_guia" value="{{ item.nr_guia }}">
                               <input type="hidden" name="dt_atendimento" value="{{ item.dt_atendimento }}">
