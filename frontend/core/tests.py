@@ -952,6 +952,8 @@ class FollowUpGlosasTests(TestCase):
             'Recursar',
             '+ Acatar',
             'follow-up-glosa-records-scroll',
+            '<template x-if="patientOpen">',
+            '<template x-if="atdOpen">',
         ):
             self.assertContains(response, expected)
         self.assertNotContains(
