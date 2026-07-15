@@ -40,6 +40,7 @@ CONCILIACAO_FATURAMENTO_PATH = (
 CONCILIACOES_SEM_RECEBIMENTO_PATH = (
     f"{CONCILIACAO_FATURAMENTO_PATH}/sem-recebimento"
 )
+FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
 
@@ -1131,11 +1132,56 @@ def build_registro_glosa_payload(data):
         "motivo_glosa": data.get("motivo_glosa") or "",
         "descricao_glosa": data.get("descricao_glosa") or "",
         "qtd_registro": as_float_or_none(data.get("qt_lancamento")),
+        "descricao_item": data.get("descricao") or None,
+        "data_alta": data.get("dt_alta") or None,
+        "data_lancamento": data.get("dt_lancamento") or None,
         "qtd_recursado": as_int_or_none(data.get("qtd_glosada")),
         "valor_recursado": as_float_or_none(data.get("valor_glosado")),
         "dt_recurso": data.get("dt_recurso") or None,
         "dt_pagamento": data.get("dt_pagamento") or None,
     }
+
+
+def prepare_follow_up_glosas_cards(cards):
+    prepared_cards = []
+    for card_data in cards:
+        card = dict(card_data)
+        card["data_entrega_formatada"] = format_api_date(
+            card.get("data_entrega")
+        )
+        pacientes = []
+        total_itens = 0
+        for paciente_data in card.get("pacientes") or []:
+            paciente = dict(paciente_data)
+            itens = []
+            for item_data in paciente.get("itens") or []:
+                item = dict(item_data)
+                registro = _prepare_registro_glosa(
+                    item.get("registro_glosa") or {}
+                )
+                registro["dt_pagamento_oculto"] = (
+                    registro.get("dt_pagamento_input")
+                    or registro.get("data_glosa_input")
+                )
+                item["registro_glosa"] = registro
+                item["registro_glosa_id"] = registro.get("id")
+                item["registro_glosa_status"] = canonical_glosa_status(registro)
+                item["dt_alta_formatada"] = format_api_date(
+                    item.get("dt_alta")
+                )
+                item["dt_lancamento_formatada"] = format_api_datetime(
+                    item.get("dt_lancamento")
+                )
+                itens.append(item)
+            paciente["itens"] = itens
+            paciente["total_itens"] = len(itens)
+            total_itens += len(itens)
+            pacientes.append(paciente)
+        card["pacientes"] = pacientes
+        card["total_pacientes"] = len(pacientes)
+        card["total_itens"] = total_itens
+        prepared_cards.append(card)
+    return prepared_cards
 
 
 def normalize_flag(value):
@@ -3296,6 +3342,152 @@ def prazos_recurso_convenio(request):
         {
             "convenios": convenios,
             "resumo": resumo,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def follow_up_glosas(request):
+    if request.method == "POST":
+        registro_id = request.POST.get("registro_glosa_id")
+        form_action = request.POST.get("form_action") or "salvar"
+        if not registro_id:
+            return modal_action_response(
+                request,
+                "Registro analítico da glosa não encontrado.",
+                "error",
+                status=400,
+            )
+        try:
+            if form_action == "desfazer":
+                api_delete(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}")
+                clear_filter_caches()
+                return modal_action_response(
+                    request,
+                    "Tratamento desfeito no Follow-Up de Glosas.",
+                    "warning",
+                )
+
+            payload = build_registro_glosa_payload(request.POST)
+            is_acatar = payload.get("sn_glosado") == "not"
+            api_payload = api_put(
+                f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}",
+                payload,
+            )
+            clear_filter_caches()
+            return modal_action_response(
+                request,
+                (
+                    "Valor acatado no Follow-Up de Glosas."
+                    if is_acatar
+                    else "Recurso registrado no Follow-Up de Glosas."
+                ),
+                "warning" if is_acatar else "success",
+                api_payload=api_payload,
+            )
+        except ApiError as exc:
+            payload = build_registro_glosa_payload(request.POST)
+            is_acatar = payload.get("sn_glosado") == "not"
+            action_name = "acato" if is_acatar else "recurso"
+            api_error = contextualize_registro_glosa_error(
+                extract_api_error_message(exc),
+                is_acatar,
+            )
+            return modal_action_response(
+                request,
+                f"Falha ao salvar {action_name}: {api_error}",
+                "error",
+                status=400,
+            )
+
+    filtros = {"q": (request.GET.get("q") or "").strip()}
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    cards = []
+    total = 0
+    resumo = {
+        "remessas": 0,
+        "valor_total_glosado": 0,
+        "valor_total_pendente": 0,
+    }
+    consulta_indisponivel = False
+    try:
+        api_params = {"limit": limit, "offset": offset}
+        if filtros["q"]:
+            api_params["q"] = filtros["q"]
+        response = api_get(FOLLOW_UP_GLOSAS_PATH, params=api_params)
+        cards = prepare_follow_up_glosas_cards(response.get("cards") or [])
+        total = as_int_or_zero(response.get("total"))
+        limit = as_positive_int(response.get("limit"), limit)
+        offset = as_int_or_zero(response.get("offset"))
+        resumo = {
+            "remessas": total,
+            "valor_total_glosado": as_float_or_zero(
+                response.get("valor_total_glosado")
+            ),
+            "valor_total_pendente": as_float_or_zero(
+                response.get("valor_total_pendente")
+            ),
+        }
+    except ApiError as exc:
+        if is_service_unavailable_error(exc):
+            consulta_indisponivel = True
+        else:
+            messages.error(request, format_api_error(exc, "Follow-Up de Glosas"))
+
+    tiss_motivos = []
+    try:
+        payload_tiss = get_cached_api_payload(
+            CONTA_TISS_CACHE_KEY,
+            settings.API_TISS_PATH,
+            {"limit": 600},
+        )
+        if isinstance(payload_tiss, dict):
+            tiss_motivos = payload_tiss.get("itens", [])
+    except ApiError as exc:
+        messages.error(request, format_api_error(exc, "Consulta TISS"))
+
+    base_query = {key: value for key, value in filtros.items() if value}
+    total_pages = max(ceil(total / limit), 1)
+    if page > total_pages:
+        return redirect(
+            f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
+        )
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "start": offset + 1 if cards and total else 0,
+        "end": min(offset + len(cards), total),
+        "total": total,
+        "query": base_query,
+    }
+    return render(
+        request,
+        "follow_up_glosas.html",
+        {
+            "cards": cards,
+            "filtros": filtros,
+            "resumo": resumo,
+            "pagination": pagination,
+            "consulta_indisponivel": consulta_indisponivel,
+            "tiss_motivos": tiss_motivos,
         },
     )
 

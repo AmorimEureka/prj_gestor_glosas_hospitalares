@@ -15,6 +15,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("administrativo/prazos-recurso/", views.prazos_recurso_convenio, name="prazos_recurso_convenio"),
     path("administrativo/acessos/", views.user_access_management, name="user_access_management"),
+    path("follow-up-glosas/", views.follow_up_glosas, name="follow_up_glosas"),
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),
     path("glosas/", views.glosas, name="glosas"),
