@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro{% endblock %}
+{% block page_title %}Conciliação (Fiscal X Faturamento){% endblock %}
+{% block content %}
+<section class="finance-reconciliation-page">
+  <form method="get" class="panel filter-panel finance-search-bar">
+    <label class="filter-group">
+      <span>Pesquisar NFS-e pendente</span>
+      <input class="form-control" type="search" name="q" value="{{ filtro_q }}" placeholder="Número da NFS-e, convênio ou CNPJ">
+    </label>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Pesquisar</button>
+      {% if filtro_q %}<a class="btn btn-outline-secondary" href="{% url 'conciliacao_faturamento' %}">Limpar</a>{% endif %}
+    </div>
+  </form>
+
+  <section class="panel finance-results-panel">
+    <div class="panel-header">
+      <div class="results-heading finance-list-heading">
+        <div>
+          <span class="panel-title">NFS-e emitidas não conciliadas</span>
+          <span class="results-subtitle">Expanda uma nota para informar o recebimento e associar suas remessas MV.</span>
+        </div>
+      </div>
+      <div class="results-toolbar finance-results-toolbar">
+        <div class="results-totals">
+          <span class="result-total">
+            <span>TOTAL NFS</span>
+            <strong>{{ total_notas }}</strong>
+          </span>
+          <span class="result-total result-total--value">
+            <span>VALOR TOTAL NFS</span>
+            <strong>R$ {{ valor_total_nfs|br_currency }}</strong>
+          </span>
+        </div>
+        {% if pagination.total %}
+        <div class="pagination-control">
+          {% if pagination.has_previous %}
+          <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+          {% else %}
+          <span class="page-step page-step--disabled">Anterior</span>
+          {% endif %}
+          <form method="get" class="page-select-form">
+            {% for key, value in pagination.query.items %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+            <label for="finance-page-select">Pagina</label>
+            <select id="finance-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+              {% for option in pagination.page_options %}
+              <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+              {% endfor %}
+            </select>
+            <span>de {{ pagination.total_pages }}</span>
+          </form>
+          {% if pagination.has_next %}
+          <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+          {% else %}
+          <span class="page-step page-step--disabled">Proxima</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="finance-note-list">
+    {% for nota in notas %}
+      <article
+        class="finance-note-card"
+        x-data="conciliacaoFaturamentoCard('{{ nota.row_hash|escapejs }}', '{{ nota.valor_nfse|escapejs }}')"
+        :class="{ 'is-open': open }"
+      >
+        <button type="button" class="finance-note-summary" @click="open = !open" :aria-expanded="open">
+          <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
+          <span><small>Número NFS</small><strong>{{ nota.numero_nfse }}</strong></span>
+          <span><small>Data emissão</small><strong>{{ nota.data_emissao|api_date }}</strong></span>
+          <span class="finance-note-convenio"><small>Convênio</small><strong>{{ nota.convenio }}</strong></span>
+          <span><small>Impostos</small><strong>R$ {{ nota.impostos|br_currency }}</strong></span>
+          <span><small>Valor NFS</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
+        </button>
+
+        <form method="post" class="finance-note-form" x-show="open" x-cloak novalidate @submit="validateBeforeSubmit($event)">
+          {% csrf_token %}
+          <input type="hidden" name="nfse_row_hash" value="{{ nota.row_hash }}">
+          <input type="hidden" name="remessas_json" :value="JSON.stringify(remessasPayload)">
+
+          <section class="finance-receipt-section">
+            <div class="finance-section-title">
+              <div><strong>Dados do recebimento</strong><span>Campos com * são obrigatórios.</span></div>
+            </div>
+            <div class="finance-form-grid">
+              <label>
+                <span>Processo Recebimento *</span>
+                <input class="form-control" type="text" name="processo_recebimento" maxlength="255" required>
+              </label>
+              <label>
+                <span>Data Previsão Recebimento *</span>
+                <input class="form-control" type="date" name="data_previsao_recebimento" required>
+              </label>
+              <label>
+                <span>Data Recebimento</span>
+                <input class="form-control" type="date" name="data_recebimento" x-model="dataRecebimento" @change="recebimentoChanged">
+              </label>
+            </div>
+
+            <div class="finance-bank-grid" x-show="Boolean(dataRecebimento)" x-cloak>
+              <label>
+                <span>Conta Bancária do Recebimento *</span>
+                <select class="form-select" name="conta_bancaria_id" x-model="contaBancariaId" @change="loadLancamentos" :required="Boolean(dataRecebimento)">
+                  <option value="">Selecione agência e conta</option>
+                  {% for conta in contas_bancarias %}
+                    <option value="{{ conta.id }}">{{ conta.banco }} · Ag. {{ conta.agencia }}{% if conta.digito_agencia %}-{{ conta.digito_agencia }}{% endif %} · C/C {{ conta.conta }}{% if conta.digito %}-{{ conta.digito }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                {% if not contas_bancarias %}<small>Nenhuma conta bancária ativa cadastrada.</small>{% endif %}
+              </label>
+              <label>
+                <span>Conta do Plano de Contas</span>
+                <input class="form-control" type="text" name="conta_plano_contas" maxlength="255" placeholder="Código ou descrição">
+              </label>
+              <label>
+                <span>Conta do Centro de Custo</span>
+                <input class="form-control" type="text" name="conta_centro_custo" maxlength="255" placeholder="Código ou descrição">
+              </label>
+              <label class="finance-bank-launch-field">
+                <span>Lançamento no Extrato Bancário</span>
+                <select class="form-select" name="lancamento_extrato_id" x-model="lancamentoExtratoId" :disabled="loadingLancamentos || !contaBancariaId">
+                  <option value="" x-text="loadingLancamentos ? 'Carregando lançamentos...' : 'Selecione um lançamento'"></option>
+                  <template x-for="lancamento in lancamentos" :key="lancamento.id">
+                    <option :value="lancamento.id" x-text="lancamentoLabel(lancamento)"></option>
+                  </template>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="finance-remittance-section">
+            <div class="finance-section-title finance-section-title--remittance">
+              <div><strong>Adicionar Remessa</strong><span>Remessas ainda não conciliadas ou com recurso disponível. Recebimentos anteriores pendentes não impedem a conciliação do recurso.</span></div>
+            </div>
+
+            <div class="finance-remittance-search">
+              <label>
+                <span>Pesquisar remessa</span>
+                <input class="form-control" type="search" x-model="searchTerm" @input.debounce.350ms="searchRemessas" placeholder="Código da remessa ou convênio">
+              </label>
+              <button class="btn btn-primary" type="button" @click="searchRemessas" :disabled="loadingRemessas">
+                <span x-show="!loadingRemessas">Pesquisar</span>
+                <span x-show="loadingRemessas">Consultando...</span>
+              </button>
+            </div>
+
+            <p class="finance-inline-error" x-show="searchError && !searchRestriction" x-text="searchError"></p>
+            <div class="finance-remittance-restriction" x-show="searchRestriction" x-cloak>
+              <div class="finance-restriction-heading">
+                <span class="finance-financial-status is-blocked" x-text="restricaoFinanceiraLabel(searchRestriction)"></span>
+                <strong x-text="`REMESSA ${searchRestriction?.cd_remessa || ''}`"></strong>
+              </div>
+              <div class="finance-restriction-values">
+                <span><small>VALOR ACATADO</small><strong x-text="formatMoney(searchRestriction?.valor_total_acatado || 0)"></strong></span>
+                <span x-show="searchRestriction?.saldo_cobravel !== null"><small>SALDO COBRÁVEL</small><strong x-text="formatMoney(searchRestriction?.saldo_cobravel || 0)"></strong></span>
+                <span><small>RECEBIMENTO</small><strong x-text="searchRestriction?.remessa_recebida_integralmente ? 'INTEGRAL' : 'NÃO INTEGRAL'"></strong></span>
+              </div>
+              <p x-text="searchRestriction?.message || searchError"></p>
+            </div>
+            <div class="finance-remittance-results" x-show="remessaResults.length">
+              <template x-for="remessa in remessaResults" :key="remessa.cd_remessa">
+                <button type="button" class="finance-remittance-result" @click="addRemessa(remessa)" :disabled="isSelected(remessa.cd_remessa)">
+                  <span><small>REMESSA</small><strong x-text="remessa.cd_remessa"></strong></span>
+                  <span><small>CONVENIO</small><strong x-text="remessa.convenio"></strong></span>
+                  <span><small>VALOR REMESSA</small><strong x-text="formatMoney(valorRemessa(remessa))"></strong></span>
+                  <span><small>VALOR RECURSADO</small><strong x-text="formatMoney(valorRecursado(remessa))"></strong></span>
+                  <span class="finance-remittance-context" :class="{ 'has-acato': valorAcatado(remessa) > 0 }">
+                    <span class="finance-financial-status" x-text="situacaoFinanceiraLabel(remessa)"></span>
+                    <span><small>VALOR ACATADO</small><strong x-text="formatMoney(valorAcatado(remessa))"></strong></span>
+                    <span><small>SALDO COBRÁVEL</small><strong x-text="formatMoney(saldoCobravel(remessa))"></strong></span>
+                    <span><small>VALOR ELEGÍVEL</small><strong x-text="formatMoney(valorElegivelConciliacao(remessa))"></strong></span>
+                  </span>
+                  <b aria-label="Adicionar remessa">+</b>
+                </button>
+              </template>
+            </div>
+
+            <div class="finance-selected-remittances">
+              <template x-for="(remessa, index) in selectedRemessas" :key="remessa.cd_remessa">
+                <div class="finance-selected-remittance">
+                  <div class="finance-selected-main">
+                    <span><small>REMESSA</small><strong x-text="remessa.cd_remessa"></strong></span>
+                    <span><small>CONVENIO</small><strong x-text="remessa.convenio"></strong></span>
+                    <span><small>VALOR REMESSA</small><strong x-text="formatMoney(valorRemessa(remessa))"></strong></span>
+                    <span><small>VALOR RECURSADO</small><strong x-text="formatMoney(valorRecursado(remessa))"></strong></span>
+                    <button type="button" class="finance-remove-remittance" @click="removeRemessa(index)" title="Remover remessa">×</button>
+                  </div>
+                  <div class="finance-remittance-context finance-selected-context" :class="{ 'has-acato': valorAcatado(remessa) > 0 }">
+                    <span class="finance-financial-status" x-text="situacaoFinanceiraLabel(remessa)"></span>
+                    <span><small>VALOR ACATADO</small><strong x-text="formatMoney(valorAcatado(remessa))"></strong></span>
+                    <span><small>SALDO COBRÁVEL</small><strong x-text="formatMoney(saldoCobravel(remessa))"></strong></span>
+                    <span><small>VALOR ELEGÍVEL</small><strong x-text="formatMoney(valorElegivelConciliacao(remessa))"></strong></span>
+                  </div>
+                  <div class="finance-glosa-fields">
+                    <label class="finance-glosa-check"><input type="checkbox" x-model="remessa.sn_glosado" @change="glosaChanged(remessa)"> <span>GLOSA?</span></label>
+                    <label x-show="remessa.sn_glosado" x-cloak>
+                      <span>VALOR GLOSADO *</span>
+                      <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(remessa.valor_glosado)" @input="updateMoneyInput(remessa, $event)" @blur="$event.target.value = formatMoney(remessa.valor_glosado)" :required="remessa.sn_glosado" :disabled="!remessa.sn_glosado">
+                    </label>
+                  </div>
+                </div>
+              </template>
+              <p class="finance-empty-remittance" x-show="!selectedRemessas.length">Pesquise e adicione ao menos uma remessa.</p>
+            </div>
+          </section>
+
+          <footer class="finance-reconciliation-footer">
+            <div class="finance-total-box"><small>Total remessas</small><strong x-text="formatMoney(totalRemessas)"></strong></div>
+            <span class="finance-total-operator">−</span>
+            <div class="finance-total-box"><small>Total glosas</small><strong x-text="formatMoney(totalGlosas)"></strong></div>
+            <span class="finance-total-operator">=</span>
+            <div class="finance-total-box" :class="{ 'is-valid': totalsMatch && selectedRemessas.length, 'is-invalid': selectedRemessas.length && !totalsMatch }"><small>Valor conciliado</small><strong x-text="formatMoney(valorConciliado)"></strong></div>
+            <div class="finance-submit-area">
+              <p class="finance-inline-error" role="alert" aria-live="assertive" x-show="validationError" x-text="validationError"></p>
+              <button class="btn btn-primary" type="submit">Conciliar NFS-e</button>
+            </div>
+          </footer>
+        </form>
+      </article>
+    {% empty %}
+      <div class="finance-empty-state">
+        <strong>Nenhuma NFS-e pendente de conciliação.</strong>
+        <span>As notas conciliadas deixam esta lista automaticamente.</span>
+      </div>
+    {% endfor %}
+    </div>
+    {% if pagination.total_pages > 1 %}
+      <div class="pagination-footer">
+        {% if pagination.has_previous %}
+        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+        {% endif %}
+        <span>Pagina {{ pagination.page }} de {{ pagination.total_pages }}</span>
+        {% if pagination.has_next %}
+        <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+</section>
+
+<script>
+  window.conciliacaoFaturamentoCard = function (rowHash, valorNfse) {
+    return {
+      open: false,
+      rowHash,
+      valorNfse: Number(valorNfse || 0),
+      dataRecebimento: '',
+      contaBancariaId: '',
+      lancamentoExtratoId: '',
+      lancamentos: [],
+      loadingLancamentos: false,
+      searchTerm: '',
+      loadingRemessas: false,
+      searchRequestId: 0,
+      remessaResults: [],
+      selectedRemessas: [],
+      searchError: '',
+      searchRestriction: null,
+      validationError: '',
+
+      formatMoney(value) {
+        return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      },
+      valorRemessa(remessa) {
+        return Number(remessa.valor_remessa_original ?? remessa.valor_total ?? 0);
+      },
+      valorRecursado(remessa) {
+        return Number(remessa.valor_recursado || 0);
+      },
+      valorRecebimentoPendente(remessa) {
+        return Number(remessa.valor_recebimento_pendente || 0);
+      },
+      valorAcatado(remessa) {
+        return Number(remessa.valor_total_acatado || 0);
+      },
+      saldoCobravel(remessa) {
+        if (remessa.saldo_cobravel !== undefined && remessa.saldo_cobravel !== null) {
+          return Number(remessa.saldo_cobravel || 0);
+        }
+        return this.valorRecebimentoPendente(remessa) || this.valorRecursado(remessa) || this.valorRemessa(remessa);
+      },
+      valorElegivelConciliacao(remessa) {
+        if (remessa.valor_elegivel_conciliacao !== undefined && remessa.valor_elegivel_conciliacao !== null) {
+          return Number(remessa.valor_elegivel_conciliacao || 0);
+        }
+        return this.valorRecursado(remessa) || this.valorRemessa(remessa);
+      },
+      situacaoFinanceiraLabel(remessa) {
+        const labels = {
+          aberta: 'ABERTA',
+          recurso_aberto: 'RECURSO ABERTO',
+          recurso_aberto_com_acato_parcial: 'RECURSO ABERTO · ACATO PARCIAL',
+          recebimento_parcial: 'RECEBIMENTO PARCIAL',
+          recebimento_parcial_com_acato: 'RECEBIMENTO PARCIAL · ACATO'
+        };
+        return labels[remessa.situacao_financeira] || 'ABERTA';
+      },
+      restricaoFinanceiraLabel(restricao) {
+        const labels = {
+          encerrada_por_acato: 'ENCERRADA FINANCEIRAMENTE · ACATO',
+          recebida_integralmente: 'RECEBIDA INTEGRALMENTE',
+          conciliacao_sem_recurso: 'CONCILIAÇÃO ANTERIOR · SEM RECURSO',
+          recurso_divergente: 'RECURSO DIVERGENTE',
+          saldo_sem_recurso: 'SALDO SEM RECURSO',
+          acato_sem_recurso: 'ACATO SEM RECURSO'
+        };
+        return labels[restricao?.motivo] || 'INDISPONÍVEL PARA CONCILIAÇÃO';
+      },
+      valorConsiderado(remessa) {
+        return this.valorElegivelConciliacao(remessa);
+      },
+      get totalRemessas() {
+        return this.selectedRemessas.reduce((total, item) => total + this.valorConsiderado(item), 0);
+      },
+      get totalGlosas() {
+        return this.selectedRemessas.reduce((total, item) => total + (item.sn_glosado ? Number(item.valor_glosado || 0) : 0), 0);
+      },
+      get valorConciliado() {
+        return this.totalRemessas - this.totalGlosas;
+      },
+      get totalsMatch() {
+        return Math.abs(this.valorConciliado - this.valorNfse) < 0.005;
+      },
+      get remessasPayload() {
+        return this.selectedRemessas.map((item) => ({
+          cd_remessa: Number(item.cd_remessa),
+          sn_glosado: Boolean(item.sn_glosado),
+          valor_glosado: item.sn_glosado ? Number(item.valor_glosado || 0).toFixed(2) : '0.00'
+        }));
+      },
+      isSelected(cdRemessa) {
+        return this.selectedRemessas.some((item) => Number(item.cd_remessa) === Number(cdRemessa));
+      },
+      addRemessa(remessa) {
+        if (this.isSelected(remessa.cd_remessa)) return;
+        this.selectedRemessas.push({
+          ...remessa,
+          valor_total: Number(remessa.valor_total || 0),
+          valor_remessa_original: remessa.valor_remessa_original == null ? null : Number(remessa.valor_remessa_original),
+          valor_recursado: Number(remessa.valor_recursado || 0),
+          valor_recebimento_pendente: Number(remessa.valor_recebimento_pendente || 0),
+          valor_total_acatado: Number(remessa.valor_total_acatado || 0),
+          saldo_cobravel: Number(remessa.saldo_cobravel ?? remessa.valor_total ?? 0),
+          valor_elegivel_conciliacao: Number(remessa.valor_elegivel_conciliacao ?? remessa.valor_total ?? 0),
+          situacao_financeira: remessa.situacao_financeira || 'aberta',
+          sn_glosado: false,
+          valor_glosado: '0.00'
+        });
+        this.remessaResults = this.remessaResults.filter(
+          (item) => Number(item.cd_remessa) !== Number(remessa.cd_remessa)
+        );
+        this.searchTerm = '';
+        this.validationError = '';
+      },
+      removeRemessa(index) {
+        this.selectedRemessas.splice(index, 1);
+      },
+      glosaChanged(remessa) {
+        if (!remessa.sn_glosado) remessa.valor_glosado = '0.00';
+      },
+      updateMoneyInput(remessa, event) {
+        const digits = event.target.value.replace(/\D/g, '');
+        const value = digits ? Number(digits) / 100 : 0;
+        remessa.valor_glosado = value.toFixed(2);
+        event.target.value = this.formatMoney(value);
+      },
+      async searchRemessas() {
+        const requestId = ++this.searchRequestId;
+        this.loadingRemessas = true;
+        this.searchError = '';
+        this.searchRestriction = null;
+        try {
+          const url = new URL(`remessas/${encodeURIComponent(this.rowHash)}/`, window.location.href);
+          if (this.searchTerm.trim()) url.searchParams.set('q', this.searchTerm.trim());
+          const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const payload = await response.json();
+          if (requestId !== this.searchRequestId) return;
+          if (!response.ok) throw new Error(payload.detail || 'Não foi possível consultar as remessas.');
+          this.remessaResults = payload.remessas || [];
+          this.searchRestriction = payload.restricao || null;
+          if (!this.remessaResults.length) {
+            this.searchError = this.searchRestriction ? '' : (payload.message || 'Nenhuma remessa disponível para este convênio.');
+          }
+        } catch (error) {
+          if (requestId !== this.searchRequestId) return;
+          this.remessaResults = [];
+          this.searchRestriction = null;
+          this.searchError = error.message;
+        } finally {
+          if (requestId === this.searchRequestId) this.loadingRemessas = false;
+        }
+      },
+      recebimentoChanged() {
+        if (!this.dataRecebimento) {
+          this.contaBancariaId = '';
+          this.lancamentoExtratoId = '';
+          this.lancamentos = [];
+          return;
+        }
+        if (this.contaBancariaId) this.loadLancamentos();
+      },
+      async loadLancamentos() {
+        this.lancamentoExtratoId = '';
+        this.lancamentos = [];
+        if (!this.contaBancariaId || !this.dataRecebimento) return;
+        this.loadingLancamentos = true;
+        try {
+          const url = new URL('{% url "conciliacao_faturamento_lancamentos" %}', window.location.origin);
+          url.searchParams.set('conta_bancaria_id', this.contaBancariaId);
+          url.searchParams.set('data_recebimento', this.dataRecebimento);
+          const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || 'Não foi possível consultar o extrato.');
+          this.lancamentos = payload.lancamentos || [];
+        } catch (error) {
+          this.validationError = error.message;
+        } finally {
+          this.loadingLancamentos = false;
+        }
+      },
+      lancamentoLabel(lancamento) {
+        const description = lancamento.descricao || lancamento.documento || 'Lançamento bancário';
+        return `${lancamento.data_lancamento} · ${this.formatMoney(lancamento.valor)} · ${description}`;
+      },
+      showValidationError(message) {
+        this.validationError = message;
+        const dialogCount = document.querySelectorAll('.message-dialog-layer').length;
+        if (typeof window.showOperationMessage === 'function') {
+          try {
+            window.showOperationMessage({
+              ok: false,
+              tag: 'error',
+              title: 'Operação Não Permitida',
+              message
+            });
+          } catch (error) {
+            console.error('Falha ao exibir validação da conciliação.', error);
+          }
+        }
+        if (document.querySelectorAll('.message-dialog-layer').length === dialogCount) {
+          window.alert(`Operação Não Permitida\n\n${message}`);
+        }
+      },
+      invalidFieldMessage(field) {
+        const label = field?.closest('label')?.querySelector('span')?.textContent?.replace('*', '').trim();
+        const fieldLabel = label || field?.name || 'obrigatório';
+        return `Preencha corretamente o campo "${fieldLabel}".`;
+      },
+      validateConciliation(form) {
+        this.validationError = '';
+        if (!form.checkValidity()) {
+          const invalidField = form.querySelector(':invalid');
+          this.showValidationError(this.invalidFieldMessage(invalidField));
+          invalidField?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          invalidField?.focus({ preventScroll: true });
+          return false;
+        }
+        if (!this.selectedRemessas.length) {
+          this.showValidationError('Adicione ao menos uma remessa para realizar a conciliação.');
+          return false;
+        }
+        const invalidGlosa = this.selectedRemessas.find((item) => item.sn_glosado && (Number(item.valor_glosado || 0) <= 0 || Number(item.valor_glosado) > this.valorConsiderado(item)));
+        if (invalidGlosa) {
+          this.showValidationError(`O valor glosado da remessa ${invalidGlosa.cd_remessa} deve ser maior que zero e não pode exceder o valor considerado da remessa.`);
+          return false;
+        }
+        if (!this.totalsMatch) {
+          this.showValidationError('O valor total das remessas descontadas do total de glosas é diferente do valor total da nota fiscal. Informe valor de glosa ou valide se as remessas realmente pertencem à nota fiscal.');
+          return false;
+        }
+        return true;
+      },
+      validateBeforeSubmit(event) {
+        if (!this.validateConciliation(event.currentTarget)) event.preventDefault();
+      }
+    };
+  };
+</script>
+{% endblock %}
