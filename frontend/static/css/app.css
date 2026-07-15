@@ -4734,6 +4734,22 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-top: 1px solid #d8e5eb;
 }
 
+.follow-up-glosa-records-scroll {
+  max-height: min(58vh, 620px);
+  overflow: auto;
+  padding: 12px;
+  scrollbar-gutter: stable;
+}
+
+.follow-up-glosa-atendimento:last-child {
+  margin-bottom: 0;
+}
+
+.follow-up-glosa-gru-pro .account-group-header {
+  background: #edf5f8;
+  box-shadow: inset 4px 0 0 #5e91a5;
+}
+
 .follow-up-glosa-table-wrap {
   border: 0;
   border-radius: 0;

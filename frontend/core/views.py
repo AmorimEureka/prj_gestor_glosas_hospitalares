@@ -1135,6 +1135,8 @@ def build_registro_glosa_payload(data):
         "descricao_item": data.get("descricao") or None,
         "data_alta": data.get("dt_alta") or None,
         "data_lancamento": data.get("dt_lancamento") or None,
+        "cd_gru_pro": as_int_or_none(data.get("cd_gru_pro")),
+        "ds_gru_pro": data.get("ds_gru_pro") or None,
         "qtd_recursado": as_int_or_none(data.get("qtd_glosada")),
         "valor_recursado": as_float_or_none(data.get("valor_glosado")),
         "dt_recurso": data.get("dt_recurso") or None,
@@ -1154,6 +1156,8 @@ def prepare_follow_up_glosas_cards(cards):
         for paciente_data in card.get("pacientes") or []:
             paciente = dict(paciente_data)
             itens = []
+            atendimentos = {}
+            ordem_atendimentos = []
             for item_data in paciente.get("itens") or []:
                 item = dict(item_data)
                 registro = _prepare_registro_glosa(
@@ -1172,8 +1176,54 @@ def prepare_follow_up_glosas_cards(cards):
                 item["dt_lancamento_formatada"] = format_api_datetime(
                     item.get("dt_lancamento")
                 )
+                item["dt_atendimento_formatada"] = format_api_date(
+                    item.get("dt_atendimento")
+                )
                 itens.append(item)
+                atendimento_key = item.get("cd_atendimento") or 0
+                if atendimento_key not in atendimentos:
+                    atendimentos[atendimento_key] = {
+                        "cd_atendimento": atendimento_key,
+                        "tp_atendimento": item.get("tp_atendimento"),
+                        "dt_atendimento_formatada": item.get(
+                            "dt_atendimento_formatada"
+                        ),
+                        "grupos_pro_map": {},
+                        "ordem_grupos_pro": [],
+                        "total_itens": 0,
+                    }
+                    ordem_atendimentos.append(atendimento_key)
+                atendimento = atendimentos[atendimento_key]
+                grupo_key = (
+                    item.get("cd_gru_pro") or 0,
+                    item.get("ds_gru_pro") or "Grupo não informado",
+                )
+                if grupo_key not in atendimento["grupos_pro_map"]:
+                    atendimento["grupos_pro_map"][grupo_key] = {
+                        "cd_gru_pro": grupo_key[0],
+                        "ds_gru_pro": grupo_key[1],
+                        "itens": [],
+                    }
+                    atendimento["ordem_grupos_pro"].append(grupo_key)
+                atendimento["grupos_pro_map"][grupo_key]["itens"].append(
+                    item
+                )
+                atendimento["total_itens"] += 1
+            atendimentos_preparados = []
+            for atendimento_key in ordem_atendimentos:
+                atendimento = atendimentos[atendimento_key]
+                grupos_pro = []
+                for grupo_key in atendimento.pop("ordem_grupos_pro"):
+                    grupo = atendimento["grupos_pro_map"][grupo_key]
+                    grupo["total_itens"] = len(grupo["itens"])
+                    grupos_pro.append(grupo)
+                atendimento.pop("grupos_pro_map")
+                atendimento["grupos_pro"] = grupos_pro
+                atendimento["total_grupos"] = len(grupos_pro)
+                atendimentos_preparados.append(atendimento)
             paciente["itens"] = itens
+            paciente["atendimentos"] = atendimentos_preparados
+            paciente["total_atendimentos"] = len(atendimentos_preparados)
             paciente["total_itens"] = len(itens)
             total_itens += len(itens)
             pacientes.append(paciente)
