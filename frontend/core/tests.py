@@ -872,6 +872,8 @@ class FollowUpGlosasTests(TestCase):
                                     'nm_convenio': 'Convênio Teste',
                                     'tp_atendimento': 'Internação',
                                     'cd_pro_fat': 'PROC-10',
+                                    'cd_gru_pro': 10,
+                                    'ds_gru_pro': 'Diagnóstico',
                                     'descricao': 'Procedimento analítico',
                                     'nr_guia': 'GUIA-20',
                                     'dt_atendimento': '2026-07-01T08:00:00',
@@ -939,12 +941,16 @@ class FollowUpGlosasTests(TestCase):
             'R$ 150,00',
             'Maria da Silva',
             'Procedimento analítico',
+            'Atendimento <strong>#789</strong>',
+            'GRU_PRO 10',
+            'Diagnóstico',
             'Data da alta',
             'DT Lanç.',
             'Tipo Atendimento',
             'Qtd Lanç.',
             'Recursar',
             '+ Acatar',
+            'follow-up-glosa-records-scroll',
         ):
             self.assertContains(response, expected)
         self.assertNotContains(
@@ -964,6 +970,13 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(
             response,
             'name="dt_pagamento" value="2026-07-10"',
+        )
+        paciente = response.context['cards'][0]['pacientes'][0]
+        self.assertEqual(paciente['total_atendimentos'], 1)
+        self.assertEqual(paciente['atendimentos'][0]['total_grupos'], 1)
+        self.assertEqual(
+            paciente['atendimentos'][0]['grupos_pro'][0]['cd_gru_pro'],
+            10,
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
@@ -989,6 +1002,8 @@ class FollowUpGlosasTests(TestCase):
                 'nm_convenio': 'Convênio Teste',
                 'tp_atendimento': 'Internação',
                 'cd_pro_fat': 'PROC-10',
+                'cd_gru_pro': '10',
+                'ds_gru_pro': 'Diagnóstico',
                 'descricao': 'Procedimento analítico',
                 'nr_guia': 'GUIA-20',
                 'dt_atendimento': '2026-07-01T08:00:00',
@@ -1027,6 +1042,8 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['data_glosa'], '2026-07-10')
         self.assertEqual(payload['dt_pagamento'], '2026-07-10')
         self.assertEqual(payload['descricao_item'], 'Procedimento analítico')
+        self.assertEqual(payload['cd_gru_pro'], 10)
+        self.assertEqual(payload['ds_gru_pro'], 'Diagnóstico')
         self.assertEqual(payload['processo_recurso'], 'REC-71')
         self.assertEqual(payload['valor_recursado'], 75.0)
 
