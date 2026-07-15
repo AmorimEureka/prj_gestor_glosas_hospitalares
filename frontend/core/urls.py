@@ -21,5 +21,25 @@ urlpatterns = [
     path("remessas/", views.remessas, name="remessas"),
     path("recursos/", views.recursos, name="recursos"),
     path("recebimentos/", views.recebimentos, name="recebimentos"),
+    path(
+        "financeiro/conciliacao-fiscal-faturamento/",
+        views.conciliacao_faturamento,
+        name="conciliacao_faturamento",
+    ),
+    path(
+        "financeiro/conciliacoes-sem-recebimento/",
+        views.conciliacoes_sem_recebimento,
+        name="conciliacoes_sem_recebimento",
+    ),
+    path(
+        "financeiro/conciliacao-fiscal-faturamento/remessas/<str:nfse_row_hash>/",
+        views.conciliacao_faturamento_remessas,
+        name="conciliacao_faturamento_remessas",
+    ),
+    path(
+        "financeiro/conciliacao-fiscal-faturamento/lancamentos-extrato/",
+        views.conciliacao_faturamento_lancamentos,
+        name="conciliacao_faturamento_lancamentos",
+    ),
     path("conciliacao/", views.conciliacao, name="conciliacao"),
 ]

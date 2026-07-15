@@ -4081,6 +4081,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
+  --pending-treatment: #6554a4;
+  --pending-treatment-soft: #f0edfb;
   --age-30: #2f7f95;
   --age-30-soft: #e8f5f8;
   --age-60: #8a6f25;
@@ -4172,15 +4174,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #fff;
 }
 
-.age-palette a:nth-child(2).active { background: var(--age-30); }
-.age-palette a:nth-child(3).active { background: var(--age-60); }
-.age-palette a:nth-child(4).active { background: var(--age-90); }
-.age-palette a:nth-child(5).active { background: var(--age-more); }
-.age-palette a:nth-child(6).active { background: var(--received); }
+.age-palette a:nth-child(2).active { background: var(--pending-treatment); }
+.age-palette a:nth-child(3).active { background: var(--age-30); }
+.age-palette a:nth-child(4).active { background: var(--age-60); }
+.age-palette a:nth-child(5).active { background: var(--age-90); }
+.age-palette a:nth-child(6).active { background: var(--age-more); }
+.age-palette a:nth-child(7).active { background: var(--received); }
 
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   overflow-x: visible;
   height: 100%;
@@ -4198,6 +4201,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #f8fbfc;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.kanban-column--aguardando_tratativa {
+  --column-color: var(--pending-treatment);
+  --column-soft: var(--pending-treatment-soft);
+  --column-border: #d2c9ef;
 }
 
 .kanban-column--ate_30 {
@@ -5642,6 +5651,1148 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: var(--muted);
 }
 
+/* Financeiro · Conciliação Fiscal x Faturamento */
+.finance-reconciliation-page {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 24px 0;
+}
+
+.finance-search-bar,
+.finance-list-heading,
+.finance-note-card,
+.finance-empty-state {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.finance-search-bar {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.finance-search-bar label {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+}
+
+.finance-search-bar label span,
+.finance-form-grid label > span,
+.finance-bank-grid label > span,
+.finance-remittance-search label > span,
+.finance-glosa-fields label > span {
+  color: #496777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-search-bar input,
+.finance-form-grid input,
+.finance-bank-grid input,
+.finance-bank-grid select,
+.finance-remittance-search input,
+.finance-glosa-fields .finance-money-input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #cbdbe3;
+  border-radius: 8px;
+  background: #fff;
+  color: #0b2f43;
+  font-size: 13px;
+}
+
+.finance-search-bar button,
+.finance-remittance-search button,
+.finance-submit-area button {
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.finance-search-bar a {
+  display: inline-grid;
+  min-height: 38px;
+  place-items: center;
+  padding: 8px 12px;
+  border: 1px solid #cbdbe3;
+  border-radius: 8px;
+  color: #496777;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.finance-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+}
+
+.finance-list-heading > div,
+.finance-section-title > div {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-list-heading strong,
+.finance-section-title strong {
+  color: #123748;
+  font-size: 14px;
+}
+
+.finance-list-heading span,
+.finance-section-title span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.finance-count,
+.finance-formula {
+  flex: none;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #edf7f9;
+  color: var(--primary-dark) !important;
+  font-weight: 800;
+}
+
+.finance-note-list {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 10px;
+}
+
+.finance-note-card {
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.finance-note-card.is-open {
+  border-color: #9dc8d5;
+  box-shadow: 0 8px 24px rgba(18, 55, 72, 0.08);
+}
+
+.finance-note-summary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(100px, 0.7fr) minmax(110px, 0.8fr) minmax(220px, 1.8fr) minmax(110px, 0.8fr) minmax(120px, 0.9fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 0;
+  background: #fff;
+  color: #123748;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-note-summary:hover {
+  background: #f8fcfd;
+}
+
+.finance-note-summary > span:not(.finance-note-chevron),
+.finance-selected-main > span,
+.finance-remittance-result > span,
+.finance-total-box {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.finance-note-summary small,
+.finance-selected-main small,
+.finance-remittance-result small,
+.finance-total-box small {
+  color: #71818d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-note-summary strong,
+.finance-selected-main strong,
+.finance-remittance-result strong {
+  overflow: hidden;
+  color: #123748;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-note-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #71818d;
+  border-bottom: 2px solid #71818d;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.finance-note-chevron.is-open {
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+
+.finance-note-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-top: 1px solid #dce8ed;
+  background: #f8fbfc;
+}
+
+.finance-receipt-section,
+.finance-remittance-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dce8ed;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.finance-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-form-grid,
+.finance-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.finance-form-grid label,
+.finance-bank-grid label,
+.finance-remittance-search label,
+.finance-glosa-fields label {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.finance-bank-grid {
+  padding-top: 12px;
+  border-top: 1px dashed #cbdbe3;
+}
+
+.finance-bank-grid label small {
+  color: #a3281d;
+  font-size: 10px;
+}
+
+.finance-bank-launch-field {
+  grid-column: span 3;
+}
+
+.finance-remittance-search {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) max-content;
+  align-items: end;
+  gap: 8px;
+}
+
+.finance-remittance-search button:disabled,
+.finance-remittance-result:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.finance-remittance-results,
+.finance-selected-remittances {
+  display: grid;
+  gap: 7px;
+}
+
+.finance-remittance-results {
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 7px;
+  border: 1px solid #dce8ed;
+  border-radius: 8px;
+  background: #f7fafb;
+}
+
+.finance-remittance-result {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.65fr) minmax(180px, 1.5fr) minmax(145px, 0.9fr) minmax(145px, 0.9fr) 30px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid #d5e4e9;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-remittance-result > .finance-remittance-context {
+  display: flex;
+  grid-column: 1 / -2;
+}
+
+.finance-remittance-result > b {
+  grid-column: -2 / -1;
+  grid-row: 1 / span 2;
+}
+
+.finance-remittance-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-width: 0;
+  padding-top: 7px;
+  border-top: 1px dashed #d8e5ea;
+}
+
+.finance-remittance-context > span:not(.finance-financial-status) {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-remittance-context small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-remittance-context strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-financial-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid #b9d8e2;
+  border-radius: 999px;
+  background: #edf7f9;
+  color: #155d72;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.finance-remittance-context.has-acato .finance-financial-status {
+  border-color: #e6c78b;
+  background: #fff8e8;
+  color: #875b0d;
+}
+
+.finance-financial-status.is-blocked {
+  border-color: #e6c78b;
+  background: #fff8e8;
+  color: #875b0d;
+}
+
+.finance-remittance-restriction {
+  display: grid;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #e6c78b;
+  border-radius: 8px;
+  background: #fffdf7;
+}
+
+.finance-restriction-heading,
+.finance-restriction-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px 18px;
+}
+
+.finance-restriction-heading > strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-restriction-values > span {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-restriction-values small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-restriction-values strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-remittance-restriction p {
+  margin: 0;
+  color: #875b0d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Financeiro · Conciliações sem recebimento */
+.finance-pending-summary {
+  display: grid;
+  grid-template-columns: 18px minmax(100px, 0.7fr) minmax(210px, 1.7fr) minmax(125px, 0.9fr) minmax(110px, 0.7fr) minmax(135px, 0.9fr) minmax(175px, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  background: #fff;
+  color: #123748;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-pending-summary:hover {
+  background: #f8fcfd;
+}
+
+.finance-pending-summary > span:not(.finance-note-chevron),
+.finance-pending-meta > span,
+.finance-pending-value,
+.finance-pending-remittance > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.finance-pending-summary small,
+.finance-pending-meta small,
+.finance-pending-value small,
+.finance-pending-remittance small {
+  color: #71818d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-pending-summary strong,
+.finance-pending-meta strong,
+.finance-pending-remittance strong {
+  overflow: hidden;
+  color: #123748;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-pending-statuses {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px !important;
+}
+
+.finance-pending-status {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid #b9d8e2;
+  border-radius: 999px;
+  background: #edf7f9;
+  color: #155d72;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
+
+.finance-pending-status.is-partial {
+  border-color: #c8c5eb;
+  background: #f4f3ff;
+  color: #5147a5;
+}
+
+.finance-pending-status.is-overdue {
+  border-color: #efb4ad;
+  background: #fff1ef;
+  color: #a3281d;
+}
+
+.finance-pending-details {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid #dce8ed;
+  background: #f8fbfc;
+}
+
+.finance-pending-meta,
+.finance-pending-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.finance-pending-meta,
+.finance-pending-value {
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.finance-pending-value strong {
+  color: #123748;
+  font-size: 14px;
+}
+
+.finance-pending-value.is-pending {
+  border-color: #e6c78b;
+  background: #fffdf7;
+}
+
+.finance-pending-value.is-pending strong {
+  color: #875b0d;
+}
+
+.finance-pending-remittances {
+  display: grid;
+  gap: 6px;
+}
+
+.finance-pending-remittances > strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-pending-remittance {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.6fr) minmax(110px, 0.7fr) repeat(3, minmax(125px, 0.9fr)) minmax(150px, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.finance-pending-remittance-wrap {
+  overflow: hidden;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.finance-pending-remittance-wrap .finance-pending-remittance {
+  border: 0;
+  border-radius: 0;
+}
+
+.finance-receipt-toggle {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.finance-pending-receipt-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #dce8ed;
+  background: #f8fbfc;
+}
+
+.finance-pending-receipt-form label {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.finance-pending-receipt-form label > span {
+  color: #496777;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-pending-receipt-form input,
+.finance-pending-receipt-form select {
+  width: 100%;
+  min-height: 40px;
+  border-color: #cbdbe3;
+  border-radius: 6px;
+  color: #0b2f43;
+  font-size: 12px;
+}
+
+.finance-pending-launch-field {
+  grid-column: span 2;
+}
+
+.finance-pending-receipt-submit {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.finance-pending-receipt-submit .finance-inline-error {
+  margin-right: auto;
+}
+
+@media (max-width: 900px) {
+  .finance-pending-summary {
+    grid-template-columns: 18px repeat(2, minmax(150px, 1fr));
+  }
+
+  .finance-pending-statuses {
+    grid-column: 2 / -1;
+  }
+
+  .finance-pending-meta,
+  .finance-pending-values,
+  .finance-pending-receipt-form {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .finance-pending-summary,
+  .finance-pending-meta,
+  .finance-pending-values,
+  .finance-pending-remittance {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-pending-receipt-form {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-pending-launch-field,
+  .finance-pending-receipt-submit {
+    grid-column: auto;
+  }
+
+  .finance-pending-receipt-submit {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-pending-summary .finance-note-chevron {
+    display: none;
+  }
+
+  .finance-pending-statuses {
+    grid-column: auto;
+  }
+}
+
+.finance-selected-context {
+  padding: 8px 12px;
+  background: #f8fbfc;
+}
+
+.finance-remittance-result:hover {
+  border-color: var(--primary);
+  background: #f5fbfc;
+}
+
+.finance-remittance-result b {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 20px;
+}
+
+.finance-selected-remittance {
+  overflow: hidden;
+  border: 1px solid #c9dfe6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.finance-selected-main {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.65fr) minmax(180px, 1.5fr) minmax(145px, 0.9fr) minmax(145px, 0.9fr) 32px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.finance-remove-remittance {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: #fbeeed;
+  color: #a3281d;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.finance-glosa-fields {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 50px;
+  padding: 9px 12px;
+  border-top: 1px solid #e3edf0;
+  background: #f8fbfc;
+}
+
+.finance-glosa-check {
+  display: flex !important;
+  grid-auto-flow: column;
+  align-items: center;
+}
+
+.finance-glosa-check input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary);
+}
+
+.finance-glosa-fields label:not(.finance-glosa-check) {
+  width: min(220px, 100%);
+}
+
+.finance-money-input {
+  text-align: right;
+}
+
+.finance-empty-remittance,
+.finance-inline-error {
+  margin: 0;
+  font-size: 11px;
+}
+
+.finance-empty-remittance {
+  padding: 18px;
+  border: 1px dashed #cbdbe3;
+  border-radius: 8px;
+  color: #71818d;
+  text-align: center;
+}
+
+.finance-inline-error {
+  color: #a3281d;
+  font-weight: 700;
+}
+
+.finance-reconciliation-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #dce8ed;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.finance-total-box {
+  min-width: 135px;
+  padding: 8px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.finance-total-box strong {
+  color: #123748;
+  font-size: 15px;
+}
+
+.finance-total-box.is-valid {
+  border-color: #8dc7ab;
+  background: #edf9f2;
+}
+
+.finance-total-box.is-invalid {
+  border-color: #dfaaa5;
+  background: #fff3f2;
+}
+
+.finance-total-operator {
+  color: #71818d;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.finance-submit-area {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.finance-submit-area p {
+  max-width: 470px;
+  text-align: right;
+}
+
+.finance-empty-state {
+  display: grid;
+  gap: 4px;
+  padding: 38px 20px;
+  color: #496777;
+  text-align: center;
+}
+
+.finance-empty-state strong {
+  color: #123748;
+  font-size: 15px;
+}
+
+.finance-empty-state span {
+  font-size: 12px;
+}
+
+/* Financeiro com a mesma linguagem visual da Triagem */
+.finance-reconciliation-page {
+  gap: 10px;
+  padding: 0 4px 20px 0;
+}
+
+.finance-search-bar.panel {
+  align-items: flex-end;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.finance-search-bar .filter-group {
+  gap: 3px;
+}
+
+.finance-search-bar .filter-group > span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.finance-search-bar .filter-actions {
+  padding-bottom: 0;
+}
+
+.finance-search-bar .btn,
+.finance-remittance-search .btn,
+.finance-submit-area .btn {
+  min-height: 42px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.finance-results-panel {
+  flex: none;
+  margin: 0;
+  padding: 12px;
+  overflow: visible;
+  border-radius: 8px;
+}
+
+.finance-results-panel .panel-header {
+  margin-bottom: 12px;
+}
+
+.finance-results-panel .finance-list-heading {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.finance-results-panel .finance-list-heading .panel-title {
+  color: #102f3f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.finance-results-toolbar {
+  min-height: 66px;
+}
+
+.finance-results-toolbar .result-total {
+  min-width: 145px;
+}
+
+.finance-results-panel .finance-note-list {
+  min-height: auto;
+  overflow: visible;
+  padding: 0 4px 0 0;
+}
+
+.finance-note-card {
+  margin-bottom: 8px;
+  border-color: #cfdde4;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(22, 79, 99, 0.08);
+}
+
+.finance-note-card.is-open {
+  border-color: #76aaba;
+  box-shadow: 0 8px 22px rgba(22, 79, 99, 0.14);
+}
+
+.finance-note-summary {
+  min-height: 52px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, #245f75 0%, #2b7187 100%);
+  color: #fff;
+}
+
+.finance-note-summary:hover {
+  background: linear-gradient(90deg, #286a82 0%, #327f96 100%);
+}
+
+.finance-note-summary small {
+  color: rgba(237, 248, 251, 0.72);
+  font-weight: 600;
+}
+
+.finance-note-summary strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finance-note-summary .finance-note-convenio strong {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.finance-note-chevron {
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+.finance-note-form {
+  gap: 10px;
+  padding: 12px;
+  border-top: 2px solid #234f64;
+  background: #edf4f7;
+}
+
+.finance-receipt-section,
+.finance-remittance-section {
+  gap: 10px;
+  padding: 12px;
+  border-color: #d3e1e7;
+  border-radius: 8px;
+  box-shadow: 0 2px 7px rgba(18, 55, 72, 0.04);
+}
+
+.finance-section-title {
+  min-height: 34px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0eaee;
+}
+
+.finance-section-title strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finance-search-bar input,
+.finance-form-grid input,
+.finance-bank-grid input,
+.finance-bank-grid select,
+.finance-remittance-search input,
+.finance-glosa-fields .finance-money-input {
+  min-height: 42px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.finance-search-bar input:focus,
+.finance-form-grid input:focus,
+.finance-bank-grid input:focus,
+.finance-bank-grid select:focus,
+.finance-remittance-search input:focus,
+.finance-glosa-fields .finance-money-input:focus {
+  border-color: #6da5b7;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(31, 111, 134, 0.12);
+}
+
+.finance-remittance-results {
+  max-height: 260px;
+  padding: 8px;
+  border-color: #cfdfe6;
+  border-radius: 8px;
+  background: #f4f8fa;
+}
+
+.finance-remittance-result {
+  min-height: 52px;
+  border-color: #c9dce4;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #fff 0%, #f8fbfc 100%);
+}
+
+.finance-remittance-result:hover {
+  border-color: #7fb0c0;
+  background: #eef8fb;
+}
+
+.finance-remittance-result b {
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(22, 79, 99, 0.2);
+}
+
+.finance-selected-remittance {
+  border-color: #b9d3dd;
+  box-shadow: 0 3px 9px rgba(18, 55, 72, 0.06);
+}
+
+.finance-selected-main {
+  min-height: 48px;
+  background: #f7fbfc;
+}
+
+.finance-glosa-fields {
+  min-height: 48px;
+  background: #fff;
+}
+
+.finance-reconciliation-footer {
+  border-color: #d3e1e7;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.finance-total-box {
+  min-width: 145px;
+  min-height: 52px;
+  border-color: #cfe1e8;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 4px 0 0 #8ab5c3;
+}
+
+.finance-total-box:nth-of-type(2) {
+  border-color: #efcf9b;
+  background: #fff8ed;
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.finance-total-box.is-invalid {
+  box-shadow: inset 4px 0 0 #b94a3f;
+}
+
+.finance-total-box.is-valid {
+  box-shadow: inset 4px 0 0 #2f8a5f;
+}
+
+@media (max-width: 1100px) {
+  .finance-note-summary {
+    grid-template-columns: 18px repeat(2, minmax(100px, 1fr));
+  }
+
+  .finance-note-convenio {
+    grid-column: span 2;
+  }
+
+  .finance-form-grid,
+  .finance-bank-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .finance-bank-launch-field {
+    grid-column: span 2;
+  }
+
+  .finance-reconciliation-footer {
+    flex-wrap: wrap;
+  }
+
+  .finance-submit-area {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .finance-search-bar,
+  .finance-list-heading,
+  .finance-section-title,
+  .finance-reconciliation-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-note-summary,
+  .finance-form-grid,
+  .finance-bank-grid,
+  .finance-remittance-result,
+  .finance-selected-main,
+  .finance-remittance-search {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-note-chevron {
+    display: none;
+  }
+
+  .finance-note-convenio,
+  .finance-bank-launch-field {
+    grid-column: auto;
+  }
+
+  .finance-remittance-result b,
+  .finance-remove-remittance {
+    justify-self: end;
+  }
+
+  .finance-remittance-result > .finance-remittance-context,
+  .finance-remittance-result > b {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .finance-total-operator {
+    display: none;
+  }
+
+  .finance-total-box {
+    width: 100%;
+  }
+}
+
 @media (max-width: 900px) {
   .indicator-panel-head {
     flex-wrap: wrap;
@@ -5846,7 +6997,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 @media (max-width: 1280px) {
   .kanban-board {
-    grid-template-columns: repeat(5, minmax(210px, 1fr));
+    grid-template-columns: repeat(6, minmax(210px, 1fr));
     overflow-x: auto;
   }
 }
@@ -5945,7 +7096,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .kanban-board {
-    grid-template-columns: repeat(5, minmax(240px, 1fr));
+    grid-template-columns: repeat(6, minmax(240px, 1fr));
   }
 }
 

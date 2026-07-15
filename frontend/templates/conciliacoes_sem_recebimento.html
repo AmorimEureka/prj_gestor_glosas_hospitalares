@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro{% endblock %}
+{% block page_title %}Conciliações sem recebimento{% endblock %}
+{% block content %}
+<section class="finance-reconciliation-page finance-pending-page">
+  <form method="get" class="panel filter-panel finance-search-bar">
+    <label class="filter-group">
+      <span>Pesquisar conciliação</span>
+      <input class="form-control" type="search" name="q" value="{{ filtro_q }}" placeholder="NFS-e, convênio, processo ou remessa">
+    </label>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Pesquisar</button>
+      {% if filtro_q %}<a class="btn btn-outline-secondary" href="{% url 'conciliacoes_sem_recebimento' %}">Limpar</a>{% endif %}
+    </div>
+  </form>
+
+  <section class="panel finance-results-panel">
+    <div class="panel-header">
+      <div class="results-heading finance-list-heading">
+        <div>
+          <span class="panel-title">Conciliações com remessas pendentes de recebimento</span>
+          <span class="results-subtitle">Cada remessa sai da fila somente após o recebimento exato do valor pendente.</span>
+        </div>
+      </div>
+      <div class="results-toolbar finance-results-toolbar">
+        <div class="results-totals">
+          <span class="result-total">
+            <span>TOTAL CONCILIAÇÕES</span>
+            <strong>{{ total_conciliacoes }}</strong>
+          </span>
+          <span class="result-total">
+            <span>REMESSAS SEM RECEBIMENTO</span>
+            <strong>{{ total_remessas_sem_recebimento }}</strong>
+          </span>
+          <span class="result-total result-total--value">
+            <span>VALOR PENDENTE</span>
+            <strong>R$ {{ valor_total_pendente|br_currency }}</strong>
+          </span>
+        </div>
+        {% if pagination.total %}
+        <div class="pagination-control">
+          {% if pagination.has_previous %}
+          <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+          {% else %}
+          <span class="page-step page-step--disabled">Anterior</span>
+          {% endif %}
+          <form method="get" class="page-select-form">
+            {% for key, value in pagination.query.items %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+            <label for="pending-receipt-page-select">Pagina</label>
+            <select id="pending-receipt-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+              {% for option in pagination.page_options %}
+              <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+              {% endfor %}
+            </select>
+            <span>de {{ pagination.total_pages }}</span>
+          </form>
+          {% if pagination.has_next %}
+          <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+          {% else %}
+          <span class="page-step page-step--disabled">Proxima</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="finance-note-list">
+      {% for conciliacao in conciliacoes %}
+      <article class="finance-note-card finance-pending-card" x-data="{ open: false }" :class="{ 'is-open': open }">
+        <button type="button" class="finance-pending-summary" @click="open = !open" :aria-expanded="open">
+          <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
+          <span><small>NFS-e</small><strong>{{ conciliacao.numero_nfse }}</strong></span>
+          <span><small>Convênio</small><strong>{{ conciliacao.convenio }}</strong></span>
+          <span><small>Previsão</small><strong>{{ conciliacao.data_previsao_recebimento|api_date }}</strong></span>
+          <span><small>Remessas pendentes</small><strong>{{ conciliacao.quantidade_remessas_sem_recebimento }} de {{ conciliacao.quantidade_remessas }}</strong></span>
+          <span><small>Valor pendente</small><strong>R$ {{ conciliacao.valor_pendente|br_currency }}</strong></span>
+          <span class="finance-pending-statuses">
+            {% if conciliacao.situacao == "recebimento_parcial" %}
+              <span class="finance-pending-status is-partial">RECEBIMENTO PARCIAL</span>
+            {% else %}
+              <span class="finance-pending-status">SEM RECEBIMENTO</span>
+            {% endif %}
+            {% if conciliacao.em_atraso %}
+              <span class="finance-pending-status is-overdue">EM ATRASO · {{ conciliacao.dias_em_atraso }} DIA{{ conciliacao.dias_em_atraso|pluralize:"S" }}</span>
+            {% endif %}
+          </span>
+        </button>
+
+        <div class="finance-pending-details" x-show="open" x-cloak>
+          <div class="finance-pending-meta">
+            <span><small>Processo de recebimento</small><strong>{{ conciliacao.processo_recebimento }}</strong></span>
+            <span><small>Data da conciliação</small><strong>{{ conciliacao.data_criacao|api_date }}</strong></span>
+            <span><small>CNPJ do convênio</small><strong>{{ conciliacao.cnpj_convenio }}</strong></span>
+            <span><small>Valor NFS-e</small><strong>R$ {{ conciliacao.valor_nfse|br_currency }}</strong></span>
+          </div>
+          <div class="finance-pending-values">
+            <span class="finance-pending-value"><small>Total remessas</small><strong>R$ {{ conciliacao.valor_total_remessas|br_currency }}</strong></span>
+            <span class="finance-pending-value"><small>Total glosas</small><strong>R$ {{ conciliacao.valor_total_glosas|br_currency }}</strong></span>
+            <span class="finance-pending-value"><small>Valor recebido</small><strong>R$ {{ conciliacao.valor_recebido|br_currency }}</strong></span>
+            <span class="finance-pending-value is-pending"><small>Valor pendente</small><strong>R$ {{ conciliacao.valor_pendente|br_currency }}</strong></span>
+          </div>
+          <div class="finance-pending-remittances">
+            <strong>Remessas sem recebimento nesta conciliação</strong>
+            {% for remessa in conciliacao.remessas %}
+            <section class="finance-pending-remittance-wrap" x-data="recebimentoPendenteForm('{{ remessa.valor_pendente|escapejs }}')">
+              <div class="finance-pending-remittance">
+                <span><small>REMESSA</small><strong>{{ remessa.cd_remessa }}</strong></span>
+                <span><small>TIPO</small><strong>{% if remessa.tp_conciliacao == "recurso" %}RECURSO{% else %}FATURAMENTO{% endif %}</strong></span>
+                <span><small>VALOR REMESSA</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
+                <span><small>VALOR GLOSA</small><strong>R$ {{ remessa.valor_glosado|br_currency }}</strong></span>
+                <span><small>VALOR PENDENTE</small><strong>R$ {{ remessa.valor_pendente|br_currency }}</strong></span>
+                <button class="btn btn-primary finance-receipt-toggle" type="button" @click="showForm = !showForm" x-text="showForm ? 'Cancelar' : 'Registrar recebimento'"></button>
+              </div>
+              <form method="post" class="finance-pending-receipt-form" x-show="showForm" x-cloak @submit="validateBeforeSubmit($event)">
+                {% csrf_token %}
+                <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
+                <input type="hidden" name="numero_nfse" value="{{ conciliacao.numero_nfse }}">
+                <label>
+                  <span>Data do recebimento *</span>
+                  <input class="form-control" type="date" name="data_recebimento" x-model="dataRecebimento" @change="receiptDataChanged" required>
+                </label>
+                <label>
+                  <span>Valor recebido *</span>
+                  <input class="form-control finance-money-input" type="text" name="valor_recebido" inputmode="numeric" :value="valorRecebido" :data-max-value="valorPendente" readonly aria-readonly="true" required>
+                </label>
+                <label>
+                  <span>Conta bancária *</span>
+                  <select class="form-select" name="conta_bancaria_id" x-model="contaBancariaId" @change="loadLancamentos" required>
+                    <option value="">Selecione agência e conta</option>
+                    {% for conta in contas_bancarias %}
+                      <option value="{{ conta.id }}">{{ conta.banco }} · Ag. {{ conta.agencia }}{% if conta.digito_agencia %}-{{ conta.digito_agencia }}{% endif %} · C/C {{ conta.conta }}{% if conta.digito %}-{{ conta.digito }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                  {% if not contas_bancarias %}<small>Nenhuma conta bancária ativa cadastrada.</small>{% endif %}
+                </label>
+                <label>
+                  <span>Conta do plano de contas</span>
+                  <input class="form-control" type="text" name="conta_plano_contas" maxlength="255" placeholder="Código ou descrição">
+                </label>
+                <label>
+                  <span>Conta do centro de custo</span>
+                  <input class="form-control" type="text" name="conta_centro_custo" maxlength="255" placeholder="Código ou descrição">
+                </label>
+                <label class="finance-pending-launch-field">
+                  <span>Lançamento no extrato</span>
+                  <select class="form-select" name="lancamento_extrato_id" x-model="lancamentoExtratoId" :disabled="loadingLancamentos || !contaBancariaId || !dataRecebimento">
+                    <option value="" x-text="loadingLancamentos ? 'Carregando lançamentos...' : 'Selecione um lançamento'"></option>
+                    <template x-for="lancamento in lancamentos" :key="lancamento.id">
+                      <option :value="lancamento.id" x-text="lancamentoLabel(lancamento)"></option>
+                    </template>
+                  </select>
+                </label>
+                <div class="finance-pending-receipt-submit">
+                  <p class="finance-inline-error" x-show="validationError" x-text="validationError"></p>
+                  <button class="btn btn-primary" type="submit">Confirmar recebimento</button>
+                </div>
+              </form>
+            </section>
+            {% endfor %}
+          </div>
+        </div>
+      </article>
+      {% empty %}
+      <div class="finance-empty-state">
+        <strong>Nenhuma conciliação com recebimento pendente.</strong>
+        <span>As conciliações deixam esta fila quando todas as remessas com valor a receber possuem o recebimento exato registrado.</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer">
+      {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
+      <span>Pagina {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Proxima</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+</section>
+<script>
+  window.recebimentoPendenteForm = function (valorPendente) {
+    const maximum = Number(valorPendente || 0);
+    const formatMoney = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return {
+      showForm: false,
+      valorPendente: maximum,
+      valorRecebido: formatMoney(maximum),
+      dataRecebimento: '',
+      contaBancariaId: '',
+      lancamentoExtratoId: '',
+      lancamentos: [],
+      loadingLancamentos: false,
+      validationError: '',
+      updateMoney(event) {
+        const digits = event.target.value.replace(/\D/g, '');
+        const value = digits ? Number(digits) / 100 : 0;
+        this.valorRecebido = formatMoney(value);
+        event.target.value = this.valorRecebido;
+        event.target.setCustomValidity('');
+        this.validationError = '';
+      },
+      valorRecebidoNumerico() {
+        const digits = this.valorRecebido.replace(/\D/g, '');
+        return Number(digits || 0) / 100;
+      },
+      receiptDataChanged() {
+        this.lancamentoExtratoId = '';
+        this.lancamentos = [];
+        if (this.contaBancariaId && this.dataRecebimento) this.loadLancamentos();
+      },
+      async loadLancamentos() {
+        this.lancamentoExtratoId = '';
+        this.lancamentos = [];
+        if (!this.contaBancariaId || !this.dataRecebimento) return;
+        this.loadingLancamentos = true;
+        try {
+          const url = new URL('{% url "conciliacao_faturamento_lancamentos" %}', window.location.origin);
+          url.searchParams.set('conta_bancaria_id', this.contaBancariaId);
+          url.searchParams.set('data_recebimento', this.dataRecebimento);
+          const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || 'Não foi possível consultar o extrato.');
+          this.lancamentos = payload.lancamentos || [];
+        } catch (error) {
+          this.validationError = error.message;
+        } finally {
+          this.loadingLancamentos = false;
+        }
+      },
+      lancamentoLabel(lancamento) {
+        const description = lancamento.descricao || lancamento.documento || 'Lançamento bancário';
+        return `${lancamento.data_lancamento} · ${formatMoney(lancamento.valor)} · ${description}`;
+      },
+      validateBeforeSubmit(event) {
+        this.validationError = '';
+        const form = event.currentTarget;
+        const valueField = form.elements.valor_recebido;
+        const received = this.valorRecebidoNumerico();
+        const today = new Date();
+        const todayValue = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+        valueField.setCustomValidity('');
+        if (received <= 0) {
+          valueField.setCustomValidity('Informe um valor recebido maior que zero.');
+        } else if (Math.abs(received - this.valorPendente) > 0.005) {
+          valueField.setCustomValidity(`O valor recebido deve ser exatamente ${formatMoney(this.valorPendente)}.`);
+        }
+        if (this.dataRecebimento && this.dataRecebimento > todayValue) {
+          form.elements.data_recebimento.setCustomValidity('A data do recebimento não pode ser maior que a data atual.');
+        } else {
+          form.elements.data_recebimento.setCustomValidity('');
+        }
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          const invalidField = form.querySelector(':invalid');
+          this.validationError = invalidField?.validationMessage || 'Preencha os campos obrigatórios do recebimento.';
+          invalidField?.reportValidity();
+        }
+      }
+    };
+  };
+</script>
+{% endblock %}
