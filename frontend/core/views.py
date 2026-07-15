@@ -3455,8 +3455,11 @@ def follow_up_glosas(request):
             )
 
     filtros = {"q": (request.GET.get("q") or "").strip()}
+    detalhar_vinculo = as_int_or_zero(
+        request.GET.get("detalhar_vinculo")
+    )
     page = as_positive_int(request.GET.get("page"), 1)
-    limit = 10
+    limit = 1 if detalhar_vinculo else 10
     offset = (page - 1) * limit
     cards = []
     total = 0
@@ -3467,11 +3470,25 @@ def follow_up_glosas(request):
     }
     consulta_indisponivel = False
     try:
-        api_params = {"limit": limit, "offset": offset}
-        if filtros["q"]:
+        api_params = {
+            "limit": limit,
+            "offset": offset,
+            "incluir_detalhes": "true" if detalhar_vinculo else "false",
+        }
+        if detalhar_vinculo:
+            api_params["conciliacao_remessa_id"] = detalhar_vinculo
+        elif filtros["q"]:
             api_params["q"] = filtros["q"]
         response = api_get(FOLLOW_UP_GLOSAS_PATH, params=api_params)
-        cards = prepare_follow_up_glosas_cards(response.get("cards") or [])
+        cards_api = response.get("cards") or []
+        if not detalhar_vinculo:
+            cards_api = [
+                {**card, "pacientes": []}
+                for card in cards_api
+            ]
+        cards = prepare_follow_up_glosas_cards(cards_api)
+        for card in cards:
+            card["detalhes_carregados"] = bool(detalhar_vinculo)
         total = as_int_or_zero(response.get("total"))
         limit = as_positive_int(response.get("limit"), limit)
         offset = as_int_or_zero(response.get("offset"))

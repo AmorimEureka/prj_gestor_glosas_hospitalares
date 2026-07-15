@@ -912,7 +912,7 @@ class FollowUpGlosasTests(TestCase):
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
-    def test_renderiza_remessa_pacientes_itens_e_menu(
+    def test_listagem_carrega_detalhamento_somente_ao_expandir(
         self,
         api_get,
         get_cached_api_payload,
@@ -921,6 +921,46 @@ class FollowUpGlosasTests(TestCase):
         get_cached_api_payload.return_value = {'itens': []}
 
         response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '#987')
+        self.assertContains(
+            response,
+            'hx-get="/follow-up-glosas/?detalhar_vinculo=12"',
+        )
+        self.assertContains(response, 'hx-trigger="follow-up-load once"')
+        self.assertContains(response, '>Expandir</button>')
+        self.assertContains(response, '>Colapsar todos</button>')
+        self.assertContains(response, '@expand-follow-up-level-1.window')
+        self.assertContains(
+            response,
+            'Carregando detalhamento da remessa...',
+        )
+        self.assertNotContains(response, 'Maria da Silva')
+        self.assertEqual(response.context['cards'][0]['pacientes'], [])
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            params={
+                'limit': 10,
+                'offset': 0,
+                'incluir_detalhes': 'false',
+            },
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_renderiza_remessa_pacientes_itens_e_menu(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        api_get.return_value = self._api_payload()
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'NÚCLEO GESTOR DE GLOSAS')
@@ -985,7 +1025,12 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
-            params={'limit': 10, 'offset': 0},
+            params={
+                'limit': 1,
+                'offset': 0,
+                'incluir_detalhes': 'true',
+                'conciliacao_remessa_id': 12,
+            },
         )
 
     @patch('core.views.api_put')

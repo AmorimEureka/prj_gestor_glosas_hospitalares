@@ -4704,6 +4704,19 @@ body:not(.sidebar-collapsed) .indicator-grid {
   padding: 12px;
 }
 
+.follow-up-glosa-card-content {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.follow-up-glosa-loading {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .follow-up-glosa-patient {
   overflow: hidden;
   border: 1px solid #d4e1e8;
@@ -4735,13 +4748,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .follow-up-glosa-records-scroll {
-  max-height: 420px;
   min-height: 0;
-  overflow-x: auto;
-  overflow-y: scroll;
+  overflow: visible;
   padding: 12px 12px 24px;
   scroll-padding-bottom: 24px;
-  scrollbar-gutter: stable;
 }
 
 .follow-up-glosa-atendimento:last-child {
@@ -4754,6 +4764,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .follow-up-glosa-table-wrap {
+  overflow-x: auto;
   border: 0;
   border-radius: 0;
 }
