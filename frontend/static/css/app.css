@@ -4735,9 +4735,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .follow-up-glosa-records-scroll {
-  max-height: min(58vh, 620px);
-  overflow: auto;
-  padding: 12px;
+  max-height: 420px;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: scroll;
+  padding: 12px 12px 24px;
+  scroll-padding-bottom: 24px;
   scrollbar-gutter: stable;
 }
 
@@ -4745,7 +4748,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   margin-bottom: 0;
 }
 
-.follow-up-glosa-gru-pro .account-group-header {
+.follow-up-glosa-grupo-procedimento .account-group-header {
   background: #edf5f8;
   box-shadow: inset 4px 0 0 #5e91a5;
 }
