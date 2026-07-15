@@ -4619,6 +4619,176 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-color: #cddfe7;
 }
 
+/* ── Follow-Up de Glosas ─────────────────────────────── */
+.follow-up-glosa-search {
+  flex: 1 1 480px;
+  max-width: 720px;
+}
+
+.follow-up-glosa-list {
+  display: grid;
+  gap: 12px;
+}
+
+.follow-up-glosa-card {
+  overflow: hidden;
+  border: 1px solid #cddce5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(16, 42, 58, 0.05);
+}
+
+.follow-up-glosa-card-header {
+  display: grid;
+  grid-template-columns: 18px minmax(85px, 0.7fr) minmax(150px, 1.4fr) minmax(110px, 0.9fr) minmax(80px, 0.7fr) minmax(125px, 1fr) minmax(125px, 1fr);
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 0;
+  border-left: 4px solid #d98c2b;
+  background: #fbfdfe;
+  color: var(--ink);
+  padding: 14px 16px 14px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.follow-up-glosa-card-header:hover {
+  background: #f4f9fb;
+}
+
+.follow-up-glosa-chevron {
+  color: #6b7d89;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+.follow-up-glosa-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.follow-up-glosa-card-field {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.follow-up-glosa-card-field small,
+.follow-up-glosa-patient-header small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.follow-up-glosa-card-field strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-up-glosa-card-value {
+  text-align: right;
+}
+
+.follow-up-glosa-card-value--danger strong {
+  color: #b24d32;
+}
+
+.follow-up-glosa-card-body {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #dce6ec;
+  background: #f5f8fa;
+  padding: 12px;
+}
+
+.follow-up-glosa-patient {
+  overflow: hidden;
+  border: 1px solid #d4e1e8;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.follow-up-glosa-patient-header {
+  display: grid;
+  grid-template-columns: 16px minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: #eef6f8;
+  color: var(--ink);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.follow-up-glosa-patient-header > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.follow-up-glosa-patient-body {
+  border-top: 1px solid #d8e5eb;
+}
+
+.follow-up-glosa-table-wrap {
+  border: 0;
+  border-radius: 0;
+}
+
+.follow-up-glosa-actions {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+@media (max-width: 1100px) {
+  .follow-up-glosa-card-header {
+    grid-template-columns: 18px repeat(3, minmax(120px, 1fr));
+  }
+
+  .follow-up-glosa-card-field:nth-of-type(4),
+  .follow-up-glosa-card-field:nth-of-type(5),
+  .follow-up-glosa-card-field:nth-of-type(6) {
+    grid-column: auto;
+  }
+
+  .follow-up-glosa-table-wrap {
+    overflow-x: auto;
+  }
+
+  .follow-up-glosa-table-wrap .account-table {
+    min-width: 1080px;
+  }
+}
+
+@media (max-width: 700px) {
+  .follow-up-glosa-card-header {
+    grid-template-columns: 14px 1fr 1fr;
+    gap: 10px;
+  }
+
+  .follow-up-glosa-card-header > .follow-up-glosa-chevron {
+    grid-row: 1 / span 3;
+  }
+
+  .follow-up-glosa-card-value {
+    text-align: left;
+  }
+
+  .follow-up-glosa-patient-header {
+    grid-template-columns: 14px minmax(130px, 1fr);
+  }
+
+  .follow-up-glosa-patient-header .mpill {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
 /* ── Account table ────────────────────────────────────── */
 .account-table {
   width: 100%;

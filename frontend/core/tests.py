@@ -830,6 +830,207 @@ class LoginFlowTests(TestCase):
         self.assertRedirects(response, '/', fetch_redirect_response=False)
 
 
+class FollowUpGlosasTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Núcleo de Glosas',
+            'email': 'glosas@teste.com',
+            'perfil': 'usuario',
+        }
+        session.save()
+
+    def _api_payload(self):
+        return {
+            'cards': [
+                {
+                    'conciliacao_remessa_id': 12,
+                    'cd_remessa': 987,
+                    'convenio': 'Convênio Teste',
+                    'data_entrega': '2026-07-10',
+                    'numero_nfse': 'NFS-5333',
+                    'valor_remessa': '1000.00',
+                    'valor_glosado': '150.00',
+                    'valor_glosa_pendente': '150.00',
+                    'pacientes': [
+                        {
+                            'codigo_paciente': 51,
+                            'nm_paciente': 'Maria da Silva',
+                            'itens': [
+                                {
+                                    'cd_paciente': 51,
+                                    'nm_paciente': 'Maria da Silva',
+                                    'cd_remessa': 987,
+                                    'cd_atendimento': 789,
+                                    'cd_reg': 456,
+                                    'cd_lancamento': 3,
+                                    'cd_prestador': 4,
+                                    'nm_prestador': 'Hospital Prontocardio',
+                                    'cd_convenio': 5,
+                                    'nm_convenio': 'Convênio Teste',
+                                    'tp_atendimento': 'Internação',
+                                    'cd_pro_fat': 'PROC-10',
+                                    'descricao': 'Procedimento analítico',
+                                    'nr_guia': 'GUIA-20',
+                                    'dt_atendimento': '2026-07-01T08:00:00',
+                                    'dt_alta': '2026-07-03T10:00:00',
+                                    'dt_lancamento': '2026-07-02T09:30:00',
+                                    'qt_lancamento': '2.00',
+                                    'vl_total_conta': '150.00',
+                                    'registro_glosa': {
+                                        'id': 71,
+                                        'sn_ativo': 'true',
+                                        'sn_glosado': 'true',
+                                        'processo_controle_fatura_gab': 'CONC-12',
+                                        'processo_recurso': None,
+                                        'data_glosa': '2026-07-10',
+                                        'motivo_glosa': 'Pendente de classificação',
+                                        'descricao_glosa': '',
+                                        'qtd_recursado': None,
+                                        'valor_recursado': None,
+                                        'dt_recurso': None,
+                                        'dt_pagamento': None,
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+            'total': 1,
+            'valor_total_glosado': '150.00',
+            'valor_total_pendente': '150.00',
+            'limit': 10,
+            'offset': 0,
+        }
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_renderiza_remessa_pacientes_itens_e_menu(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        api_get.return_value = self._api_payload()
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'NÚCLEO GESTOR DE GLOSAS')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('Follow-Up de Glosas'),
+            content.index('title="Triagem"'),
+        )
+        for expected in (
+            'REMESSA',
+            '#987',
+            'CONVÊNIO',
+            'Convênio Teste',
+            'DATA ENTREGA',
+            '10/07/2026',
+            'NFS-5333',
+            'VALOR DA REMESSA',
+            'R$ 1.000,00',
+            'VALOR GLOSADO',
+            'R$ 150,00',
+            'Maria da Silva',
+            'Procedimento analítico',
+            'Data da alta',
+            'DT Lanç.',
+            'Tipo Atendimento',
+            'Qtd Lanç.',
+            'Recursar',
+            '+ Acatar',
+        ):
+            self.assertContains(response, expected)
+        self.assertNotContains(
+            response,
+            'Processo / N Controle / N Fatura / N GAB (Processo Original)',
+        )
+        self.assertNotContains(response, '<label>Data da glosa')
+        self.assertNotContains(response, '<label>Dt pagamento')
+        self.assertContains(
+            response,
+            'name="processo_controle_fatura_gab" value="CONC-12"',
+        )
+        self.assertContains(
+            response,
+            'name="data_glosa" value="2026-07-10"',
+        )
+        self.assertContains(
+            response,
+            'name="dt_pagamento" value="2026-07-10"',
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            params={'limit': 10, 'offset': 0},
+        )
+
+    @patch('core.views.api_put')
+    def test_recursar_atualiza_registro_analitico_existente(self, api_put):
+        api_put.return_value = {'id': 71, 'sn_glosado': 'true'}
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'registro_glosa_id': '71',
+                'cd_paciente': '51',
+                'nm_paciente': 'Maria da Silva',
+                'cd_remessa': '987',
+                'cd_atendimento': '789',
+                'cd_reg': '456',
+                'cd_lancamento': '3',
+                'cd_prestador': '4',
+                'nm_prestador': 'Hospital Prontocardio',
+                'cd_convenio': '5',
+                'nm_convenio': 'Convênio Teste',
+                'tp_atendimento': 'Internação',
+                'cd_pro_fat': 'PROC-10',
+                'descricao': 'Procedimento analítico',
+                'nr_guia': 'GUIA-20',
+                'dt_atendimento': '2026-07-01T08:00:00',
+                'dt_alta': '2026-07-03T10:00:00',
+                'dt_lancamento': '2026-07-02T09:30:00',
+                'qt_lancamento': '2',
+                'vl_total_conta': '150.00',
+                'sn_glosado': 'true',
+                'processo_controle_fatura_gab': 'CONC-12',
+                'data_glosa': '2026-07-10',
+                'dt_pagamento': '2026-07-10',
+                'motivo_glosa': '1016 - Motivo TISS',
+                'processo_recurso': 'REC-71',
+                'dt_recurso': '2026-07-11',
+                'qtd_glosada': '1',
+                'valor_glosado': 'R$ 75,00',
+                'descricao_glosa': 'Recurso enviado',
+                'form_action': 'salvar',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content,
+            {
+                'ok': True,
+                'message': 'Recurso registrado no Follow-Up de Glosas.',
+                'tag': 'success',
+                'payload': {'id': 71, 'sn_glosado': 'true'},
+            },
+        )
+        path, payload = api_put.call_args.args
+        self.assertTrue(path.endswith('/71'))
+        self.assertEqual(payload['processo_controle_fatura_gab'], 'CONC-12')
+        self.assertEqual(payload['data_glosa'], '2026-07-10')
+        self.assertEqual(payload['dt_pagamento'], '2026-07-10')
+        self.assertEqual(payload['descricao_item'], 'Procedimento analítico')
+        self.assertEqual(payload['processo_recurso'], 'REC-71')
+        self.assertEqual(payload['valor_recursado'], 75.0)
+
+
 class ConciliacaoFaturamentoTests(TestCase):
     def setUp(self):
         session = self.client.session

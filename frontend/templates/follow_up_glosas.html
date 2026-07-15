@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Glosas MV &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
+{% block page_title %}Follow-Up de Glosas{% endblock %}
+{% block content %}
+
+<datalist id="tiss-motivo-options">
+  {% for motivo in tiss_motivos %}
+    <option value="{{ motivo.codigo_termo }} - {{ motivo.termo }}">{{ motivo.codigo_termo }} - {{ motivo.termo }}</option>
+  {% endfor %}
+</datalist>
+
+<section class="panel filter-panel follow-up-glosa-page" x-data="{ loading: false }">
+  <form class="remessa-filters" method="get" @submit="loading = true">
+    <div class="filter-row">
+      <div class="filter-group follow-up-glosa-search">
+        <label for="follow-up-glosa-q">Remessa, convênio ou NFS</label>
+        <input id="follow-up-glosa-q" name="q" value="{{ filtros.q }}" class="form-control" placeholder="Digite para pesquisar">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" :disabled="loading">
+          <span x-show="!loading">Filtrar</span>
+          <span x-show="loading" x-cloak>Buscando...</span>
+        </button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel results-summary-panel">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Remessas aguardando tratamento</span>
+        {% if pagination.total %}
+          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} remessas exibidas</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total">
+          <span>Remessas</span>
+          <strong>{{ resumo.remessas }}</strong>
+        </span>
+        <span class="result-total result-total--value">
+          <span>Valor glosado</span>
+          <strong>R$ {{ resumo.valor_total_glosado|br_currency }}</strong>
+        </span>
+        <span class="result-total result-total--value">
+          <span>Valor pendente</span>
+          <strong>R$ {{ resumo.valor_total_pendente|br_currency }}</strong>
+        </span>
+      </div>
+      {% if pagination.total_pages > 1 %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="follow-up-page-select">Página</label>
+          <select id="follow-up-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if consulta_indisponivel %}
+    <div class="service-unavailable">
+      <div class="service-unavailable-icon" aria-hidden="true">!</div>
+      <div>
+        <strong>Consulta temporariamente indisponível</strong>
+        <p>Não foi possível consultar as glosas originadas na conciliação.</p>
+      </div>
+    </div>
+  {% else %}
+    <div class="results-list follow-up-glosa-list">
+      {% for card in cards %}
+      <article class="follow-up-glosa-card" x-data="{ open: false }">
+        <button type="button" class="follow-up-glosa-card-header" @click="open = !open" :aria-expanded="open">
+          <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
+          <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ card.convenio|default:"-" }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>DATA ENTREGA</small><strong>{{ card.data_entrega_formatada }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{{ card.numero_nfse|default:"-" }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DA REMESSA</small><strong>R$ {{ card.valor_remessa|br_currency }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
+        </button>
+
+        <div class="follow-up-glosa-card-body" x-show="open" x-cloak>
+          {% for paciente in card.pacientes %}
+          <section class="follow-up-glosa-patient" x-data="{ patientOpen: false }">
+            <button type="button" class="follow-up-glosa-patient-header" @click="patientOpen = !patientOpen" :aria-expanded="patientOpen">
+              <span class="follow-up-glosa-chevron" :class="{ 'is-open': patientOpen }">&#9654;</span>
+              <span><small>PACIENTE</small><strong>{{ paciente.nm_paciente }}</strong></span>
+              <span class="mpill mpill--dim">{{ paciente.total_itens }} item(ns)</span>
+            </button>
+
+            <div class="follow-up-glosa-patient-body" x-show="patientOpen" x-cloak>
+              <div class="table-responsive detail-table-wrap follow-up-glosa-table-wrap">
+                <table class="table align-middle account-table">
+                  <colgroup>
+                    <col class="account-col-conta"><col class="account-col-convenio"><col class="account-col-procedimento">
+                    <col class="account-col-descricao"><col class="account-col-guia"><col class="account-col-alta">
+                    <col class="account-col-lancamento"><col class="account-col-tipo"><col class="account-col-qtd">
+                    <col class="account-col-valor"><col class="account-col-acao">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Conta</th><th>Convênio</th><th>Procedimento</th><th class="col-desc">Descrição</th>
+                      <th>Guia</th><th>Data da alta</th><th>DT Lanç.</th><th>Tipo Atendimento</th>
+                      <th class="account-col-label-qtd">Qtd Lanç.</th><th class="col-valor">Valor</th><th>Ação</th>
+                    </tr>
+                  </thead>
+                  {% for item in paciente.itens %}
+                  <tbody x-data="{
+                    modal: '',
+                    valorTratado: '{{ item.registro_glosa.valor_glosado_input|default:""|escapejs }}',
+                    formatValorTratado() {
+                      const digits = this.valorTratado.replace(/\D/g, '');
+                      const cents = Number(digits || 0);
+                      this.valorTratado = (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    }
+                  }">
+                    <tr class="item-row">
+                      <td class="cell-mono">{{ item.cd_reg|default:"-" }}</td>
+                      <td>{{ item.nm_convenio|default:"-" }}</td>
+                      <td class="cell-mono">{{ item.cd_pro_fat|default:"-" }}</td>
+                      <td class="col-desc">{{ item.descricao|default:"-" }}</td>
+                      <td class="cell-mono">{{ item.nr_guia|default:"-" }}</td>
+                      <td>{{ item.dt_alta_formatada }}</td>
+                      <td>{{ item.dt_lancamento_formatada }}</td>
+                      <td>{{ item.tp_atendimento|default:"-" }}</td>
+                      <td class="cell-center">{{ item.qt_lancamento|stringformat:"g" }}</td>
+                      <td class="cell-valor">R$ {{ item.vl_total_conta|br_currency }}</td>
+                      <td class="account-action-cell">
+                        <div class="follow-up-glosa-actions">
+                          <button type="button" class="btn-glosar {% if item.registro_glosa_status == 'true' %}btn-glosar--filled{% endif %}" @click="modal = 'recursar'">Recursar</button>
+                          <button type="button" class="btn-acatar {% if item.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="modal = 'acatar'">+ Acatar</button>
+                        </div>
+
+                        <div class="glosa-modal" x-show="modal" x-cloak @keydown.escape.window="modal = ''">
+                          <div class="glosa-modal-backdrop" @click="modal = ''"></div>
+                          <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="follow-up-modal-title-{{ item.registro_glosa_id }}">
+                            <form method="post" class="glosa-modal-form" data-has-registro="true" data-reload-on-success="true" onsubmit="return window.handleGlosaSubmit(this, event);">
+                              {% csrf_token %}
+                              <input type="hidden" name="registro_glosa_id" value="{{ item.registro_glosa_id }}">
+                              <input type="hidden" name="cd_paciente" value="{{ item.cd_paciente }}">
+                              <input type="hidden" name="nm_paciente" value="{{ item.nm_paciente }}">
+                              <input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+                              <input type="hidden" name="cd_atendimento" value="{{ item.cd_atendimento }}">
+                              <input type="hidden" name="cd_reg" value="{{ item.cd_reg }}">
+                              <input type="hidden" name="cd_lancamento" value="{{ item.cd_lancamento|default:'' }}">
+                              <input type="hidden" name="cd_prestador" value="{{ item.cd_prestador }}">
+                              <input type="hidden" name="nm_prestador" value="{{ item.nm_prestador }}">
+                              <input type="hidden" name="cd_convenio" value="{{ item.cd_convenio }}">
+                              <input type="hidden" name="nm_convenio" value="{{ item.nm_convenio }}">
+                              <input type="hidden" name="tp_atendimento" value="{{ item.tp_atendimento }}">
+                              <input type="hidden" name="cd_pro_fat" value="{{ item.cd_pro_fat }}">
+                              <input type="hidden" name="descricao" value="{{ item.descricao|default:'' }}">
+                              <input type="hidden" name="nr_guia" value="{{ item.nr_guia }}">
+                              <input type="hidden" name="dt_atendimento" value="{{ item.dt_atendimento }}">
+                              <input type="hidden" name="dt_alta" value="{{ item.dt_alta|default:'' }}">
+                              <input type="hidden" name="dt_lancamento" value="{{ item.dt_lancamento|default:'' }}">
+                              <input type="hidden" name="qt_lancamento" value="{{ item.qt_lancamento|stringformat:'g' }}">
+                              <input type="hidden" name="vl_total_conta" value="{{ item.vl_total_conta|stringformat:'g' }}">
+                              <input type="hidden" name="sn_glosado" :value="modal === 'acatar' ? 'not' : 'true'">
+                              <input type="hidden" name="processo_controle_fatura_gab" value="{{ item.registro_glosa.processo_controle_fatura_gab }}">
+                              <input type="hidden" name="data_glosa" value="{{ item.registro_glosa.data_glosa_input }}">
+                              <input type="hidden" name="dt_pagamento" value="{{ item.registro_glosa.dt_pagamento_oculto }}">
+
+                              <div class="glosa-modal-header">
+                                <div>
+                                  <span class="glosa-modal-eyebrow" x-text="modal === 'acatar' ? 'Registro de acato' : 'Registro de recurso'"></span>
+                                  <h2 id="follow-up-modal-title-{{ item.registro_glosa_id }}">Conta {{ item.cd_reg|default:"-" }}</h2>
+                                </div>
+                                <button type="button" class="glosa-modal-close" @click="modal = ''" aria-label="Fechar">x</button>
+                              </div>
+                              <div class="glosa-modal-context">
+                                <span>{{ paciente.nm_paciente }}</span><span>{{ item.nm_convenio|default:"Convênio não informado" }}</span>
+                                <span>Atend. {{ item.cd_atendimento|default:"-" }}</span><span class="glosa-modal-context-desc">{{ item.descricao|default:"Procedimento não informado" }}</span>
+                              </div>
+                              <div class="glosa-section-stack">
+                                <section class="glosa-section">
+                                  <h3 x-text="modal === 'acatar' ? 'Tratamento por acato' : 'Processo de recurso'"></h3>
+                                  <div class="glosa-section-grid">
+                                    <div class="glosa-field glosa-field--wide">
+                                      <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ item.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
+                                    </div>
+                                    <div class="glosa-field glosa-field--wide">
+                                      <label>Processo do Recurso <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <input name="processo_recurso" class="form-control" value="{{ item.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso" required>
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <input type="date" name="dt_recurso" class="form-control" value="{{ item.registro_glosa.dt_recurso_input|default:'' }}" required>
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Qtd glosada</label>
+                                      <input type="text" class="form-control form-control-readonly" value="{{ item.qt_lancamento|stringformat:'g' }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Valor glosado</label>
+                                      <input type="text" class="form-control form-control-readonly" value="R$ {{ item.vl_total_conta|br_currency }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label x-text="modal === 'acatar' ? 'Qtd Acatada *' : 'Qtd Recursada *'"></label>
+                                      <input type="number" step="1" min="1" max="{{ item.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ item.qt_lancamento|stringformat:'g' }}" inputmode="numeric" name="qtd_glosada" class="form-control" value="{{ item.registro_glosa.qtd_glosada_input|default:'' }}" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label x-text="modal === 'acatar' ? 'Valor Acatado *' : 'Valor Recursado *'"></label>
+                                      <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ item.vl_total_conta|stringformat:'g' }}" x-model="valorTratado" required @input="valorTratado = $event.target.value; formatValorTratado()">
+                                    </div>
+                                    <div class="glosa-field glosa-field--full">
+                                      <label>Descrição</label>
+                                      <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do tratamento">{{ item.registro_glosa.descricao_glosa|default:'' }}</textarea>
+                                    </div>
+                                  </div>
+                                </section>
+                              </div>
+                              <div class="glosa-modal-actions">
+                                {% if item.registro_glosa_status != "pending" %}
+                                <button class="btn btn-outline-danger" name="form_action" value="desfazer" formnovalidate><span class="submit-label">Desfazer</span><span class="loading-label">Desfazendo...</span></button>
+                                {% endif %}
+                                <button type="button" class="btn btn-outline-secondary" @click="modal = ''">Cancelar</button>
+                                <button :class="modal === 'acatar' ? 'btn-success-outline' : 'btn-danger-outline'" name="form_action" value="salvar">
+                                  <span class="submit-label" x-text="modal === 'acatar' ? 'Registrar acato' : 'Registrar recurso'"></span>
+                                  <span class="loading-label">Registrando...</span>
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                  {% endfor %}
+                </table>
+              </div>
+            </div>
+          </section>
+          {% empty %}
+            <p class="empty-state">Nenhum paciente analítico encontrado nesta remessa.</p>
+          {% endfor %}
+        </div>
+      </article>
+      {% empty %}
+        <p class="empty-state">Nenhuma remessa com glosa pendente de tratamento.</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
