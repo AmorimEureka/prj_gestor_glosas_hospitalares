@@ -101,8 +101,9 @@
               <span class="mpill mpill--dim">{{ paciente.total_itens }} item(ns)</span>
             </button>
 
-            <div class="follow-up-glosa-patient-body" x-show="patientOpen" x-cloak>
-              <div class="follow-up-glosa-records-scroll">
+            <template x-if="patientOpen">
+              <div class="follow-up-glosa-patient-body">
+                <div class="follow-up-glosa-records-scroll">
                 {% for atendimento in paciente.atendimentos %}
                 <div class="atd-block follow-up-glosa-atendimento" x-data="{ atdOpen: false }">
                   <button type="button" class="atd-header" @click="atdOpen = !atdOpen" :aria-expanded="atdOpen">
@@ -113,8 +114,9 @@
                       &middot; {{ atendimento.total_grupos }} grupo(s) &middot; {{ atendimento.total_itens }} lançamento(ões)
                     </span>
                   </button>
-                  <div class="atd-body" x-show="atdOpen" x-cloak>
-                    <div class="account-groups">
+                  <template x-if="atdOpen">
+                    <div class="atd-body">
+                      <div class="account-groups">
                       {% for grupo_procedimento in atendimento.grupos_procedimento %}
                       <section class="account-group-section follow-up-glosa-grupo-procedimento">
                         <header class="account-group-header">
@@ -268,14 +270,16 @@
                         </div>
                       </section>
                       {% endfor %}
+                      </div>
                     </div>
-                  </div>
+                  </template>
                 </div>
                 {% empty %}
                   <p class="empty-state">Nenhum atendimento encontrado para este paciente.</p>
                 {% endfor %}
+                </div>
               </div>
-            </div>
+            </template>
           </section>
           {% empty %}
             <p class="empty-state">Nenhum paciente analítico encontrado nesta remessa.</p>
