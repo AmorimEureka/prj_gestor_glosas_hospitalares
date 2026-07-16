@@ -3467,6 +3467,7 @@ def follow_up_glosas(request):
         "remessas": 0,
         "valor_total_glosado": 0,
         "valor_total_pendente": 0,
+        "valor_total_tratado": 0,
     }
     consulta_indisponivel = False
     try:
@@ -3499,6 +3500,9 @@ def follow_up_glosas(request):
             ),
             "valor_total_pendente": as_float_or_zero(
                 response.get("valor_total_pendente")
+            ),
+            "valor_total_tratado": as_float_or_zero(
+                response.get("valor_total_tratado")
             ),
         }
     except ApiError as exc:
