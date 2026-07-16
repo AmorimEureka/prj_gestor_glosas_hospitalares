@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.staticfiles import finders
@@ -932,6 +933,9 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, '>Expandir</button>')
         self.assertContains(response, '>Colapsar todos</button>')
         self.assertContains(response, '@expand-follow-up-level-1.window')
+        self.assertContains(response, 'id="follow-up-page-select"')
+        self.assertContains(response, '<option value="1" selected>1</option>')
+        self.assertContains(response, '<span>de 1</span>')
         self.assertContains(
             response,
             'Carregando detalhamento da remessa...',
@@ -944,6 +948,61 @@ class FollowUpGlosasTests(TestCase):
                 'limit': 10,
                 'offset': 0,
                 'incluir_detalhes': 'false',
+            },
+        )
+
+    def test_lista_follow_up_preserva_altura_natural_dos_cards(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.follow-up-glosa-list {\n  display: block;\n}',
+            css,
+        )
+        self.assertIn(
+            '.follow-up-glosa-card {\n  margin-bottom: 12px;',
+            css,
+        )
+
+        base_template = Path(
+            finders.find('css/app.css')
+        ).parent.parent.parent / 'templates' / 'base.html'
+        self.assertIn(
+            '?v=20260716-follow-up-layout-1',
+            base_template.read_text(),
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_paginacao_preserva_filtro_e_exibe_navegacao_superior_e_inferior(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        payload.update({'total': 25, 'limit': 10, 'offset': 10})
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'q': 'IPM', 'page': '2'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pagination = response.context['pagination']
+        self.assertEqual(pagination['previous_url'], '?q=IPM&page=1')
+        self.assertEqual(pagination['next_url'], '?q=IPM&page=3')
+        self.assertContains(response, '<option value="2" selected>2</option>')
+        self.assertContains(response, 'Página 2 de 3')
+        self.assertContains(response, 'href="?q=IPM&amp;page=1"', count=2)
+        self.assertContains(response, 'href="?q=IPM&amp;page=3"', count=2)
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            params={
+                'limit': 10,
+                'offset': 10,
+                'incluir_detalhes': 'false',
+                'q': 'IPM',
             },
         )
 
