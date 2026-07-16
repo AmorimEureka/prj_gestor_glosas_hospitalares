@@ -3996,6 +3996,20 @@ def build_conciliacao_faturamento_payload(data):
 
     if not isinstance(notas, list):
         raise ValueError("A lista de NFS-e informada é inválida.")
+    for nota in notas:
+        if not isinstance(nota, dict):
+            raise ValueError("A lista de NFS-e informada é inválida.")
+        valor_bruto = as_float_or_none(nota.pop("valor_bruto_remessa", None))
+        if valor_bruto is None:
+            continue
+        valor_glosado = as_float_or_zero(nota.get("valor_glosado"))
+        valor_liquido = round(valor_bruto - valor_glosado, 2)
+        if valor_liquido <= 0:
+            raise ValueError(
+                "O valor glosado deve ser menor que o valor da remessa "
+                "vinculado à NFS-e."
+            )
+        nota["valor_alocado"] = f"{valor_liquido:.2f}"
     cd_remessa = as_int_or_none(data.get("cd_remessa"))
     if cd_remessa is None or cd_remessa <= 0:
         raise ValueError("Informe uma remessa válida para a conciliação.")

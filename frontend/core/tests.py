@@ -1191,7 +1191,8 @@ class ConciliacaoFaturamentoTests(TestCase):
                 'processo_recebimento': ' PROC-1 ',
                 'notas_json': (
                     '[{"nfse_row_hash": "hash-1", '
-                    '"valor_alocado": "80.00", '
+                    '"valor_bruto_remessa": "100.00", '
+                    '"sn_glosado": true, "valor_glosado": "20.00", '
                     '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
             }
@@ -1201,6 +1202,25 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertEqual(payload['processo_recebimento'], 'PROC-1')
         self.assertEqual(payload['notas'][0]['nfse_row_hash'], 'hash-1')
         self.assertEqual(payload['notas'][0]['valor_alocado'], '80.00')
+        self.assertNotIn('valor_bruto_remessa', payload['notas'][0])
+
+    def test_impede_glosa_igual_ou_maior_que_parcela_da_remessa(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            'valor glosado deve ser menor',
+        ):
+            build_conciliacao_faturamento_payload(
+                {
+                    'cd_remessa': '10',
+                    'processo_recebimento': 'PROC-1',
+                    'notas_json': (
+                        '[{"nfse_row_hash": "hash-1", '
+                        '"valor_bruto_remessa": "20.00", '
+                        '"sn_glosado": true, '
+                        '"valor_glosado": "20.00"}]'
+                    ),
+                }
+            )
 
     @patch('core.views.api_get')
     def test_renderiza_remessas_pendentes_e_menu_financeiro(self, api_get):
@@ -1280,16 +1300,20 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertContains(response, '<small>Valor não conciliado</small>')
         self.assertContains(response, '<span>GLOSAR?</span>')
         self.assertContains(response, 'Conciliações anteriores da remessa')
-        self.assertContains(response, 'Valor utilizado da NFS-e *')
+        self.assertContains(response, 'Valor da remessa nesta NFS-e *')
         self.assertContains(response, 'Data previsão recebimento *')
         self.assertContains(response, 'Data recebimento')
         self.assertContains(response, 'finance-money-input')
-        self.assertContains(response, "updateMoney(nota, 'valor_alocado'")
+        self.assertContains(
+            response,
+            "updateMoney(nota, 'valor_bruto_remessa'",
+        )
+        self.assertContains(response, 'valorLiquidoNota(nota)')
         self.assertContains(response, 'this.notaResults.filter(')
         self.assertContains(response, "this.searchTerm = '';")
         self.assertContains(
             response,
-            'A soma dos valores utilizados e glosados excede o saldo '
+            'A soma das parcelas vinculadas excede o saldo '
             'disponível da remessa.',
         )
 
@@ -1342,7 +1366,7 @@ class ConciliacaoFaturamentoTests(TestCase):
                 'processo_recebimento': 'PROC-1',
                 'notas_json': (
                     '[{"nfse_row_hash": "hash-1", '
-                    '"valor_alocado": "80.00", '
+                    '"valor_bruto_remessa": "100.00", '
                     '"sn_glosado": true, "valor_glosado": "20.00", '
                     '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
@@ -1357,6 +1381,7 @@ class ConciliacaoFaturamentoTests(TestCase):
         path, sent_payload = api_post.call_args.args
         self.assertTrue(path.endswith('/remessas/10/conciliar'))
         self.assertEqual(sent_payload['notas'][0]['nfse_row_hash'], 'hash-1')
+        self.assertEqual(sent_payload['notas'][0]['valor_alocado'], '80.00')
         self.assertEqual(sent_payload['notas'][0]['valor_glosado'], '20.00')
 
 
