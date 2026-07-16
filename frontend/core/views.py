@@ -3990,31 +3990,25 @@ def recebimentos(request):
 
 def build_conciliacao_faturamento_payload(data):
     try:
-        remessas = json.loads(data.get("remessas_json") or "[]")
+        notas = json.loads(data.get("notas_json") or "[]")
     except (TypeError, ValueError) as exc:
-        raise ValueError("A lista de remessas informada é inválida.") from exc
+        raise ValueError("A lista de NFS-e informada é inválida.") from exc
 
-    if not isinstance(remessas, list):
-        raise ValueError("A lista de remessas informada é inválida.")
-
-    def optional_int(field_name):
-        value = str(data.get(field_name) or "").strip()
-        return int(value) if value else None
+    if not isinstance(notas, list):
+        raise ValueError("A lista de NFS-e informada é inválida.")
+    cd_remessa = as_int_or_none(data.get("cd_remessa"))
+    if cd_remessa is None or cd_remessa <= 0:
+        raise ValueError("Informe uma remessa válida para a conciliação.")
 
     return {
-        "nfse_row_hash": (data.get("nfse_row_hash") or "").strip(),
+        "cd_remessa": cd_remessa,
         "processo_recebimento": (data.get("processo_recebimento") or "").strip(),
-        "data_previsao_recebimento": data.get("data_previsao_recebimento") or None,
-        "data_recebimento": data.get("data_recebimento") or None,
-        "conta_bancaria_id": optional_int("conta_bancaria_id"),
-        "conta_plano_contas": (data.get("conta_plano_contas") or "").strip() or None,
-        "conta_centro_custo": (data.get("conta_centro_custo") or "").strip() or None,
-        "lancamento_extrato_id": optional_int("lancamento_extrato_id"),
-        "remessas": remessas,
+        "notas": notas,
     }
 
 
 def build_recebimento_remessa_payload(data):
+    conciliacao_id = as_int_or_none(data.get("conciliacao_id"))
     cd_remessa = as_int_or_none(data.get("cd_remessa"))
     conta_bancaria_id = as_int_or_none(data.get("conta_bancaria_id"))
     numero_nfse = (data.get("numero_nfse") or "").strip()
@@ -4031,6 +4025,7 @@ def build_recebimento_remessa_payload(data):
     if conta_bancaria_id is None or conta_bancaria_id <= 0:
         raise ValueError("Selecione a conta bancária do recebimento.")
     return {
+        "conciliacao_id": conciliacao_id,
         "cd_remessa": cd_remessa,
         "numero_nfse": numero_nfse,
         "data_recebimento": data_recebimento,
@@ -4055,9 +4050,14 @@ def conciliacao_faturamento(request):
     if request.method == "POST":
         try:
             payload = build_conciliacao_faturamento_payload(request.POST)
-            api_post(CONCILIACAO_FATURAMENTO_PATH, payload)
+            cd_remessa = payload.pop("cd_remessa")
+            api_post(
+                f"{CONCILIACAO_FATURAMENTO_PATH}/remessas/"
+                f"{cd_remessa}/conciliar",
+                payload,
+            )
             clear_filter_caches()
-            messages.success(request, "NFS-e conciliada com sucesso.")
+            messages.success(request, "Remessa conciliada com sucesso.")
             return redirect("conciliacao_faturamento")
         except (ApiError, ValueError) as exc:
             if isinstance(exc, ApiError):
@@ -4075,28 +4075,29 @@ def conciliacao_faturamento(request):
     offset = (page - 1) * page_size
 
     try:
-        notas_payload = api_get(
-            f"{CONCILIACAO_FATURAMENTO_PATH}/notas",
+        remessas_payload = api_get(
+            f"{CONCILIACAO_FATURAMENTO_PATH}/remessas",
             params={
                 "q": filtro_q or None,
                 "limit": page_size,
                 "offset": offset,
             },
         )
-        notas = notas_payload.get("notas", [])
-        total_notas = int(notas_payload.get("total", len(notas)))
-        valor_total_nfs = notas_payload.get("valor_total_nfse")
-        if valor_total_nfs in (None, ""):
-            valor_total_nfs = sum(
-                as_float_or_zero(nota.get("valor_nfse")) for nota in notas
-            )
+        remessas = remessas_payload.get("remessas", [])
+        total_remessas = int(
+            remessas_payload.get("total", len(remessas))
+        )
+        valor_total_pendente = remessas_payload.get(
+            "valor_total_nao_conciliado",
+            0,
+        )
     except ApiError as exc:
-        notas = []
-        total_notas = 0
-        valor_total_nfs = 0
+        remessas = []
+        total_remessas = 0
+        valor_total_pendente = 0
         messages.error(
             request,
-            format_api_error(exc, "Conciliação Fiscal x Faturamento"),
+            format_api_error(exc, "Conciliação Faturamento x Fiscal"),
         )
 
     try:
@@ -4106,7 +4107,7 @@ def conciliacao_faturamento(request):
         contas_bancarias = []
         messages.error(request, format_api_error(exc, "Contas bancárias"))
 
-    total_pages = max(ceil(total_notas / page_size), 1)
+    total_pages = max(ceil(total_remessas / page_size), 1)
     base_query = {"q": filtro_q} if filtro_q else {}
     if page > total_pages:
         return redirect(
@@ -4133,20 +4134,20 @@ def conciliacao_faturamento(request):
             if page < total_pages
             else ""
         ),
-        "start": offset + 1 if notas and total_notas else 0,
-        "end": min(offset + len(notas), total_notas),
-        "total": total_notas,
+        "start": offset + 1 if remessas and total_remessas else 0,
+        "end": min(offset + len(remessas), total_remessas),
+        "total": total_remessas,
         "query": base_query,
     }
     return render(
         request,
         "conciliacao_faturamento.html",
         {
-            "notas": notas,
+            "remessas": remessas,
             "contas_bancarias": contas_bancarias,
             "filtro_q": filtro_q,
-            "total_notas": total_notas,
-            "valor_total_nfs": valor_total_nfs,
+            "total_remessas": total_remessas,
+            "valor_total_pendente": valor_total_pendente,
             "pagination": pagination,
         },
     )
@@ -4167,9 +4168,8 @@ def conciliacoes_sem_recebimento(request):
             messages.success(
                 request,
                 (
-                    "Recebimento da remessa "
-                    f"{recebimento_payload['cd_remessa']} registrado com "
-                    "sucesso."
+                    "Recebimento da NFS-e registrado com sucesso para a "
+                    f"remessa {recebimento_payload['cd_remessa']}."
                 ),
             )
             return redirect(request.get_full_path())
@@ -4268,6 +4268,22 @@ def conciliacao_faturamento_remessas(request, nfse_row_hash):
     try:
         payload = api_get(
             f"{CONCILIACAO_FATURAMENTO_PATH}/notas/{nfse_row_hash}/remessas",
+            params={"q": request.GET.get("q")},
+        )
+        return JsonResponse(payload)
+    except ApiError as exc:
+        return JsonResponse(
+            {"detail": extract_api_error_message(exc)},
+            status=exc.status_code or 502,
+        )
+
+
+@require_http_methods(["GET"])
+def conciliacao_faturamento_notas(request, cd_remessa):
+    try:
+        payload = api_get(
+            f"{CONCILIACAO_FATURAMENTO_PATH}/remessas/"
+            f"{cd_remessa}/notas",
             params={"q": request.GET.get("q")},
         )
         return JsonResponse(payload)

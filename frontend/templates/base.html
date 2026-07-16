@@ -7,7 +7,7 @@
   <title>Gestao de Glosas</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20260716-follow-up-totais-2" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20260716-faturamento-fiscal-1" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -83,7 +83,7 @@
           <span class="nav-label">Financeiro</span>
         </button>
         <div class="nav-submenu" x-show="open">
-          <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacao_faturamento' %}is-active{% endif %}" href="{% url 'conciliacao_faturamento' %}" title="Conciliação Fiscal X Faturamento"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13"></path><path d="M14 4l3 3-3 3"></path><path d="M20 17H7"></path><path d="M10 14l-3 3 3 3"></path></svg></span><span class="nav-label">Conciliação (Fiscal X Faturamento)</span></a>
+          <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacao_faturamento' %}is-active{% endif %}" href="{% url 'conciliacao_faturamento' %}" title="Conciliação Faturamento X Fiscal"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13"></path><path d="M14 4l3 3-3 3"></path><path d="M20 17H7"></path><path d="M10 14l-3 3 3 3"></path></svg></span><span class="nav-label">Conciliação (Faturamento X Fiscal)</span></a>
           <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacoes_sem_recebimento' %}is-active{% endif %}" href="{% url 'conciliacoes_sem_recebimento' %}" title="Conciliações sem recebimento"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path><path d="M17 15v4"></path><path d="M15 17h4"></path></svg></span><span class="nav-label">Conciliações sem recebimento</span></a>
         </div>
       </div>

@@ -6938,6 +6938,135 @@ body:not(.sidebar-collapsed) .indicator-grid {
   box-shadow: inset 4px 0 0 #2f8a5f;
 }
 
+/* Financeiro · fluxo Faturamento X Fiscal centrado na remessa */
+.finance-remittance-summary {
+  grid-template-columns: 18px minmax(105px, .7fr) minmax(120px, .85fr) minmax(190px, 1.4fr) repeat(3, minmax(125px, .9fr));
+}
+
+.finance-process-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(480px, 2fr);
+  align-items: end;
+  gap: 14px;
+}
+
+.finance-process-grid > label,
+.finance-nfse-allocation-grid > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.finance-process-grid label > span,
+.finance-nfse-allocation-grid label > span {
+  color: #496777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.finance-process-grid input,
+.finance-nfse-allocation-grid input {
+  min-height: 42px;
+  border-color: #cbdbe3;
+  border-radius: 6px;
+  color: #123748;
+}
+
+.finance-process-grid input[readonly] {
+  background: #edf4f7;
+  font-weight: 700;
+}
+
+.finance-process-position {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(135px, 1fr));
+  gap: 8px;
+}
+
+.finance-process-position > span {
+  display: grid;
+  gap: 3px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid #cfe1e8;
+  border-radius: 6px;
+  background: #f8fbfc;
+}
+
+.finance-process-position small,
+.finance-history-row small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.finance-process-position strong,
+.finance-history-row strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-history-list {
+  display: grid;
+  gap: 7px;
+}
+
+.finance-history-row {
+  display: grid;
+  grid-template-columns: minmax(90px, .7fr) minmax(110px, .8fr) repeat(2, minmax(125px, .9fr)) repeat(2, minmax(110px, .8fr));
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d7e5ea;
+  border-radius: 7px;
+  background: #f8fbfc;
+}
+
+.finance-history-row > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.finance-nfse-result {
+  grid-template-columns: minmax(90px, .65fr) minmax(120px, .8fr) minmax(145px, .9fr) minmax(145px, .9fr) 30px;
+}
+
+.finance-selected-nfse .finance-selected-main {
+  grid-template-columns: minmax(90px, .65fr) minmax(120px, .8fr) repeat(2, minmax(145px, .9fr)) 32px;
+}
+
+.finance-nfse-allocation-grid {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) max-content minmax(190px, 1fr) minmax(190px, 1fr) minmax(190px, 1fr);
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e3edf0;
+  background: #fff;
+}
+
+.finance-glosa-toggle {
+  align-self: center;
+  min-height: 42px;
+  padding: 0 8px;
+  border: 1px solid #d7e5ea;
+  border-radius: 6px;
+  background: #f8fbfc;
+}
+
+.finance-selected-nfse .finance-bank-grid {
+  padding: 12px;
+  background: #f8fbfc;
+}
+
+.finance-reconciliation-footer .finance-submit-area {
+  margin-left: auto;
+}
+
 @media (max-width: 1100px) {
   .finance-note-summary {
     grid-template-columns: 18px repeat(2, minmax(100px, 1fr));
@@ -6948,8 +7077,15 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .finance-form-grid,
-  .finance-bank-grid {
+  .finance-bank-grid,
+  .finance-process-grid,
+  .finance-nfse-allocation-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .finance-history-row,
+  .finance-remittance-summary {
+    grid-template-columns: 18px repeat(3, minmax(120px, 1fr));
   }
 
   .finance-bank-launch-field {
@@ -6979,7 +7115,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .finance-bank-grid,
   .finance-remittance-result,
   .finance-selected-main,
-  .finance-remittance-search {
+  .finance-remittance-search,
+  .finance-process-grid,
+  .finance-process-position,
+  .finance-history-row,
+  .finance-nfse-allocation-grid {
     grid-template-columns: 1fr;
   }
 

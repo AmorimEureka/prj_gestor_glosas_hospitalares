@@ -976,7 +976,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260716-follow-up-totais-2',
+            '?v=20260716-faturamento-fiscal-1',
             base_template.read_text(),
         )
 
@@ -1184,49 +1184,56 @@ class ConciliacaoFaturamentoTests(TestCase):
         }
         session.save()
 
-    def test_monta_payload_com_remessas_e_campos_opcionais(self):
+    def test_monta_payload_com_remessa_e_notas(self):
         payload = build_conciliacao_faturamento_payload(
             {
-                'nfse_row_hash': ' hash-1 ',
+                'cd_remessa': '10',
                 'processo_recebimento': ' PROC-1 ',
-                'data_previsao_recebimento': '2026-08-10',
-                'data_recebimento': '',
-                'conta_bancaria_id': '',
-                'conta_plano_contas': ' 1.1.1 ',
-                'conta_centro_custo': '',
-                'lancamento_extrato_id': '',
-                'remessas_json': (
-                    '[{"cd_remessa": 10, "sn_glosado": false, '
-                    '"valor_glosado": "0.00"}]'
+                'notas_json': (
+                    '[{"nfse_row_hash": "hash-1", '
+                    '"valor_alocado": "80.00", '
+                    '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
             }
         )
 
-        self.assertEqual(payload['nfse_row_hash'], 'hash-1')
+        self.assertEqual(payload['cd_remessa'], 10)
         self.assertEqual(payload['processo_recebimento'], 'PROC-1')
-        self.assertIsNone(payload['data_recebimento'])
-        self.assertIsNone(payload['conta_bancaria_id'])
-        self.assertEqual(payload['conta_plano_contas'], '1.1.1')
-        self.assertEqual(payload['remessas'][0]['cd_remessa'], 10)
+        self.assertEqual(payload['notas'][0]['nfse_row_hash'], 'hash-1')
+        self.assertEqual(payload['notas'][0]['valor_alocado'], '80.00')
 
     @patch('core.views.api_get')
-    def test_renderiza_notas_pendentes_e_menu_financeiro(self, api_get):
+    def test_renderiza_remessas_pendentes_e_menu_financeiro(self, api_get):
         def resposta(path, params=None):
-            if path.endswith('/notas'):
+            if path.endswith('/remessas'):
                 return {
-                    'notas': [
+                    'remessas': [
                         {
-                            'row_hash': 'hash-1',
-                            'numero_nfse': '12345',
-                            'data_emissao': '2026-07-10T10:00:00',
+                            'cd_remessa': 987,
+                            'data_competencia': '2026-07-01',
                             'convenio': 'Convênio Teste',
                             'cnpj_convenio': '12345678000190',
-                            'impostos': '15.00',
-                            'valor_nfse': '100.00',
+                            'valor_remessa': '120.00',
+                            'valor_conciliado': '80.00',
+                            'valor_acatado': '0.00',
+                            'valor_nao_conciliado': '40.00',
+                            'valor_recurso_disponivel': '20.00',
+                            'valor_disponivel_conciliacao': '20.00',
+                            'processo_recebimento': 'PROC-987',
+                            'historico': [
+                                {
+                                    'numero_nfse': '12345',
+                                    'data_emissao': '2026-07-10T10:00:00',
+                                    'valor_alocado': '80.00',
+                                    'valor_glosado': '20.00',
+                                    'data_previsao_recebimento': '2026-08-10',
+                                    'data_recebimento': None,
+                                }
+                            ],
                         }
                     ],
                     'total': 250,
-                    'valor_total_nfse': '123456.78',
+                    'valor_total_nao_conciliado': '123456.78',
                     'limit': 100,
                     'offset': 0,
                 }
@@ -1239,12 +1246,13 @@ class ConciliacaoFaturamentoTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Conciliação (Fiscal X Faturamento)')
+        self.assertContains(response, 'Conciliação (Faturamento X Fiscal)')
+        self.assertContains(response, '987')
         self.assertContains(response, '12345')
         self.assertContains(response, 'Convênio Teste')
         self.assertContains(response, 'Financeiro')
-        self.assertContains(response, '<span>TOTAL NFS</span>')
-        self.assertContains(response, '<span>VALOR TOTAL NFS</span>')
+        self.assertContains(response, '<span>TOTAL REMESSAS</span>')
+        self.assertContains(response, '<span>SALDO NÃO CONCILIADO</span>')
         self.assertContains(response, '<strong>R$ 123.456,78</strong>')
         self.assertNotContains(response, '250 pendentes')
         self.assertNotContains(response, 'Página atual')
@@ -1260,66 +1268,39 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertContains(
             response,
             '<button class="btn btn-primary" type="submit">'
-            'Conciliar NFS-e</button>',
+            'Conciliar remessa</button>',
         )
         self.assertContains(response, 'panel filter-panel finance-search-bar')
         self.assertContains(response, 'panel finance-results-panel')
         self.assertContains(response, 'results-toolbar finance-results-toolbar')
-        self.assertContains(response, '<small>REMESSA</small>', count=2)
-        self.assertContains(response, '<small>CONVENIO</small>', count=2)
-        self.assertContains(response, '<small>VALOR REMESSA</small>', count=2)
-        self.assertContains(response, '<small>VALOR RECURSADO</small>', count=2)
-        self.assertContains(response, '<small>VALOR ACATADO</small>', count=3)
-        self.assertContains(response, '<small>SALDO COBRÁVEL</small>', count=3)
-        self.assertContains(response, '<small>VALOR ELEGÍVEL</small>', count=2)
-        self.assertContains(response, '<span>GLOSA?</span>')
-        self.assertNotContains(response, 'Recurso em aberto')
-        self.assertNotContains(response, 'Glosa no recurso?')
-        self.assertNotContains(response, 'Valor recursado disponível')
-        self.assertContains(response, 'remessa.valor_recursado')
-        self.assertContains(response, 'remessa.valor_total_acatado')
-        self.assertContains(response, 'remessa.saldo_cobravel')
-        self.assertContains(response, 'remessa.valor_elegivel_conciliacao')
-        self.assertContains(response, 'situacaoFinanceiraLabel(remessa)')
-        self.assertContains(response, 'restricaoFinanceiraLabel(searchRestriction)')
-        self.assertContains(response, 'ENCERRADA FINANCEIRAMENTE · ACATO')
-        self.assertContains(response, 'CONCILIAÇÃO ANTERIOR · SEM RECURSO')
-        self.assertContains(
-            response,
-            'Recebimentos anteriores pendentes não impedem a conciliação '
-            'do recurso.',
-        )
-        self.assertContains(response, "payload.restricao || null")
-        self.assertContains(response, "'INTEGRAL' : 'NÃO INTEGRAL'")
-        self.assertContains(response, 'return this.valorElegivelConciliacao(remessa);')
-        self.assertContains(response, 'valorRecebimentoPendente(remessa)')
-        self.assertContains(
-            response,
-            'remessa.valor_recebimento_pendente || 0',
-        )
+        self.assertContains(response, '<small>Número remessa</small>')
+        self.assertContains(response, '<small>Data competência</small>')
+        self.assertContains(response, '<small>Valor da remessa</small>')
+        self.assertContains(response, '<small>Valor conciliado</small>')
+        self.assertContains(response, '<small>Valor não conciliado</small>')
+        self.assertContains(response, '<span>GLOSAR?</span>')
+        self.assertContains(response, 'Conciliações anteriores da remessa')
+        self.assertContains(response, 'Valor utilizado da NFS-e *')
+        self.assertContains(response, 'Data previsão recebimento *')
+        self.assertContains(response, 'Data recebimento')
         self.assertContains(response, 'finance-money-input')
-        self.assertContains(response, 'updateMoneyInput(remessa, $event)')
-        self.assertContains(
-            response,
-            'total + this.valorConsiderado(item)',
-        )
-        self.assertContains(response, 'this.remessaResults.filter(')
+        self.assertContains(response, "updateMoney(nota, 'valor_alocado'")
+        self.assertContains(response, 'this.notaResults.filter(')
         self.assertContains(response, "this.searchTerm = '';")
-        self.assertContains(response, ':disabled="!remessa.sn_glosado"')
         self.assertContains(
             response,
-            'O valor total das remessas descontadas do total de glosas é '
-            'diferente do valor total da nota fiscal.',
+            'A soma dos valores utilizados e glosados excede o saldo '
+            'disponível da remessa.',
         )
 
     @patch('core.views.api_get')
     def test_paginacao_mantem_filtro_da_pesquisa(self, api_get):
         def resposta(path, params=None):
-            if path.endswith('/notas'):
+            if path.endswith('/remessas'):
                 return {
-                    'notas': [],
+                    'remessas': [],
                     'total': 250,
-                    'valor_total_nfse': '123456.78',
+                    'valor_total_nao_conciliado': '123456.78',
                     'limit': 100,
                     'offset': 100,
                 }
@@ -1357,12 +1338,13 @@ class ConciliacaoFaturamentoTests(TestCase):
         response = self.client.post(
             '/financeiro/conciliacao-fiscal-faturamento/',
             {
-                'nfse_row_hash': 'hash-1',
+                'cd_remessa': '10',
                 'processo_recebimento': 'PROC-1',
-                'data_previsao_recebimento': '2026-08-10',
-                'remessas_json': (
-                    '[{"cd_remessa": 10, "sn_glosado": true, '
-                    '"valor_glosado": "20.00"}]'
+                'notas_json': (
+                    '[{"nfse_row_hash": "hash-1", '
+                    '"valor_alocado": "80.00", '
+                    '"sn_glosado": true, "valor_glosado": "20.00", '
+                    '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
             },
         )
@@ -1372,9 +1354,10 @@ class ConciliacaoFaturamentoTests(TestCase):
             '/financeiro/conciliacao-fiscal-faturamento/',
             fetch_redirect_response=False,
         )
-        sent_payload = api_post.call_args.args[1]
-        self.assertEqual(sent_payload['nfse_row_hash'], 'hash-1')
-        self.assertEqual(sent_payload['remessas'][0]['valor_glosado'], '20.00')
+        path, sent_payload = api_post.call_args.args
+        self.assertTrue(path.endswith('/remessas/10/conciliar'))
+        self.assertEqual(sent_payload['notas'][0]['nfse_row_hash'], 'hash-1')
+        self.assertEqual(sent_payload['notas'][0]['valor_glosado'], '20.00')
 
 
 class ConciliacoesSemRecebimentoTests(TestCase):
