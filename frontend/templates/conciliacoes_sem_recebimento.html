@@ -19,8 +19,8 @@
     <div class="panel-header">
       <div class="results-heading finance-list-heading">
         <div>
-          <span class="panel-title">Conciliações com remessas pendentes de recebimento</span>
-          <span class="results-subtitle">Cada remessa sai da fila somente após o recebimento exato do valor pendente.</span>
+          <span class="panel-title">NFS-e conciliadas sem recebimento bancário</span>
+          <span class="results-subtitle">Cada NFS-e sai da fila quando sua data e seus dados bancários são informados.</span>
         </div>
       </div>
       <div class="results-toolbar finance-results-toolbar">
@@ -75,7 +75,7 @@
           <span><small>NFS-e</small><strong>{{ conciliacao.numero_nfse }}</strong></span>
           <span><small>Convênio</small><strong>{{ conciliacao.convenio }}</strong></span>
           <span><small>Previsão</small><strong>{{ conciliacao.data_previsao_recebimento|api_date }}</strong></span>
-          <span><small>Remessas pendentes</small><strong>{{ conciliacao.quantidade_remessas_sem_recebimento }} de {{ conciliacao.quantidade_remessas }}</strong></span>
+          <span><small>Remessa</small><strong>{% for remessa in conciliacao.remessas %}{{ remessa.cd_remessa }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong></span>
           <span><small>Valor pendente</small><strong>R$ {{ conciliacao.valor_pendente|br_currency }}</strong></span>
           <span class="finance-pending-statuses">
             {% if conciliacao.situacao == "recebimento_parcial" %}
@@ -103,7 +103,7 @@
             <span class="finance-pending-value is-pending"><small>Valor pendente</small><strong>R$ {{ conciliacao.valor_pendente|br_currency }}</strong></span>
           </div>
           <div class="finance-pending-remittances">
-            <strong>Remessas sem recebimento nesta conciliação</strong>
+            <strong>NFS-e vinculada à remessa sem recebimento bancário</strong>
             {% for remessa in conciliacao.remessas %}
             <section class="finance-pending-remittance-wrap" x-data="recebimentoPendenteForm('{{ remessa.valor_pendente|escapejs }}')">
               <div class="finance-pending-remittance">
@@ -116,6 +116,7 @@
               </div>
               <form method="post" class="finance-pending-receipt-form" x-show="showForm" x-cloak @submit="validateBeforeSubmit($event)">
                 {% csrf_token %}
+                <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
                 <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
                 <input type="hidden" name="numero_nfse" value="{{ conciliacao.numero_nfse }}">
                 <label>

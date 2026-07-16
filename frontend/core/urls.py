@@ -38,6 +38,12 @@ urlpatterns = [
         name="conciliacao_faturamento_remessas",
     ),
     path(
+        "financeiro/conciliacao-fiscal-faturamento/"
+        "remessas/<int:cd_remessa>/notas/",
+        views.conciliacao_faturamento_notas,
+        name="conciliacao_faturamento_notas",
+    ),
+    path(
         "financeiro/conciliacao-fiscal-faturamento/lancamentos-extrato/",
         views.conciliacao_faturamento_lancamentos,
         name="conciliacao_faturamento_lancamentos",
