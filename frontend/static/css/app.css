@@ -3962,6 +3962,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #8a520d;
 }
 
+.result-total--treated {
+  min-width: 156px;
+  border-color: #b9ddc9;
+  background: #edf8f2;
+  box-shadow: inset 3px 0 0 #2f8a5f;
+}
+
+.result-total--treated strong {
+  color: #24734f;
+}
+
 .collapse-actions {
   display: flex;
   align-items: center;
@@ -4644,7 +4655,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .follow-up-glosa-card-header {
   display: grid;
-  grid-template-columns: 18px minmax(85px, 0.7fr) minmax(150px, 1.4fr) minmax(110px, 0.9fr) minmax(80px, 0.7fr) minmax(125px, 1fr) minmax(125px, 1fr);
+  grid-template-columns: 18px minmax(85px, 0.7fr) minmax(150px, 1.4fr) minmax(110px, 0.9fr) minmax(80px, 0.7fr) minmax(125px, 1fr) minmax(125px, 1fr) minmax(125px, 1fr);
   align-items: center;
   gap: 14px;
   width: 100%;
@@ -4698,6 +4709,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .follow-up-glosa-card-value--danger strong {
   color: #b24d32;
+}
+
+.follow-up-glosa-card-value--treated strong {
+  color: #24734f;
 }
 
 .follow-up-glosa-card-body {

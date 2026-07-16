@@ -854,7 +854,8 @@ class FollowUpGlosasTests(TestCase):
                     'numero_nfse': 'NFS-5333',
                     'valor_remessa': '1000.00',
                     'valor_glosado': '150.00',
-                    'valor_glosa_pendente': '150.00',
+                    'valor_glosa_pendente': '100.00',
+                    'valor_total_tratado': '50.00',
                     'pacientes': [
                         {
                             'codigo_paciente': 51,
@@ -906,7 +907,8 @@ class FollowUpGlosasTests(TestCase):
             ],
             'total': 1,
             'valor_total_glosado': '150.00',
-            'valor_total_pendente': '150.00',
+            'valor_total_pendente': '100.00',
+            'valor_total_tratado': '50.00',
             'limit': 10,
             'offset': 0,
         }
@@ -936,6 +938,13 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'id="follow-up-page-select"')
         self.assertContains(response, '<option value="1" selected>1</option>')
         self.assertContains(response, '<span>de 1</span>')
+        self.assertContains(response, 'Total tratado')
+        self.assertContains(response, 'TOTAL TRATADO')
+        self.assertContains(response, 'R$ 50,00', count=2)
+        self.assertEqual(
+            response.context['resumo']['valor_total_tratado'],
+            50.0,
+        )
         self.assertContains(
             response,
             'Carregando detalhamento da remessa...',
@@ -967,7 +976,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260716-follow-up-layout-1',
+            '?v=20260716-follow-up-totais-2',
             base_template.read_text(),
         )
 
@@ -1040,6 +1049,8 @@ class FollowUpGlosasTests(TestCase):
             'R$ 1.000,00',
             'VALOR GLOSADO',
             'R$ 150,00',
+            'TOTAL TRATADO',
+            'R$ 50,00',
             'Maria da Silva',
             'Procedimento analítico',
             'Atendimento <strong>#789</strong>',

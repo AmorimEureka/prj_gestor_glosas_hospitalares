@@ -66,6 +66,10 @@
           <span>Valor pendente</span>
           <strong>R$ {{ resumo.valor_total_pendente|br_currency }}</strong>
         </span>
+        <span class="result-total result-total--treated">
+          <span>Total tratado</span>
+          <strong>R$ {{ resumo.valor_total_tratado|br_currency }}</strong>
+        </span>
       </div>
       {% if pagination.total %}
       <div class="pagination-control">
@@ -146,6 +150,7 @@
           <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{{ card.numero_nfse|default:"-" }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DA REMESSA</small><strong>R$ {{ card.valor_remessa|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>TOTAL TRATADO</small><strong>R$ {{ card.valor_total_tratado|br_currency }}</strong></span>
         </button>
 
         <div class="follow-up-glosa-card-body" x-show="open" x-cloak>
