@@ -67,18 +67,30 @@
           <strong>R$ {{ resumo.valor_total_pendente|br_currency }}</strong>
         </span>
       </div>
-      {% if pagination.total_pages > 1 %}
+      {% if pagination.total %}
       <div class="pagination-control">
-        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        {% if pagination.has_previous %}
+        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Anterior</span>
+        {% endif %}
         <form method="get" class="page-select-form">
-          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          {% for key, value in pagination.query.items %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
           <label for="follow-up-page-select">Página</label>
           <select id="follow-up-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
-            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+            {% for option in pagination.page_options %}
+            <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+            {% endfor %}
           </select>
           <span>de {{ pagination.total_pages }}</span>
         </form>
-        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+        {% if pagination.has_next %}
+        <a class="page-step" href="{{ pagination.next_url }}">Próxima</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Próxima</span>
+        {% endif %}
       </div>
       {% endif %}
     </div>
@@ -350,6 +362,17 @@
         <p class="empty-state">Nenhuma remessa com glosa pendente de tratamento.</p>
       {% endfor %}
     </div>
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer">
+      {% if pagination.has_previous %}
+      <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+      {% endif %}
+      <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}
+      <a class="page-step" href="{{ pagination.next_url }}">Próxima</a>
+      {% endif %}
+    </div>
+    {% endif %}
   {% endif %}
 </section>
 <script>
