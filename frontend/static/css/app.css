@@ -366,8 +366,8 @@ body.is-login-entry .app-light-reveal span {
   color: #173d4f;
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: normal;
   min-height: 34px;
   padding: 6px 10px;
   border-radius: 8px;
