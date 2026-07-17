@@ -123,8 +123,15 @@
               <li>
                 <span class="finance-history-audit-dot"></span>
                 <div>
-                  <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}</strong>
+                  <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}{% if evento.vinculo_anterior %}<small class="finance-history-lineage">VÍNCULO ANTERIOR</small>{% endif %}</strong>
                   <span>{{ evento.data_operacao|api_datetime }} · {{ evento.usuario.nome }} ({{ evento.usuario.email }})</span>
+                  {% if evento.alteracoes %}
+                  <dl class="finance-history-changes">
+                    {% for alteracao in evento.alteracoes %}
+                    <div><dt>{{ alteracao.campo }}</dt><dd><del>{{ alteracao.anterior }}</del><span aria-hidden="true">→</span><ins>{{ alteracao.novo }}</ins></dd></div>
+                    {% endfor %}
+                  </dl>
+                  {% endif %}
                 </div>
               </li>
               {% empty %}<li class="finance-history-empty">Nenhum evento de auditoria disponível.</li>{% endfor %}

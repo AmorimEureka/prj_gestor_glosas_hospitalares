@@ -49,7 +49,7 @@
       {% for remessa in remessas %}
       <article
         class="finance-note-card finance-remittance-card"
-        x-data="conciliacaoRemessaCard('{{ remessa.cd_remessa }}', '{{ remessa.valor_nao_conciliado|escapejs }}', '{{ remessa.valor_disponivel_conciliacao|escapejs }}', '{{ remessa.processo_recebimento|default:''|escapejs }}')"
+        x-data="conciliacaoRemessaCard('{{ remessa.cd_remessa }}', '{{ remessa.valor_disponivel_conciliacao|escapejs }}', '{{ remessa.processo_recebimento|default:''|escapejs }}')"
         :class="{ 'is-open': open }"
       >
         <button type="button" class="finance-note-summary finance-remittance-summary" @click="open = !open" :aria-expanded="open">
@@ -195,7 +195,7 @@
             <div class="finance-total-box"><small>Novas glosas</small><strong x-text="formatMoney(totalGlosado)"></strong></div>
             <span class="finance-total-operator">=</span>
             <div class="finance-total-box" :class="{ 'is-invalid': totalComprometido > valorDisponivel + 0.005 }"><small>Valor tratado nesta operação</small><strong x-text="formatMoney(totalComprometido)"></strong></div>
-            <div class="finance-total-box"><small>Saldo da remessa após conciliação</small><strong x-text="formatMoney(saldoAposConciliacao)"></strong></div>
+            <div class="finance-total-box"><small>Saldo disponível após conciliação</small><strong x-text="formatMoney(saldoAposConciliacao)"></strong></div>
             <div class="finance-submit-area">
               <p class="finance-inline-error" role="alert" aria-live="assertive" x-show="validationError" x-text="validationError"></p>
               <button class="btn btn-primary" type="submit">Conciliar remessa</button>
@@ -218,11 +218,10 @@
 </section>
 
 <script>
-  window.conciliacaoRemessaCard = function (cdRemessa, valorNaoConciliado, valorDisponivel, processoAtual) {
+  window.conciliacaoRemessaCard = function (cdRemessa, valorDisponivel, processoAtual) {
     return {
       open: false,
       cdRemessa: Number(cdRemessa),
-      valorNaoConciliado: Number(valorNaoConciliado || 0),
       valorDisponivel: Number(valorDisponivel || 0),
       processoRecebimento: processoAtual || '',
       searchTerm: '',
@@ -251,7 +250,7 @@
         return this.totalAlocado + this.totalGlosado;
       },
       get saldoAposConciliacao() {
-        return Math.max(this.valorNaoConciliado - this.totalComprometido, 0);
+        return Math.max(this.valorDisponivel - this.totalComprometido, 0);
       },
       valorGlosadoNota(nota) {
         return nota.sn_glosado ? Number(nota.valor_glosado || 0) : 0;
