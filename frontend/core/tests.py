@@ -979,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-conciliacoes-auditoria-1',
+            '?v=20260717-historico-conciliacoes-3',
             base_template.read_text(),
         )
 
@@ -1313,6 +1313,15 @@ class ConciliacaoFaturamentoTests(TestCase):
             "updateMoney(nota, 'valor_bruto_remessa'",
         )
         self.assertContains(response, 'valorLiquidoNota(nota)')
+        self.assertContains(response, 'Saldo disponível após conciliação')
+        self.assertContains(
+            response,
+            'this.valorDisponivel - this.totalComprometido',
+        )
+        self.assertNotContains(
+            response,
+            'this.valorNaoConciliado - this.totalComprometido',
+        )
         self.assertContains(response, 'this.notaResults.filter(')
         self.assertContains(response, "this.searchTerm = '';")
         self.assertContains(
@@ -1594,6 +1603,9 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             {
                 'processo_recebimento': ' PROC-EDITADO ',
                 'data_previsao_recebimento': '2026-08-15',
+                'cd_remessa': ['987'],
+                'valor_glosado_987': 'R$ 10,00',
+                'valor_recebido_987': 'R$ 90,00',
             }
         )
 
@@ -1601,6 +1613,16 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertEqual(
             payload['data_previsao_recebimento'],
             '2026-08-15',
+        )
+        self.assertEqual(
+            payload['remessas'],
+            [
+                {
+                    'cd_remessa': 987,
+                    'valor_glosado': '10.00',
+                    'valor_recebido': '90.00',
+                }
+            ],
         )
 
     @patch('core.views.clear_filter_caches')
@@ -1617,6 +1639,9 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                 'conciliacao_id': '10',
                 'processo_recebimento': 'PROC-NOVO',
                 'data_previsao_recebimento': '2026-08-15',
+                'cd_remessa': '987',
+                'valor_glosado_987': 'R$ 10,00',
+                'valor_recebido_987': 'R$ 90,00',
             },
         )
 
@@ -1630,9 +1655,67 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             {
                 'processo_recebimento': 'PROC-NOVO',
                 'data_previsao_recebimento': '2026-08-15',
+                'remessas': [
+                    {
+                        'cd_remessa': 987,
+                        'valor_glosado': '10.00',
+                        'valor_recebido': '90.00',
+                    }
+                ],
             },
         )
         clear_filter_caches.assert_called_once_with()
+
+    @patch('core.views.api_get')
+    def test_edicao_exibe_valores_da_remessa(self, api_get):
+        api_get.side_effect = lambda path, params=None: (
+            {
+                'conciliacoes': [
+                    {
+                        'id': 10,
+                        'numero_nfse': 'NF-100',
+                        'convenio': 'Convênio Teste',
+                        'cnpj_convenio': '98765432000110',
+                        'processo_recebimento': 'PROC-100',
+                        'data_previsao_recebimento': '2026-08-15',
+                        'data_criacao': '2026-07-01T10:00:00',
+                        'valor_nfse': '100.00',
+                        'valor_total_remessas': '100.00',
+                        'valor_total_glosas': '10.00',
+                        'valor_recebido': '0.00',
+                        'valor_pendente': '90.00',
+                        'situacao': 'sem_recebimento',
+                        'em_atraso': False,
+                        'remessas': [
+                            {
+                                'cd_remessa': 987,
+                                'tp_conciliacao': 'faturamento',
+                                'valor_remessa': '100.00',
+                                'valor_glosado': '10.00',
+                                'valor_pendente': '90.00',
+                            }
+                        ],
+                    }
+                ],
+                'total': 1,
+                'total_remessas_sem_recebimento': 1,
+                'valor_total_pendente': '90.00',
+            }
+            if path.endswith('/sem-recebimento')
+            else {'contas': []}
+        )
+
+        response = self.client.get(
+            '/financeiro/conciliacoes-sem-recebimento/'
+        )
+
+        self.assertContains(response, 'Editar conciliação')
+        self.assertContains(response, 'Valor glosa *')
+        self.assertContains(response, 'Valor recebido *', count=2)
+        self.assertContains(response, 'name="valor_glosado_987"')
+        self.assertContains(response, 'value="R$ 10,00"')
+        self.assertContains(response, 'name="valor_recebido_987"')
+        self.assertContains(response, 'value="R$ 90,00"')
 
     @patch('core.views.clear_filter_caches')
     @patch('core.views.api_delete')
@@ -1707,60 +1790,69 @@ class ConciliacoesFinanceirasTests(TestCase):
             {
                 'conciliacoes': [
                     {
-                        'id': 10,
-                        'numero_nfse': 'NF-100',
+                        'cd_remessa': 987,
+                        'data_competencia': '2026-06-01',
+                        'valor_remessa': '120.00',
+                        'valor_alocado_nfse': '100.00',
+                        'valor_glosado': '20.00',
                         'convenio': 'Convênio Teste',
                         'cnpj_convenio': '98765432000110',
                         'processo_recebimento': 'PROC-100',
-                        'data_previsao_recebimento': '2026-07-10',
-                        'data_recebimento': '2026-07-13',
-                        'data_criacao': '2026-07-01T10:00:00',
-                        'data_atualizacao': '2026-07-13T09:30:00',
-                        'data_inativacao': None,
-                        'valor_nfse': '100.00',
                         'ativo': True,
                         'situacao_recebimento': 'recebido',
-                        'usuario_criacao': {
-                            'id': 1,
-                            'nome': 'Ana Financeiro',
-                            'email': 'ana@teste.com',
-                        },
-                        'usuario_atualizacao': {
-                            'id': 2,
-                            'nome': 'Bruno Recebimento',
-                            'email': 'bruno@teste.com',
-                        },
-                        'usuario_inativacao': None,
-                        'remessas': [
+                        'notas': [
                             {
-                                'cd_remessa': 987,
+                                'id': 10,
+                                'numero_nfse': 'NF-100',
                                 'tipo_conciliacao': 'faturamento',
-                                'valor_remessa': '120.00',
+                                'valor_nfse': '100.00',
+                                'valor_vinculado_remessa': '120.00',
                                 'valor_alocado_nfse': '100.00',
                                 'valor_glosado': '20.00',
-                            }
-                        ],
-                        'recebimentos': [
-                            {
-                                'id': 5,
-                                'cd_remessa': 987,
+                                'data_previsao_recebimento': '2026-07-10',
                                 'data_recebimento': '2026-07-13',
-                                'valor_recebido': '100.00',
-                                'conta_bancaria_id': 7,
-                                'conta_plano_contas': '1.1.1',
-                                'conta_centro_custo': 'CC-10',
-                                'lancamento_extrato_id': 22,
-                                'data_registro': '2026-07-13T09:30:00',
-                                'usuario': {
+                                'data_criacao': '2026-07-01T10:00:00',
+                                'data_atualizacao': '2026-07-13T09:30:00',
+                                'data_inativacao': None,
+                                'ativo': True,
+                                'situacao_recebimento': 'recebido',
+                                'usuario_criacao': {
+                                    'id': 1,
+                                    'nome': 'Ana Financeiro',
+                                    'email': 'ana@teste.com',
+                                },
+                                'usuario_atualizacao': {
                                     'id': 2,
                                     'nome': 'Bruno Recebimento',
                                     'email': 'bruno@teste.com',
                                 },
+                                'usuario_inativacao': None,
+                                'recebimentos': [
+                                    {
+                                        'id': 5,
+                                        'cd_remessa': 987,
+                                        'data_recebimento': '2026-07-13',
+                                        'valor_recebido': '100.00',
+                                        'conta_bancaria_id': 7,
+                                        'conta_plano_contas': '1.1.1',
+                                        'conta_centro_custo': 'CC-10',
+                                        'lancamento_extrato_id': 22,
+                                        'data_registro': (
+                                            '2026-07-13T09:30:00'
+                                        ),
+                                        'usuario': {
+                                            'id': 2,
+                                            'nome': 'Bruno Recebimento',
+                                            'email': 'bruno@teste.com',
+                                        },
+                                    }
+                                ],
                             }
                         ],
                         'auditoria': [
                             {
                                 'id': 1,
+                                'conciliacao_origem_id': 9,
                                 'acao': 'criacao',
                                 'usuario': {
                                     'id': 1,
@@ -1771,6 +1863,42 @@ class ConciliacoesFinanceirasTests(TestCase):
                             },
                             {
                                 'id': 2,
+                                'conciliacao_origem_id': 10,
+                                'acao': 'edicao',
+                                'usuario': {
+                                    'id': 2,
+                                    'nome': 'Bruno Recebimento',
+                                    'email': 'bruno@teste.com',
+                                },
+                                'dados_anteriores': {
+                                    'processo_recebimento': 'PROC-ANTIGO',
+                                    'data_previsao_recebimento': '2026-07-09',
+                                    'ativo': True,
+                                    'remessas': [
+                                        {
+                                            'cd_remessa': 987,
+                                            'valor_alocado_nfse': '90.00',
+                                            'valor_glosado': '30.00',
+                                        }
+                                    ],
+                                },
+                                'dados_novos': {
+                                    'processo_recebimento': 'PROC-100',
+                                    'data_previsao_recebimento': '2026-07-10',
+                                    'ativo': True,
+                                    'remessas': [
+                                        {
+                                            'cd_remessa': 987,
+                                            'valor_alocado_nfse': '100.00',
+                                            'valor_glosado': '20.00',
+                                        }
+                                    ],
+                                },
+                                'data_operacao': '2026-07-10T08:30:00',
+                            },
+                            {
+                                'id': 3,
+                                'conciliacao_origem_id': 10,
                                 'acao': 'recebimento',
                                 'usuario': {
                                     'id': 2,
@@ -1815,13 +1943,19 @@ class ConciliacoesFinanceirasTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Consultar conciliações')
+        self.assertContains(response, 'Remessa 987')
+        self.assertContains(response, 'Notas fiscais vinculadas')
         self.assertContains(response, 'NF-100')
         self.assertContains(response, 'PROC-100')
         self.assertContains(response, 'Ana Financeiro')
         self.assertContains(response, 'Bruno Recebimento')
         self.assertContains(response, 'Banco Teste · Ag. 1234 · C/C 56789-0')
         self.assertContains(response, 'Conciliação criada')
+        self.assertContains(response, 'Conciliação editada')
         self.assertContains(response, 'Recebimento registrado')
+        self.assertContains(response, 'VÍNCULO ANTERIOR')
+        self.assertContains(response, 'Valor recebido · remessa 987')
+        self.assertContains(response, 'R$ 90,00')
         self.assertContains(response, 'R$ 100,00')
         self.assertContains(
             response,
@@ -1829,7 +1963,7 @@ class ConciliacoesFinanceirasTests(TestCase):
             'href="/financeiro/conciliacoes/"',
         )
         self.assertEqual(
-            api_get.call_args_list[0].args[1],
+            api_get.call_args_list[0].kwargs['params'],
             {
                 'q': '987',
                 'situacao': 'recebido',
@@ -1838,3 +1972,17 @@ class ConciliacoesFinanceirasTests(TestCase):
                 'offset': 0,
             },
         )
+        self.client.get(
+            '/financeiro/conciliacoes/',
+            {
+                'q': '987',
+                'situacao': 'recebido',
+                'incluir_inativas': '1',
+            },
+        )
+        chamadas_historico = [
+            chamada
+            for chamada in api_get.call_args_list
+            if chamada.args[0].endswith('/conciliacoes')
+        ]
+        self.assertEqual(len(chamadas_historico), 2)

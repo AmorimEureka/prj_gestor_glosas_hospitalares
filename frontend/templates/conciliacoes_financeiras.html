@@ -46,71 +46,73 @@
     </div>
 
     <div class="finance-history-list">
-      {% for conciliacao in conciliacoes %}
-      <article class="finance-history-card {% if not conciliacao.ativo %}is-inactive{% endif %}" x-data="{ open: false }" :class="{ 'is-open': open }">
+      {% for remessa in conciliacoes %}
+      <article class="finance-history-card {% if not remessa.ativo %}is-inactive{% endif %}" x-data="{ open: false }" :class="{ 'is-open': open }">
         <button type="button" class="finance-history-summary" @click="open = !open" :aria-expanded="open">
           <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
-          <span><small>NFS-e</small><strong>{{ conciliacao.numero_nfse }}</strong></span>
-          <span><small>Convênio</small><strong>{{ conciliacao.convenio }}</strong></span>
-          <span><small>Processo</small><strong>{{ conciliacao.processo_recebimento }}</strong></span>
-          <span><small>Valor NFS-e</small><strong>R$ {{ conciliacao.valor_nfse|br_currency }}</strong></span>
+          <span><small>Remessa</small><strong>{{ remessa.cd_remessa }}</strong></span>
+          <span><small>Convênio</small><strong>{{ remessa.convenio }}</strong></span>
+          <span><small>Processo</small><strong>{{ remessa.processo_recebimento }}</strong></span>
+          <span><small>Valor da remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
+          <span><small>NFS-e vinculadas</small><strong>{{ remessa.notas|length }}</strong></span>
           <span class="finance-history-statuses">
-            {% if conciliacao.ativo %}<b class="finance-history-status is-active">ATIVA</b>{% else %}<b class="finance-history-status is-inactive">INATIVA</b>{% endif %}
-            {% if conciliacao.situacao_recebimento == "recebido" %}<b class="finance-history-status is-received">RECEBIDA</b>{% else %}<b class="finance-history-status is-pending">SEM RECEBIMENTO</b>{% endif %}
+            {% if remessa.ativo %}<b class="finance-history-status is-active">ATIVA</b>{% else %}<b class="finance-history-status is-inactive">INATIVA</b>{% endif %}
+            {% if remessa.situacao_recebimento == "recebido" %}<b class="finance-history-status is-received">RECEBIDA</b>{% else %}<b class="finance-history-status is-pending">SEM RECEBIMENTO</b>{% endif %}
           </span>
         </button>
 
         <div class="finance-history-details" x-show="open" x-cloak>
           <section class="finance-history-section">
             <div class="finance-history-section-title">
-              <div><strong>Conciliação Faturamento X Fiscal</strong><span>Dados da NFS-e e do processo de recebimento.</span></div>
+              <div><strong>Remessa {{ remessa.cd_remessa }}</strong><span>Posição consolidada da remessa e do processo de recebimento.</span></div>
             </div>
             <div class="finance-history-data-grid">
-              <span><small>CNPJ DO CONVÊNIO</small><strong>{{ conciliacao.cnpj_convenio }}</strong></span>
-              <span><small>PREVISÃO DE RECEBIMENTO</small><strong>{{ conciliacao.data_previsao_recebimento|api_date }}</strong></span>
-              <span><small>DATA DE RECEBIMENTO</small><strong>{{ conciliacao.data_recebimento|api_date }}</strong></span>
-              <span><small>CRIADA EM</small><strong>{{ conciliacao.data_criacao|api_datetime }}</strong></span>
-              <span><small>CRIADA POR</small><strong>{{ conciliacao.usuario_criacao.nome }}</strong><em>{{ conciliacao.usuario_criacao.email }}</em></span>
-              {% if conciliacao.usuario_atualizacao %}<span><small>ÚLTIMA ALTERAÇÃO</small><strong>{{ conciliacao.data_atualizacao|api_datetime }}</strong><em>{{ conciliacao.usuario_atualizacao.nome }}</em></span>{% endif %}
-              {% if conciliacao.usuario_inativacao %}<span><small>INATIVADA EM</small><strong>{{ conciliacao.data_inativacao|api_datetime }}</strong><em>{{ conciliacao.usuario_inativacao.nome }}</em></span>{% endif %}
+              <span><small>CNPJ DO CONVÊNIO</small><strong>{{ remessa.cnpj_convenio }}</strong></span>
+              <span><small>COMPETÊNCIA</small><strong>{{ remessa.data_competencia|api_date }}</strong></span>
+              <span><small>VALOR ALOCADO EM NFS-e</small><strong>R$ {{ remessa.valor_alocado_nfse|br_currency }}</strong></span>
+              <span><small>VALOR GLOSADO</small><strong>R$ {{ remessa.valor_glosado|br_currency }}</strong></span>
             </div>
           </section>
 
           <section class="finance-history-section">
             <div class="finance-history-section-title">
-              <div><strong>Remessas vinculadas</strong><span>Valores utilizados e glosados nesta nota fiscal.</span></div>
+              <div><strong>Notas fiscais vinculadas</strong><span>Conciliações, valores e recebimentos agrupados por NFS-e da remessa.</span></div>
             </div>
-            <div class="finance-history-table-wrap">
-              <table class="finance-history-table">
-                <thead><tr><th>Remessa</th><th>Tipo</th><th>Valor da remessa</th><th>Valor na NFS-e</th><th>Valor glosado</th></tr></thead>
-                <tbody>
-                  {% for remessa in conciliacao.remessas %}
-                  <tr><td>{{ remessa.cd_remessa }}</td><td>{% if remessa.tipo_conciliacao == "recurso" %}Recurso{% else %}Faturamento{% endif %}</td><td>R$ {{ remessa.valor_remessa|br_currency }}</td><td>R$ {{ remessa.valor_alocado_nfse|br_currency }}</td><td>R$ {{ remessa.valor_glosado|br_currency }}</td></tr>
-                  {% empty %}<tr><td colspan="5">Nenhuma remessa vinculada.</td></tr>{% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="finance-history-section">
-            <div class="finance-history-section-title">
-              <div><strong>Recebimento</strong><span>Dados bancários registrados para esta conciliação.</span></div>
-            </div>
-            <div class="finance-history-receipts">
-              {% for recebimento in conciliacao.recebimentos %}
-              <article>
+            <div class="finance-history-note-list">
+              {% for nota in remessa.notas %}
+              <article class="finance-history-note {% if not nota.ativo %}is-inactive{% endif %}">
                 <div class="finance-history-data-grid">
-                  <span><small>REMESSA</small><strong>{{ recebimento.cd_remessa }}</strong></span>
-                  <span><small>DATA</small><strong>{{ recebimento.data_recebimento|api_date }}</strong></span>
-                  <span><small>VALOR RECEBIDO</small><strong>R$ {{ recebimento.valor_recebido|br_currency }}</strong></span>
-                  <span><small>CONTA BANCÁRIA</small><strong>{{ recebimento.conta_bancaria_label }}</strong></span>
-                  <span><small>PLANO DE CONTAS</small><strong>{{ recebimento.conta_plano_contas|default:"-" }}</strong></span>
-                  <span><small>CENTRO DE CUSTO</small><strong>{{ recebimento.conta_centro_custo|default:"-" }}</strong></span>
-                  <span><small>LANÇAMENTO NO EXTRATO</small><strong>{{ recebimento.lancamento_extrato_id|default:"-" }}</strong></span>
-                  <span><small>REGISTRADO POR</small><strong>{{ recebimento.usuario.nome }}</strong><em>{{ recebimento.data_registro|api_datetime }}</em></span>
+                  <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
+                  <span><small>TIPO</small><strong>{% if nota.tipo_conciliacao == "recurso" %}Recurso{% else %}Faturamento{% endif %}</strong></span>
+                  <span><small>VALOR DA NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
+                  <span><small>VALOR VINCULADO</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
+                  <span><small>VALOR ALOCADO NA NFS-e</small><strong>R$ {{ nota.valor_alocado_nfse|br_currency }}</strong></span>
+                  <span><small>VALOR GLOSADO</small><strong>R$ {{ nota.valor_glosado|br_currency }}</strong></span>
+                  <span><small>PREVISÃO</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
+                  <span><small>SITUAÇÃO</small><strong>{% if nota.ativo %}Ativa{% else %}Inativa{% endif %} · {% if nota.situacao_recebimento == "recebido" %}Recebida{% else %}Sem recebimento{% endif %}</strong></span>
+                  <span><small>CRIADA EM</small><strong>{{ nota.data_criacao|api_datetime }}</strong></span>
+                  <span><small>CRIADA POR</small><strong>{{ nota.usuario_criacao.nome }}</strong><em>{{ nota.usuario_criacao.email }}</em></span>
+                  {% if nota.usuario_atualizacao %}<span><small>ÚLTIMA ALTERAÇÃO</small><strong>{{ nota.data_atualizacao|api_datetime }}</strong><em>{{ nota.usuario_atualizacao.nome }}</em></span>{% endif %}
+                  {% if nota.usuario_inativacao %}<span><small>INATIVADA EM</small><strong>{{ nota.data_inativacao|api_datetime }}</strong><em>{{ nota.usuario_inativacao.nome }}</em></span>{% endif %}
+                </div>
+                <div class="finance-history-note-receipts">
+                  <strong>Recebimento da NFS-e</strong>
+                  <div class="finance-history-receipts">
+                    {% for recebimento in nota.recebimentos %}
+                    <div class="finance-history-data-grid">
+                      <span><small>DATA</small><strong>{{ recebimento.data_recebimento|api_date }}</strong></span>
+                      <span><small>VALOR RECEBIDO</small><strong>R$ {{ recebimento.valor_recebido|br_currency }}</strong></span>
+                      <span><small>CONTA BANCÁRIA</small><strong>{{ recebimento.conta_bancaria_label }}</strong></span>
+                      <span><small>PLANO DE CONTAS</small><strong>{{ recebimento.conta_plano_contas|default:"-" }}</strong></span>
+                      <span><small>CENTRO DE CUSTO</small><strong>{{ recebimento.conta_centro_custo|default:"-" }}</strong></span>
+                      <span><small>LANÇAMENTO NO EXTRATO</small><strong>{{ recebimento.lancamento_extrato_id|default:"-" }}</strong></span>
+                      <span><small>REGISTRADO POR</small><strong>{{ recebimento.usuario.nome }}</strong><em>{{ recebimento.data_registro|api_datetime }}</em></span>
+                    </div>
+                    {% empty %}<div class="finance-history-empty">Nenhum recebimento bancário registrado para esta NFS-e.</div>{% endfor %}
+                  </div>
                 </div>
               </article>
-              {% empty %}<div class="finance-history-empty">Nenhum recebimento bancário registrado.</div>{% endfor %}
+              {% empty %}<div class="finance-history-empty">Nenhuma NFS-e vinculada à remessa.</div>{% endfor %}
             </div>
           </section>
 
@@ -119,12 +121,19 @@
               <div><strong>Histórico de alterações</strong><span>Rastreabilidade de criação, edição, recebimento e inativação.</span></div>
             </div>
             <ol class="finance-history-audit">
-              {% for evento in conciliacao.auditoria %}
+              {% for evento in remessa.auditoria %}
               <li>
                 <span class="finance-history-audit-dot"></span>
                 <div>
-                  <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}</strong>
+                  <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}{% if evento.vinculo_anterior %}<small class="finance-history-lineage">VÍNCULO ANTERIOR</small>{% endif %}</strong>
                   <span>{{ evento.data_operacao|api_datetime }} · {{ evento.usuario.nome }} ({{ evento.usuario.email }})</span>
+                  {% if evento.alteracoes %}
+                  <dl class="finance-history-changes">
+                    {% for alteracao in evento.alteracoes %}
+                    <div><dt>{{ alteracao.campo }}</dt><dd><del>{{ alteracao.anterior }}</del><span aria-hidden="true">→</span><ins>{{ alteracao.novo }}</ins></dd></div>
+                    {% endfor %}
+                  </dl>
+                  {% endif %}
                 </div>
               </li>
               {% empty %}<li class="finance-history-empty">Nenhum evento de auditoria disponível.</li>{% endfor %}

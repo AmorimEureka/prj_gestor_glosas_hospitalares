@@ -4071,10 +4071,145 @@ def build_edicao_conciliacao_payload(data):
         raise ValueError("Informe o processo de recebimento.")
     if not data_previsao:
         raise ValueError("Informe a data de previsão de recebimento.")
-    return {
+    payload = {
         "processo_recebimento": processo_recebimento,
         "data_previsao_recebimento": data_previsao,
     }
+    codigos = (
+        data.getlist("cd_remessa")
+        if hasattr(data, "getlist")
+        else data.get("cd_remessa", [])
+    )
+    if isinstance(codigos, str):
+        codigos = [codigos]
+    remessas = []
+    codigos_informados = set()
+    for codigo_bruto in codigos:
+        cd_remessa = as_int_or_none(codigo_bruto)
+        if cd_remessa is None or cd_remessa <= 0:
+            raise ValueError("Informe uma remessa válida para a edição.")
+        if cd_remessa in codigos_informados:
+            raise ValueError("Uma remessa não pode ser informada duas vezes.")
+        codigos_informados.add(cd_remessa)
+        valor_glosado = as_float_or_none(
+            data.get(f"valor_glosado_{cd_remessa}")
+        )
+        valor_recebido = as_float_or_none(
+            data.get(f"valor_recebido_{cd_remessa}")
+        )
+        if valor_glosado is None or valor_glosado < 0:
+            raise ValueError(
+                f"Informe um valor de glosa válido para a remessa "
+                f"{cd_remessa}."
+            )
+        if valor_recebido is None or valor_recebido <= 0:
+            raise ValueError(
+                f"Informe um valor recebido maior que zero para a remessa "
+                f"{cd_remessa}."
+            )
+        remessas.append(
+            {
+                "cd_remessa": cd_remessa,
+                "valor_glosado": f"{valor_glosado:.2f}",
+                "valor_recebido": f"{valor_recebido:.2f}",
+            }
+        )
+    if remessas:
+        payload["remessas"] = remessas
+    return payload
+
+
+def build_alteracoes_auditoria_conciliacao(evento):
+    anteriores = evento.get("dados_anteriores") or {}
+    novos = evento.get("dados_novos") or {}
+    if evento.get("acao") == "criacao" or not novos:
+        return []
+
+    def formatar(valor, tipo="texto"):
+        if valor in (None, ""):
+            return "-"
+        if tipo == "moeda":
+            return f"R$ {format_brl_input(valor)}"
+        if tipo == "data":
+            return format_api_date(valor)
+        if tipo == "booleano":
+            return "Ativa" if valor else "Inativa"
+        return str(valor)
+
+    alteracoes = []
+
+    def adicionar(campo, anterior, novo, tipo="texto"):
+        if anterior == novo:
+            return
+        alteracoes.append(
+            {
+                "campo": campo,
+                "anterior": formatar(anterior, tipo),
+                "novo": formatar(novo, tipo),
+            }
+        )
+
+    adicionar(
+        "Processo de recebimento",
+        anteriores.get("processo_recebimento"),
+        novos.get("processo_recebimento"),
+    )
+    adicionar(
+        "Previsão de recebimento",
+        anteriores.get("data_previsao_recebimento"),
+        novos.get("data_previsao_recebimento"),
+        "data",
+    )
+    if "ativo" in anteriores and "ativo" in novos:
+        adicionar(
+            "Situação",
+            anteriores.get("ativo"),
+            novos.get("ativo"),
+            "booleano",
+        )
+
+    remessas_anteriores = {
+        str(remessa.get("cd_remessa")): remessa
+        for remessa in anteriores.get("remessas", [])
+    }
+    remessas_novas = {
+        str(remessa.get("cd_remessa")): remessa
+        for remessa in novos.get("remessas", [])
+    }
+    for cd_remessa in sorted(
+        set(remessas_anteriores) | set(remessas_novas)
+    ):
+        anterior = remessas_anteriores.get(cd_remessa, {})
+        novo = remessas_novas.get(cd_remessa, {})
+        adicionar(
+            f"Valor recebido · remessa {cd_remessa}",
+            anterior.get("valor_alocado_nfse"),
+            novo.get("valor_alocado_nfse"),
+            "moeda",
+        )
+        adicionar(
+            f"Valor glosado · remessa {cd_remessa}",
+            anterior.get("valor_glosado"),
+            novo.get("valor_glosado"),
+            "moeda",
+        )
+
+    recebimento_anterior = anteriores.get("recebimento") or {}
+    recebimento_novo = novos.get("recebimento") or {}
+    if recebimento_novo:
+        adicionar(
+            "Data do recebimento bancário",
+            recebimento_anterior.get("data_recebimento"),
+            recebimento_novo.get("data_recebimento"),
+            "data",
+        )
+        adicionar(
+            "Valor do recebimento bancário",
+            recebimento_anterior.get("valor_recebido"),
+            recebimento_novo.get("valor_recebido"),
+            "moeda",
+        )
+    return alteracoes
 
 
 @require_http_methods(["GET", "POST"])
@@ -4351,10 +4486,9 @@ def conciliacoes_financeiras(request):
     }
     offset = (page - 1) * page_size
     try:
-        payload = get_cached_api_payload(
-            "financeiro:historico-conciliacoes",
+        payload = api_get(
             CONCILIACOES_GERENCIAMENTO_PATH,
-            {
+            params={
                 "q": filtros["q"] or None,
                 "situacao": filtros["situacao"] or None,
                 "incluir_inativas": filtros["incluir_inativas"],
@@ -4385,37 +4519,56 @@ def conciliacoes_financeiras(request):
             request,
             format_api_error(exc, "Consulta de conciliações"),
         )
-    try:
-        contas_payload = get_cached_api_payload(
-            "financeiro:contas-bancarias",
-            CONTAS_BANCARIAS_PATH,
-        )
-        contas_por_id = {
-            str(conta.get("id")): conta
-            for conta in contas_payload.get("contas", [])
-        }
-    except ApiError:
-        contas_por_id = {}
-    for conciliacao in conciliacoes:
-        for recebimento in conciliacao.get("recebimentos", []):
-            conta = contas_por_id.get(
-                str(recebimento.get("conta_bancaria_id"))
+    contas_por_id = {}
+    if any(
+        nota.get("recebimentos")
+        for remessa in conciliacoes
+        for nota in remessa.get("notas", [])
+    ):
+        try:
+            contas_payload = get_cached_api_payload(
+                "financeiro:contas-bancarias",
+                CONTAS_BANCARIAS_PATH,
             )
-            if conta:
-                agencia = str(conta.get("agencia") or "-")
-                if conta.get("digito_agencia"):
-                    agencia += f"-{conta['digito_agencia']}"
-                numero_conta = str(conta.get("conta") or "-")
-                if conta.get("digito"):
-                    numero_conta += f"-{conta['digito']}"
-                recebimento["conta_bancaria_label"] = (
-                    f"{conta.get('banco') or 'Banco'} · "
-                    f"Ag. {agencia} · C/C {numero_conta}"
+            contas_por_id = {
+                str(conta.get("id")): conta
+                for conta in contas_payload.get("contas", [])
+            }
+        except ApiError:
+            pass
+    for remessa in conciliacoes:
+        conciliacoes_ids = {
+            nota.get("id") for nota in remessa.get("notas", [])
+        }
+        for evento in remessa.get("auditoria", []):
+            evento["alteracoes"] = build_alteracoes_auditoria_conciliacao(
+                evento
+            )
+            evento["vinculo_anterior"] = (
+                evento.get("conciliacao_origem_id") is not None
+                and evento.get("conciliacao_origem_id")
+                not in conciliacoes_ids
+            )
+        for nota in remessa.get("notas", []):
+            for recebimento in nota.get("recebimentos", []):
+                conta = contas_por_id.get(
+                    str(recebimento.get("conta_bancaria_id"))
                 )
-            else:
-                recebimento["conta_bancaria_label"] = (
-                    f"Conta #{recebimento.get('conta_bancaria_id')}"
-                )
+                if conta:
+                    agencia = str(conta.get("agencia") or "-")
+                    if conta.get("digito_agencia"):
+                        agencia += f"-{conta['digito_agencia']}"
+                    numero_conta = str(conta.get("conta") or "-")
+                    if conta.get("digito"):
+                        numero_conta += f"-{conta['digito']}"
+                    recebimento["conta_bancaria_label"] = (
+                        f"{conta.get('banco') or 'Banco'} · "
+                        f"Ag. {agencia} · C/C {numero_conta}"
+                    )
+                else:
+                    recebimento["conta_bancaria_label"] = (
+                        f"Conta #{recebimento.get('conta_bancaria_id')}"
+                    )
     base_query = {
         key: value
         for key, value in filtros.items()

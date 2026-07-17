@@ -119,6 +119,26 @@
                 <span>Data previsão de recebimento *</span>
                 <input class="form-control" type="date" name="data_previsao_recebimento" value="{{ conciliacao.data_previsao_recebimento }}" required>
               </label>
+              <div class="finance-conciliation-edit-values">
+                <div>
+                  <strong>Valores por remessa</strong>
+                  <span>O valor recebido corresponde ao valor líquido vinculado à NFS-e.</span>
+                </div>
+                {% for remessa in conciliacao.remessas %}
+                <div class="finance-conciliation-edit-remittance">
+                  <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
+                  <span class="finance-conciliation-edit-code"><small>REMESSA</small><strong>{{ remessa.cd_remessa }}</strong></span>
+                  <label>
+                    <span>Valor glosa *</span>
+                    <input class="form-control finance-money-input" type="text" name="valor_glosado_{{ remessa.cd_remessa }}" value="R$ {{ remessa.valor_glosado|br_currency }}" inputmode="numeric" required>
+                  </label>
+                  <label>
+                    <span>Valor recebido *</span>
+                    <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ remessa.valor_pendente|br_currency }}" inputmode="numeric" required>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
               <button class="btn btn-primary" type="submit">Salvar alterações</button>
             </form>
           </section>
