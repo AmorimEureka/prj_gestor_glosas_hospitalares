@@ -154,7 +154,10 @@ SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(8 * 60 * 60)))
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "glosas-frontend-cache",
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.getenv(
+            "APP_CACHE_LOCATION",
+            "/tmp/glosas-frontend-cache",
+        ),
     }
 }

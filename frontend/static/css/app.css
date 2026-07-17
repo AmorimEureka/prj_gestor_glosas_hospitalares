@@ -7516,3 +7516,427 @@ body:not(.sidebar-collapsed) .indicator-grid {
     font-size: 10px;
   }
 }
+
+/* Financeiro · manutenção e histórico de conciliações */
+.finance-conciliation-maintenance {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid #cbdde4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.finance-conciliation-maintenance-actions,
+.finance-conciliation-maintenance-actions > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finance-conciliation-maintenance-actions {
+  justify-content: space-between;
+}
+
+.finance-conciliation-maintenance-actions > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-conciliation-maintenance-actions strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-conciliation-maintenance-actions span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.finance-inline-form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.finance-conciliation-maintenance-notice {
+  padding: 10px 12px;
+  border: 1px solid #e6c78b;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #79500a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.finance-danger-button {
+  border: 1px solid #e3a29a;
+  background: #fff1ef;
+  color: #a3281d;
+  font-weight: 700;
+}
+
+.finance-danger-button:hover {
+  border-color: #c94a3b;
+  background: #c94a3b;
+  color: #fff;
+}
+
+.finance-conciliation-edit-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.7fr) max-content;
+  align-items: end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0eaee;
+}
+
+.finance-conciliation-edit-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.finance-conciliation-edit-form label > span {
+  color: #496777;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-history-filters {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(210px, 0.35fr) max-content max-content;
+  align-items: end;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.finance-history-filters .filter-group {
+  display: grid;
+  gap: 4px;
+}
+
+.finance-history-filters .filter-group > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.finance-history-filters input,
+.finance-history-filters select {
+  min-height: 42px;
+  border-color: #cbdbe3;
+  border-radius: 6px;
+}
+
+.finance-history-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #cbdbe3;
+  border-radius: 6px;
+  color: #496777;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.finance-history-check input {
+  min-height: auto;
+}
+
+.finance-history-totals {
+  flex-wrap: wrap;
+}
+
+.finance-history-list,
+.finance-history-receipts {
+  display: grid;
+  gap: 9px;
+}
+
+.finance-history-card {
+  overflow: hidden;
+  border: 1px solid #cfdde4;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(22, 79, 99, 0.07);
+}
+
+.finance-history-card.is-open {
+  border-color: #76aaba;
+  box-shadow: 0 8px 22px rgba(22, 79, 99, 0.13);
+}
+
+.finance-history-card.is-inactive {
+  border-color: #d7dfe2;
+}
+
+.finance-history-summary {
+  display: grid;
+  grid-template-columns: 18px minmax(90px, 0.5fr) minmax(210px, 1.4fr) minmax(170px, 1fr) minmax(130px, 0.7fr) minmax(190px, 0.8fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 14px;
+  border: 0;
+  background: linear-gradient(90deg, #245f75 0%, #2b7187 100%);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-history-card.is-inactive .finance-history-summary {
+  background: linear-gradient(90deg, #5c6d75 0%, #73848b 100%);
+}
+
+.finance-history-summary > span:not(.finance-note-chevron) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.finance-history-summary small {
+  color: rgba(237, 248, 251, 0.72);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-history-summary strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-history-statuses {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 5px !important;
+}
+
+.finance-history-status {
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-history-status.is-pending {
+  border-color: #f1ce87;
+  background: #fff5dc;
+  color: #79500a;
+}
+
+.finance-history-status.is-received {
+  border-color: #a9dbc6;
+  background: #e8f8f1;
+  color: #176244;
+}
+
+.finance-history-status.is-inactive {
+  border-color: #f1bab4;
+  background: #fff1ef;
+  color: #9b3025;
+}
+
+.finance-history-details {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 2px solid #234f64;
+  background: #edf4f7;
+}
+
+.finance-history-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d3e1e7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.finance-history-section-title {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0eaee;
+}
+
+.finance-history-section-title > div {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-history-section-title strong {
+  color: #123748;
+  font-size: 13px;
+}
+
+.finance-history-section-title span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.finance-history-data-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.finance-history-data-grid > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #f9fbfc;
+}
+
+.finance-history-data-grid small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-history-data-grid strong {
+  overflow-wrap: anywhere;
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-history-data-grid em {
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.finance-history-table-wrap {
+  overflow-x: auto;
+}
+
+.finance-history-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-history-table th,
+.finance-history-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e0eaee;
+  text-align: left;
+}
+
+.finance-history-table th {
+  color: #71818d;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-history-audit {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finance-history-audit li {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.finance-history-audit-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 1px #8bb9c7;
+}
+
+.finance-history-audit li > div {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-history-audit strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-history-audit span,
+.finance-history-empty {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.finance-history-empty {
+  padding: 14px;
+  border: 1px dashed #cbdbe3;
+  border-radius: 7px;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .finance-history-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .finance-history-summary {
+    grid-template-columns: 18px repeat(2, minmax(150px, 1fr));
+  }
+
+  .finance-history-statuses {
+    grid-column: 2 / -1;
+  }
+
+  .finance-history-data-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .finance-conciliation-maintenance-actions,
+  .finance-conciliation-maintenance-actions > div,
+  .finance-conciliation-edit-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-conciliation-edit-form,
+  .finance-history-filters,
+  .finance-history-summary,
+  .finance-history-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-history-summary .finance-note-chevron {
+    display: none;
+  }
+
+  .finance-history-statuses {
+    grid-column: auto;
+  }
+}

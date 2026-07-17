@@ -40,6 +40,9 @@ CONCILIACAO_FATURAMENTO_PATH = (
 CONCILIACOES_SEM_RECEBIMENTO_PATH = (
     f"{CONCILIACAO_FATURAMENTO_PATH}/sem-recebimento"
 )
+CONCILIACOES_GERENCIAMENTO_PATH = (
+    f"{CONCILIACAO_FATURAMENTO_PATH}/conciliacoes"
+)
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
@@ -4059,6 +4062,21 @@ def build_recebimento_remessa_payload(data):
     }
 
 
+def build_edicao_conciliacao_payload(data):
+    processo_recebimento = (
+        data.get("processo_recebimento") or ""
+    ).strip()
+    data_previsao = data.get("data_previsao_recebimento") or None
+    if not processo_recebimento:
+        raise ValueError("Informe o processo de recebimento.")
+    if not data_previsao:
+        raise ValueError("Informe a data de previsão de recebimento.")
+    return {
+        "processo_recebimento": processo_recebimento,
+        "data_previsao_recebimento": data_previsao,
+    }
+
+
 @require_http_methods(["GET", "POST"])
 def conciliacao_faturamento(request):
     if request.method == "POST":
@@ -4084,12 +4102,13 @@ def conciliacao_faturamento(request):
         page = max(int(request.GET.get("page") or 1), 1)
     except ValueError:
         page = 1
-    page_size = 100
+    page_size = 25
     filtro_q = (request.GET.get("q") or "").strip()
     offset = (page - 1) * page_size
 
     try:
-        remessas_payload = api_get(
+        remessas_payload = get_cached_api_payload(
+            "financeiro:remessas-conciliacao",
             f"{CONCILIACAO_FATURAMENTO_PATH}/remessas",
             params={
                 "q": filtro_q or None,
@@ -4115,7 +4134,10 @@ def conciliacao_faturamento(request):
         )
 
     try:
-        contas_payload = api_get(CONTAS_BANCARIAS_PATH)
+        contas_payload = get_cached_api_payload(
+            "financeiro:contas-bancarias",
+            CONTAS_BANCARIAS_PATH,
+        )
         contas_bancarias = contas_payload.get("contas", [])
     except ApiError as exc:
         contas_bancarias = []
@@ -4170,7 +4192,39 @@ def conciliacao_faturamento(request):
 @require_http_methods(["GET", "POST"])
 def conciliacoes_sem_recebimento(request):
     if request.method == "POST":
+        form_action = request.POST.get("form_action") or "recebimento"
         try:
+            if form_action == "editar_conciliacao":
+                conciliacao_id = as_int_or_none(
+                    request.POST.get("conciliacao_id")
+                )
+                if conciliacao_id is None:
+                    raise ValueError("Informe uma conciliação válida.")
+                api_put(
+                    f"{CONCILIACOES_GERENCIAMENTO_PATH}/{conciliacao_id}",
+                    build_edicao_conciliacao_payload(request.POST),
+                )
+                clear_filter_caches()
+                messages.success(
+                    request,
+                    "Conciliação atualizada com sucesso.",
+                )
+                return redirect(request.get_full_path())
+            if form_action == "inativar_conciliacao":
+                conciliacao_id = as_int_or_none(
+                    request.POST.get("conciliacao_id")
+                )
+                if conciliacao_id is None:
+                    raise ValueError("Informe uma conciliação válida.")
+                api_delete(
+                    f"{CONCILIACOES_GERENCIAMENTO_PATH}/{conciliacao_id}"
+                )
+                clear_filter_caches()
+                messages.success(
+                    request,
+                    "Conciliação inativada com sucesso.",
+                )
+                return redirect(request.get_full_path())
             recebimento_payload = build_recebimento_remessa_payload(
                 request.POST
             )
@@ -4196,12 +4250,13 @@ def conciliacoes_sem_recebimento(request):
         page = max(int(request.GET.get("page") or 1), 1)
     except ValueError:
         page = 1
-    page_size = 100
+    page_size = 25
     filtro_q = (request.GET.get("q") or "").strip()
     offset = (page - 1) * page_size
 
     try:
-        payload = api_get(
+        payload = get_cached_api_payload(
+            "financeiro:conciliacoes-sem-recebimento",
             CONCILIACOES_SEM_RECEBIMENTO_PATH,
             params={
                 "q": filtro_q or None,
@@ -4226,7 +4281,10 @@ def conciliacoes_sem_recebimento(request):
         )
 
     try:
-        contas_payload = api_get(CONTAS_BANCARIAS_PATH)
+        contas_payload = get_cached_api_payload(
+            "financeiro:contas-bancarias",
+            CONTAS_BANCARIAS_PATH,
+        )
         contas_bancarias = contas_payload.get("contas", [])
     except ApiError as exc:
         contas_bancarias = []
@@ -4272,6 +4330,126 @@ def conciliacoes_sem_recebimento(request):
             ),
             "valor_total_pendente": valor_total_pendente,
             "contas_bancarias": contas_bancarias,
+            "pagination": pagination,
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def conciliacoes_financeiras(request):
+    try:
+        page = max(int(request.GET.get("page") or 1), 1)
+    except ValueError:
+        page = 1
+    page_size = 25
+    filtros = {
+        "q": (request.GET.get("q") or "").strip(),
+        "situacao": (request.GET.get("situacao") or "").strip(),
+        "incluir_inativas": (
+            "true" if request.GET.get("incluir_inativas") else "false"
+        ),
+    }
+    offset = (page - 1) * page_size
+    try:
+        payload = get_cached_api_payload(
+            "financeiro:historico-conciliacoes",
+            CONCILIACOES_GERENCIAMENTO_PATH,
+            {
+                "q": filtros["q"] or None,
+                "situacao": filtros["situacao"] or None,
+                "incluir_inativas": filtros["incluir_inativas"],
+                "limit": page_size,
+                "offset": offset,
+            },
+        )
+        conciliacoes = payload.get("conciliacoes", [])
+        total = int(payload.get("total", len(conciliacoes)))
+        resumo = {
+            "ativas": int(payload.get("total_ativas", 0)),
+            "inativas": int(payload.get("total_inativas", 0)),
+            "recebidas": int(payload.get("total_recebidas", 0)),
+            "sem_recebimento": int(
+                payload.get("total_sem_recebimento", 0)
+            ),
+        }
+    except ApiError as exc:
+        conciliacoes = []
+        total = 0
+        resumo = {
+            "ativas": 0,
+            "inativas": 0,
+            "recebidas": 0,
+            "sem_recebimento": 0,
+        }
+        messages.error(
+            request,
+            format_api_error(exc, "Consulta de conciliações"),
+        )
+    try:
+        contas_payload = get_cached_api_payload(
+            "financeiro:contas-bancarias",
+            CONTAS_BANCARIAS_PATH,
+        )
+        contas_por_id = {
+            str(conta.get("id")): conta
+            for conta in contas_payload.get("contas", [])
+        }
+    except ApiError:
+        contas_por_id = {}
+    for conciliacao in conciliacoes:
+        for recebimento in conciliacao.get("recebimentos", []):
+            conta = contas_por_id.get(
+                str(recebimento.get("conta_bancaria_id"))
+            )
+            if conta:
+                agencia = str(conta.get("agencia") or "-")
+                if conta.get("digito_agencia"):
+                    agencia += f"-{conta['digito_agencia']}"
+                numero_conta = str(conta.get("conta") or "-")
+                if conta.get("digito"):
+                    numero_conta += f"-{conta['digito']}"
+                recebimento["conta_bancaria_label"] = (
+                    f"{conta.get('banco') or 'Banco'} · "
+                    f"Ag. {agencia} · C/C {numero_conta}"
+                )
+            else:
+                recebimento["conta_bancaria_label"] = (
+                    f"Conta #{recebimento.get('conta_bancaria_id')}"
+                )
+    base_query = {
+        key: value
+        for key, value in filtros.items()
+        if value and not (key == "incluir_inativas" and value == "false")
+    }
+    total_pages = max(ceil(total / page_size), 1)
+    if page > total_pages:
+        return redirect(
+            f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
+        )
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "total": total,
+    }
+    return render(
+        request,
+        "conciliacoes_financeiras.html",
+        {
+            "conciliacoes": conciliacoes,
+            "filtros": filtros,
+            "resumo": resumo,
             "pagination": pagination,
         },
     )

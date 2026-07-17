@@ -47,6 +47,21 @@ def api_date(value):
 
 
 @register.filter
+def api_datetime(value):
+    if not value:
+        return "-"
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        normalized = str(value).strip().replace("Z", "+00:00")
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            return str(value)
+    return parsed.strftime("%d/%m/%Y %H:%M")
+
+
+@register.filter
 def br_currency(value):
     if value in (None, ""):
         value = 0

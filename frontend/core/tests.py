@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.staticfiles import finders
+from django.core.cache import cache
 from django.test import RequestFactory, TestCase
 
 from core.services import ApiError
@@ -13,10 +14,12 @@ from core.views import (
     build_acompanhamento_rows,
     build_acompanhamento_resumo,
     build_conciliacao_faturamento_payload,
+    build_edicao_conciliacao_payload,
     build_recebimento_remessa_payload,
     build_dashboard_indicadores,
     build_geral_indicators,
     build_recuperacao_indicators,
+    CONCILIACAO_FATURAMENTO_PATH,
     contextualize_registro_glosa_error,
     DASHBOARD_GLOSAS_CACHE_KEY,
     disabled_convenio_ids,
@@ -976,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260716-faturamento-fiscal-1',
+            '?v=20260717-conciliacoes-auditoria-1',
             base_template.read_text(),
         )
 
@@ -1174,6 +1177,7 @@ class FollowUpGlosasTests(TestCase):
 
 class ConciliacaoFaturamentoTests(TestCase):
     def setUp(self):
+        cache.clear()
         session = self.client.session
         session['api_access_token'] = 'token-seguro'
         session['api_user'] = {
@@ -1254,7 +1258,7 @@ class ConciliacaoFaturamentoTests(TestCase):
                     ],
                     'total': 250,
                     'valor_total_nao_conciliado': '123456.78',
-                    'limit': 100,
+                    'limit': 25,
                     'offset': 0,
                 }
             return {'contas': []}
@@ -1280,7 +1284,7 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertContains(response, '<div class="pagination-control">')
         self.assertContains(response, 'class="page-select-form"')
         self.assertContains(response, '<option value="1" selected>1</option>')
-        self.assertContains(response, '<span>Pagina 1 de 3</span>')
+        self.assertContains(response, '<span>Pagina 1 de 10</span>')
         self.assertContains(response, 'href="?page=2">Proxima</a>')
         self.assertContains(response, 'Operação Não Permitida')
         self.assertContains(response, 'novalidate')
@@ -1325,8 +1329,8 @@ class ConciliacaoFaturamentoTests(TestCase):
                     'remessas': [],
                     'total': 250,
                     'valor_total_nao_conciliado': '123456.78',
-                    'limit': 100,
-                    'offset': 100,
+                    'limit': 25,
+                    'offset': 25,
                 }
             return {'contas': []}
 
@@ -1348,8 +1352,8 @@ class ConciliacaoFaturamentoTests(TestCase):
             '?q=Conv%C3%AAnio+A&page=3',
         )
         self.assertEqual(
-            api_get.call_args_list[0].kwargs['params'],
-            {'q': 'Convênio A', 'limit': 100, 'offset': 100},
+            api_get.call_args_list[0].args[1],
+            {'q': 'Convênio A', 'limit': 25, 'offset': 25},
         )
         self.assertContains(
             response,
@@ -1384,9 +1388,32 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertEqual(sent_payload['notas'][0]['valor_alocado'], '80.00')
         self.assertEqual(sent_payload['notas'][0]['valor_glosado'], '20.00')
 
+    @patch('core.views.api_get')
+    def test_reutiliza_cache_na_listagem_de_remessas(self, api_get):
+        api_get.side_effect = lambda path, params=None: (
+            {
+                'remessas': [],
+                'total': 0,
+                'valor_total_nao_conciliado': '0.00',
+                'limit': 25,
+                'offset': 0,
+            }
+            if path.endswith('/remessas')
+            else {'contas': []}
+        )
+
+        self.client.get('/financeiro/conciliacao-fiscal-faturamento/')
+        self.client.get('/financeiro/conciliacao-fiscal-faturamento/')
+
+        self.assertEqual(api_get.call_count, 2)
+        paths = [call.args[0] for call in api_get.call_args_list]
+        self.assertEqual(paths.count(CONCILIACAO_FATURAMENTO_PATH + '/remessas'), 1)
+        self.assertEqual(paths.count('/app_glosas/financeiro/contas-bancarias'), 1)
+
 
 class ConciliacoesSemRecebimentoTests(TestCase):
     def setUp(self):
+        cache.clear()
         session = self.client.session
         session['api_access_token'] = 'token-seguro'
         session['api_user'] = {
@@ -1434,7 +1461,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             'total': 1,
             'total_remessas_sem_recebimento': 1,
             'valor_total_pendente': '100.00',
-            'limit': 100,
+            'limit': 25,
             'offset': 0,
         }
         api_get.side_effect = lambda path, params=None: (
@@ -1484,14 +1511,20 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertContains(response, 'Banco Teste · Ag. 1234 · C/C 56789')
         self.assertContains(response, 'recebimentoPendenteForm(')
         self.assertContains(response, 'loadLancamentos()')
+        self.assertNotContains(response, 'Editar conciliação')
+        self.assertNotContains(response, 'Inativar conciliação')
+        self.assertContains(
+            response,
+            'Esta conciliação já possui recebimento parcial.',
+        )
         self.assertContains(
             response,
             'class="nav-subitem is-active" '
             'href="/financeiro/conciliacoes-sem-recebimento/"',
         )
         self.assertEqual(
-            api_get.call_args_list[0].kwargs['params'],
-            {'q': None, 'limit': 100, 'offset': 0},
+            api_get.call_args_list[0].args[1],
+            {'q': None, 'limit': 25, 'offset': 0},
         )
 
     @patch('core.views.api_get')
@@ -1501,8 +1534,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             'total': 250,
             'total_remessas_sem_recebimento': 300,
             'valor_total_pendente': '5000.00',
-            'limit': 100,
-            'offset': 100,
+            'limit': 25,
+            'offset': 25,
         }
         api_get.side_effect = lambda path, params=None: (
             conciliacoes_payload
@@ -1525,8 +1558,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             '?q=987&page=3',
         )
         self.assertEqual(
-            api_get.call_args_list[0].kwargs['params'],
-            {'q': '987', 'limit': 100, 'offset': 100},
+            api_get.call_args_list[0].args[1],
+            {'q': '987', 'limit': 25, 'offset': 25},
         )
         self.assertContains(
             response,
@@ -1556,6 +1589,76 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertEqual(payload['conta_centro_custo'], 'CC-10')
         self.assertEqual(payload['lancamento_extrato_id'], 22)
 
+    def test_monta_payload_de_edicao(self):
+        payload = build_edicao_conciliacao_payload(
+            {
+                'processo_recebimento': ' PROC-EDITADO ',
+                'data_previsao_recebimento': '2026-08-15',
+            }
+        )
+
+        self.assertEqual(payload['processo_recebimento'], 'PROC-EDITADO')
+        self.assertEqual(
+            payload['data_previsao_recebimento'],
+            '2026-08-15',
+        )
+
+    @patch('core.views.clear_filter_caches')
+    @patch('core.views.api_put')
+    def test_edita_conciliacao_pendente(
+        self,
+        api_put,
+        clear_filter_caches,
+    ):
+        response = self.client.post(
+            '/financeiro/conciliacoes-sem-recebimento/?q=987',
+            {
+                'form_action': 'editar_conciliacao',
+                'conciliacao_id': '10',
+                'processo_recebimento': 'PROC-NOVO',
+                'data_previsao_recebimento': '2026-08-15',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/financeiro/conciliacoes-sem-recebimento/?q=987',
+            fetch_redirect_response=False,
+        )
+        api_put.assert_called_once_with(
+            CONCILIACAO_FATURAMENTO_PATH + '/conciliacoes/10',
+            {
+                'processo_recebimento': 'PROC-NOVO',
+                'data_previsao_recebimento': '2026-08-15',
+            },
+        )
+        clear_filter_caches.assert_called_once_with()
+
+    @patch('core.views.clear_filter_caches')
+    @patch('core.views.api_delete')
+    def test_inativa_conciliacao_pendente(
+        self,
+        api_delete,
+        clear_filter_caches,
+    ):
+        response = self.client.post(
+            '/financeiro/conciliacoes-sem-recebimento/?page=2',
+            {
+                'form_action': 'inativar_conciliacao',
+                'conciliacao_id': '10',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/financeiro/conciliacoes-sem-recebimento/?page=2',
+            fetch_redirect_response=False,
+        )
+        api_delete.assert_called_once_with(
+            CONCILIACAO_FATURAMENTO_PATH + '/conciliacoes/10'
+        )
+        clear_filter_caches.assert_called_once_with()
+
     @patch('core.views.api_post')
     def test_registra_recebimento_e_preserva_filtros(self, api_post):
         response = self.client.post(
@@ -1583,3 +1686,155 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertEqual(payload['valor_recebido'], '100.00')
         self.assertEqual(payload['conta_bancaria_id'], 7)
         self.assertEqual(payload['lancamento_extrato_id'], 22)
+
+
+class ConciliacoesFinanceirasTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Financeiro',
+            'email': 'financeiro@teste.com',
+            'perfil': 'usuario',
+        }
+        session.save()
+
+    @patch('core.views.api_get')
+    def test_consulta_conciliacao_recebimento_e_auditoria(self, api_get):
+        api_get.side_effect = lambda path, params=None: (
+            {
+                'conciliacoes': [
+                    {
+                        'id': 10,
+                        'numero_nfse': 'NF-100',
+                        'convenio': 'Convênio Teste',
+                        'cnpj_convenio': '98765432000110',
+                        'processo_recebimento': 'PROC-100',
+                        'data_previsao_recebimento': '2026-07-10',
+                        'data_recebimento': '2026-07-13',
+                        'data_criacao': '2026-07-01T10:00:00',
+                        'data_atualizacao': '2026-07-13T09:30:00',
+                        'data_inativacao': None,
+                        'valor_nfse': '100.00',
+                        'ativo': True,
+                        'situacao_recebimento': 'recebido',
+                        'usuario_criacao': {
+                            'id': 1,
+                            'nome': 'Ana Financeiro',
+                            'email': 'ana@teste.com',
+                        },
+                        'usuario_atualizacao': {
+                            'id': 2,
+                            'nome': 'Bruno Recebimento',
+                            'email': 'bruno@teste.com',
+                        },
+                        'usuario_inativacao': None,
+                        'remessas': [
+                            {
+                                'cd_remessa': 987,
+                                'tipo_conciliacao': 'faturamento',
+                                'valor_remessa': '120.00',
+                                'valor_alocado_nfse': '100.00',
+                                'valor_glosado': '20.00',
+                            }
+                        ],
+                        'recebimentos': [
+                            {
+                                'id': 5,
+                                'cd_remessa': 987,
+                                'data_recebimento': '2026-07-13',
+                                'valor_recebido': '100.00',
+                                'conta_bancaria_id': 7,
+                                'conta_plano_contas': '1.1.1',
+                                'conta_centro_custo': 'CC-10',
+                                'lancamento_extrato_id': 22,
+                                'data_registro': '2026-07-13T09:30:00',
+                                'usuario': {
+                                    'id': 2,
+                                    'nome': 'Bruno Recebimento',
+                                    'email': 'bruno@teste.com',
+                                },
+                            }
+                        ],
+                        'auditoria': [
+                            {
+                                'id': 1,
+                                'acao': 'criacao',
+                                'usuario': {
+                                    'id': 1,
+                                    'nome': 'Ana Financeiro',
+                                    'email': 'ana@teste.com',
+                                },
+                                'data_operacao': '2026-07-01T10:00:00',
+                            },
+                            {
+                                'id': 2,
+                                'acao': 'recebimento',
+                                'usuario': {
+                                    'id': 2,
+                                    'nome': 'Bruno Recebimento',
+                                    'email': 'bruno@teste.com',
+                                },
+                                'data_operacao': '2026-07-13T09:30:00',
+                            },
+                        ],
+                    }
+                ],
+                'total': 1,
+                'total_ativas': 1,
+                'total_inativas': 0,
+                'total_recebidas': 1,
+                'total_sem_recebimento': 0,
+                'limit': 25,
+                'offset': 0,
+            }
+            if path.endswith('/conciliacoes')
+            else {
+                'contas': [
+                    {
+                        'id': 7,
+                        'banco': 'Banco Teste',
+                        'agencia': '1234',
+                        'conta': '56789',
+                        'digito': '0',
+                    }
+                ]
+            }
+        )
+
+        response = self.client.get(
+            '/financeiro/conciliacoes/',
+            {
+                'q': '987',
+                'situacao': 'recebido',
+                'incluir_inativas': '1',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Consultar conciliações')
+        self.assertContains(response, 'NF-100')
+        self.assertContains(response, 'PROC-100')
+        self.assertContains(response, 'Ana Financeiro')
+        self.assertContains(response, 'Bruno Recebimento')
+        self.assertContains(response, 'Banco Teste · Ag. 1234 · C/C 56789-0')
+        self.assertContains(response, 'Conciliação criada')
+        self.assertContains(response, 'Recebimento registrado')
+        self.assertContains(response, 'R$ 100,00')
+        self.assertContains(
+            response,
+            'class="nav-subitem is-active" '
+            'href="/financeiro/conciliacoes/"',
+        )
+        self.assertEqual(
+            api_get.call_args_list[0].args[1],
+            {
+                'q': '987',
+                'situacao': 'recebido',
+                'incluir_inativas': 'true',
+                'limit': 25,
+                'offset': 0,
+            },
+        )

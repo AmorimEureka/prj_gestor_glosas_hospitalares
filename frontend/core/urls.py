@@ -33,6 +33,11 @@ urlpatterns = [
         name="conciliacoes_sem_recebimento",
     ),
     path(
+        "financeiro/conciliacoes/",
+        views.conciliacoes_financeiras,
+        name="conciliacoes_financeiras",
+    ),
+    path(
         "financeiro/conciliacao-fiscal-faturamento/remessas/<str:nfse_row_hash>/",
         views.conciliacao_faturamento_remessas,
         name="conciliacao_faturamento_remessas",

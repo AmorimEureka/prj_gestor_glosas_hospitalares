@@ -90,6 +90,43 @@
         </button>
 
         <div class="finance-pending-details" x-show="open" x-cloak>
+          {% if conciliacao.situacao == "sem_recebimento" %}
+          <section class="finance-conciliation-maintenance" x-data="{ editing: false }">
+            <div class="finance-conciliation-maintenance-actions">
+              <div>
+                <strong>Manutenção da conciliação</strong>
+                <span>Disponível somente enquanto não houver recebimento bancário.</span>
+              </div>
+              <div>
+                <button class="btn btn-outline-secondary" type="button" @click="editing = !editing" x-text="editing ? 'Cancelar edição' : 'Editar conciliação'"></button>
+                <form method="post" class="finance-inline-form" onsubmit="return window.confirm('Confirma a inativação desta conciliação? Os saldos serão liberados para uma nova conciliação.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="inativar_conciliacao">
+                  <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
+                  <button class="btn finance-danger-button" type="submit">Inativar conciliação</button>
+                </form>
+              </div>
+            </div>
+            <form method="post" class="finance-conciliation-edit-form" x-show="editing" x-cloak>
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="editar_conciliacao">
+              <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
+              <label>
+                <span>Processo de recebimento *</span>
+                <input class="form-control" type="text" name="processo_recebimento" value="{{ conciliacao.processo_recebimento }}" maxlength="255" required>
+              </label>
+              <label>
+                <span>Data previsão de recebimento *</span>
+                <input class="form-control" type="date" name="data_previsao_recebimento" value="{{ conciliacao.data_previsao_recebimento }}" required>
+              </label>
+              <button class="btn btn-primary" type="submit">Salvar alterações</button>
+            </form>
+          </section>
+          {% else %}
+          <div class="finance-conciliation-maintenance-notice">
+            Esta conciliação já possui recebimento parcial. Edição e inativação não estão disponíveis para preservar o histórico bancário.
+          </div>
+          {% endif %}
           <div class="finance-pending-meta">
             <span><small>Processo de recebimento</small><strong>{{ conciliacao.processo_recebimento }}</strong></span>
             <span><small>Data da conciliação</small><strong>{{ conciliacao.data_criacao|api_date }}</strong></span>
@@ -116,6 +153,7 @@
               </div>
               <form method="post" class="finance-pending-receipt-form" x-show="showForm" x-cloak @submit="validateBeforeSubmit($event)">
                 {% csrf_token %}
+                <input type="hidden" name="form_action" value="recebimento">
                 <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
                 <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
                 <input type="hidden" name="numero_nfse" value="{{ conciliacao.numero_nfse }}">
