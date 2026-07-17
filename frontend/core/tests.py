@@ -1038,6 +1038,16 @@ class FollowUpGlosasTests(TestCase):
             response,
             '<span class="nav-label">Núcleo Gestor de Glosas</span>',
         )
+        for hidden_menu in (
+            'Glosas',
+            'Remessas',
+            'Recursos',
+            'Recebimentos',
+        ):
+            self.assertNotContains(
+                response,
+                f'<span class="nav-label">{hidden_menu}</span>',
+            )
         css = Path(finders.find('css/app.css')).read_text()
         nav_group_rule = css.split('.nav-group-toggle {', 1)[1].split(
             '}',
