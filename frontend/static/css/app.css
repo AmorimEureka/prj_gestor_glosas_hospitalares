@@ -6436,7 +6436,22 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .finance-pending-invoice {
-  grid-template-columns: minmax(75px, 0.55fr) minmax(80px, 0.55fr) minmax(95px, 0.65fr) repeat(4, minmax(105px, 0.8fr)) minmax(145px, 1fr) minmax(145px, auto);
+  grid-template-columns: minmax(75px, 0.55fr) minmax(80px, 0.55fr) minmax(95px, 0.65fr) repeat(4, minmax(105px, 0.8fr)) minmax(145px, 1fr) minmax(210px, auto);
+}
+
+.finance-pending-invoice-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.finance-pending-invoice-actions .btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .finance-receipt-toggle {
@@ -6514,6 +6529,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .finance-pending-invoice {
     grid-template-columns: repeat(3, minmax(140px, 1fr));
   }
+
+  .finance-pending-invoice-actions {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 700px) {
@@ -6544,6 +6563,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .finance-pending-statuses {
     grid-column: auto;
+  }
+
+  .finance-pending-invoice-actions {
+    grid-column: auto;
+    justify-content: stretch;
+  }
+
+  .finance-pending-invoice-actions > .btn,
+  .finance-pending-invoice-actions .finance-inline-form,
+  .finance-pending-invoice-actions .finance-inline-form .btn {
+    flex: 1;
   }
 }
 

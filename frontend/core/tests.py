@@ -979,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-remessas-sem-recebimento-1',
+            '?v=20260717-acoes-nfse-1',
             base_template.read_text(),
         )
 
@@ -1596,7 +1596,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             'class="finance-note-card finance-pending-card"',
             count=1,
         )
-        self.assertContains(response, 'Registrar recebimento')
+        self.assertContains(response, "'Receber'")
         self.assertContains(response, 'Data do recebimento *')
         self.assertContains(response, 'Valor recebido *')
         self.assertContains(response, 'readonly aria-readonly="true"')
@@ -1613,6 +1613,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertContains(response, 'loadLancamentos()')
         self.assertNotContains(response, 'Editar conciliação')
         self.assertNotContains(response, 'Inativar conciliação')
+        self.assertNotContains(response, '>Editar</button>')
+        self.assertNotContains(response, '>Excluir</button>')
         self.assertContains(
             response,
             'Esta conciliação já possui recebimento parcial.',
@@ -1806,7 +1808,13 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             '/financeiro/conciliacoes-sem-recebimento/'
         )
 
-        self.assertContains(response, 'Editar conciliação')
+        self.assertContains(response, 'finance-pending-invoice-actions')
+        self.assertContains(response, "'Receber'")
+        self.assertContains(response, "'Editar'")
+        self.assertContains(response, '>Excluir</button>')
+        self.assertNotContains(response, 'Registrar recebimento')
+        self.assertNotContains(response, 'Editar conciliação</button>')
+        self.assertNotContains(response, 'Inativar conciliação')
         self.assertContains(response, 'Valor glosa *')
         self.assertContains(response, 'Valor recebido *', count=2)
         self.assertContains(response, 'name="valor_glosado_987"')
@@ -2040,6 +2048,7 @@ class ConciliacoesFinanceirasTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Consultar conciliações')
+        self.assertContains(response, '<span class="nav-label">Auditória</span>')
         self.assertContains(response, 'Remessa 987')
         self.assertContains(response, 'Notas fiscais vinculadas')
         self.assertContains(response, 'NF-100')
