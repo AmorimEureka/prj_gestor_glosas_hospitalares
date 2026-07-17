@@ -364,8 +364,9 @@ body.is-login-entry .app-light-reveal span {
   border: 1px solid transparent;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.7), rgba(232, 245, 248, 0.42));
   color: #173d4f;
-  font-size: 12px;
-  font-weight: 700;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
   text-transform: none;
   letter-spacing: normal;
   min-height: 34px;
