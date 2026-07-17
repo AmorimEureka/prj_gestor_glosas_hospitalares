@@ -533,6 +533,61 @@ class DashboardIndicadoresTests(TestCase):
         self.assertEqual(len(filtered), 2)
         self.assertEqual([row['convenio'] for row in filtered], ['AMIL', 'BACEN'])
 
+    def test_dashboard_soma_glosa_pendente_da_conciliacao_uma_unica_vez(self):
+        registros = [
+            {
+                'id': 1,
+                'sn_ativo': 'true',
+                'sn_glosado': 'true',
+                'conciliacao_remessa_id': 10,
+                'status_tratativa': 'pendente',
+                'valor_indicador': 40,
+                'valor_glosa_pendente': 40,
+                'data_glosa': '2026-07-10',
+                'convenio': 'Convenio A',
+                'motivo_glosa': 'Glosa da conciliacao',
+                'valor': 100,
+            },
+            {
+                'id': 2,
+                'sn_ativo': 'true',
+                'sn_glosado': 'true',
+                'conciliacao_remessa_id': 10,
+                'status_tratativa': 'pendente',
+                'valor_indicador': 0,
+                'valor_glosa_pendente': 40,
+                'data_glosa': '2026-07-10',
+                'convenio': 'Convenio A',
+                'motivo_glosa': 'Glosa da conciliacao',
+                'valor': 100,
+            },
+            {
+                'id': 3,
+                'sn_ativo': 'true',
+                'sn_glosado': 'true',
+                'processo_recurso': 'REC-1',
+                'dt_recurso': '2026-07-11',
+                'valor_indicador': 60,
+                'valor_recursado': 60,
+                'data_glosa': '2026-07-10',
+                'convenio': 'Convenio A',
+                'motivo_glosa': 'Glosa tratada',
+                'valor': 60,
+            },
+        ]
+
+        indicadores = build_dashboard_indicadores(registros)
+
+        self.assertEqual(indicadores['kpis']['total_registros'], 2)
+        self.assertEqual(indicadores['kpis']['total_glosado'], 100)
+        self.assertEqual(indicadores['kpis']['total_recursos'], 1)
+        self.assertEqual(indicadores['kpis']['total_recursos_valor'], 60)
+        self.assertEqual(indicadores['kpis']['total_glosas_sem_processo'], 1)
+        self.assertEqual(
+            indicadores['kpis']['total_glosas_sem_processo_valor'],
+            40,
+        )
+
     def test_recuperacao_exibe_todos_motivos_com_valor(self):
         rows = [
             {
