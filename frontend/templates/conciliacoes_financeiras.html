@@ -122,11 +122,16 @@
             </div>
             <ol class="finance-history-audit">
               {% for evento in remessa.auditoria %}
-              <li>
-                <span class="finance-history-audit-dot"></span>
-                <div>
-                  <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}{% if evento.vinculo_anterior %}<small class="finance-history-lineage">VÍNCULO ANTERIOR</small>{% endif %}</strong>
-                  <span>{{ evento.data_operacao|api_datetime }} · {{ evento.usuario.nome }} ({{ evento.usuario.email }})</span>
+              <li class="finance-history-event {% if evento.acao == 'criacao' or evento.acao == 'criacao_migrada' %}is-created{% elif evento.acao == 'edicao' %}is-updated{% elif evento.acao == 'inativacao' %}is-deleted{% elif evento.acao == 'recebimento' %}is-received{% else %}is-neutral{% endif %}">
+                <span class="finance-history-event-rail" aria-hidden="true">
+                  <span class="finance-history-event-node">{% if evento.acao == "criacao" or evento.acao == "criacao_migrada" %}+{% elif evento.acao == "edicao" %}~{% elif evento.acao == "inativacao" %}×{% elif evento.acao == "recebimento" %}${% else %}•{% endif %}</span>
+                </span>
+                <div class="finance-history-event-card">
+                  <div class="finance-history-event-header">
+                    <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}{% if evento.vinculo_anterior %}<small class="finance-history-lineage">VÍNCULO ANTERIOR</small>{% endif %}</strong>
+                    <small class="finance-history-event-kind">{% if evento.acao == "criacao" or evento.acao == "criacao_migrada" %}INCLUSÃO{% elif evento.acao == "edicao" %}MODIFICAÇÃO{% elif evento.acao == "inativacao" %}EXCLUSÃO{% elif evento.acao == "recebimento" %}RECEBIMENTO{% else %}EVENTO{% endif %}</small>
+                  </div>
+                  <span class="finance-history-event-meta">{{ evento.data_operacao|api_datetime }} · {{ evento.usuario.nome }} ({{ evento.usuario.email }})</span>
                   {% if evento.alteracoes %}
                   <dl class="finance-history-changes">
                     {% for alteracao in evento.alteracoes %}
