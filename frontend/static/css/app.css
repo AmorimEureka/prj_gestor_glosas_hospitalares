@@ -810,8 +810,7 @@ body.is-login-entry .app-light-reveal span {
   grid-template-columns:
     minmax(360px, 1.55fr)
     minmax(215px, 1.1fr)
-    repeat(4, minmax(145px, 1fr))
-    max-content;
+    repeat(4, minmax(145px, 1fr));
   gap: 10px;
   align-items: end;
   padding: 12px 14px;
@@ -995,6 +994,7 @@ body.is-login-entry .app-light-reveal span {
 }
 
 .indicator-filter-actions {
+  grid-column: 1 / -1;
   display: flex;
   gap: 8px;
   align-self: end;
