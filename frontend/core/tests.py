@@ -398,6 +398,22 @@ class DashboardIndicadoresTests(TestCase):
     def test_dashboard_e_acompanhamento_compartilham_cache_de_glosas(self):
         self.assertEqual(ACOMPANHAMENTO_GLOSAS_CACHE_KEY, DASHBOARD_GLOSAS_CACHE_KEY)
 
+    def test_acoes_dos_filtros_permanecem_dentro_do_painel(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            'repeat(4, minmax(145px, 1fr));',
+            css,
+        )
+        self.assertNotIn(
+            'repeat(4, minmax(145px, 1fr))\n    max-content;',
+            css,
+        )
+        self.assertIn(
+            '.indicator-filter-actions {\n  grid-column: 1 / -1;',
+            css,
+        )
+
     def test_extract_api_error_message_remove_payload_bruto_da_validacao(self):
         exc = ApiError(
             '{"detail":[{"type":"value_error","loc":["body"],'
@@ -979,7 +995,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-navbar-tipografia-1',
+            '?v=20260717-filtros-indicadores-1',
             base_template.read_text(),
         )
 
