@@ -4521,7 +4521,9 @@ def conciliacoes_financeiras(request):
         )
     contas_por_id = {}
     if any(
-        conciliacao.get("recebimentos") for conciliacao in conciliacoes
+        nota.get("recebimentos")
+        for remessa in conciliacoes
+        for nota in remessa.get("notas", [])
     ):
         try:
             contas_payload = get_cached_api_payload(
@@ -4534,36 +4536,39 @@ def conciliacoes_financeiras(request):
             }
         except ApiError:
             pass
-    for conciliacao in conciliacoes:
-        for evento in conciliacao.get("auditoria", []):
+    for remessa in conciliacoes:
+        conciliacoes_ids = {
+            nota.get("id") for nota in remessa.get("notas", [])
+        }
+        for evento in remessa.get("auditoria", []):
             evento["alteracoes"] = build_alteracoes_auditoria_conciliacao(
                 evento
             )
             evento["vinculo_anterior"] = (
-                evento.get("conciliacao_origem_id") not in (
-                    None,
-                    conciliacao.get("id"),
-                )
+                evento.get("conciliacao_origem_id") is not None
+                and evento.get("conciliacao_origem_id")
+                not in conciliacoes_ids
             )
-        for recebimento in conciliacao.get("recebimentos", []):
-            conta = contas_por_id.get(
-                str(recebimento.get("conta_bancaria_id"))
-            )
-            if conta:
-                agencia = str(conta.get("agencia") or "-")
-                if conta.get("digito_agencia"):
-                    agencia += f"-{conta['digito_agencia']}"
-                numero_conta = str(conta.get("conta") or "-")
-                if conta.get("digito"):
-                    numero_conta += f"-{conta['digito']}"
-                recebimento["conta_bancaria_label"] = (
-                    f"{conta.get('banco') or 'Banco'} · "
-                    f"Ag. {agencia} · C/C {numero_conta}"
+        for nota in remessa.get("notas", []):
+            for recebimento in nota.get("recebimentos", []):
+                conta = contas_por_id.get(
+                    str(recebimento.get("conta_bancaria_id"))
                 )
-            else:
-                recebimento["conta_bancaria_label"] = (
-                    f"Conta #{recebimento.get('conta_bancaria_id')}"
-                )
+                if conta:
+                    agencia = str(conta.get("agencia") or "-")
+                    if conta.get("digito_agencia"):
+                        agencia += f"-{conta['digito_agencia']}"
+                    numero_conta = str(conta.get("conta") or "-")
+                    if conta.get("digito"):
+                        numero_conta += f"-{conta['digito']}"
+                    recebimento["conta_bancaria_label"] = (
+                        f"{conta.get('banco') or 'Banco'} · "
+                        f"Ag. {agencia} · C/C {numero_conta}"
+                    )
+                else:
+                    recebimento["conta_bancaria_label"] = (
+                        f"Conta #{recebimento.get('conta_bancaria_id')}"
+                    )
     base_query = {
         key: value
         for key, value in filtros.items()

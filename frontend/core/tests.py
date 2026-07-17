@@ -1790,55 +1790,63 @@ class ConciliacoesFinanceirasTests(TestCase):
             {
                 'conciliacoes': [
                     {
-                        'id': 10,
-                        'numero_nfse': 'NF-100',
+                        'cd_remessa': 987,
+                        'data_competencia': '2026-06-01',
+                        'valor_remessa': '120.00',
+                        'valor_alocado_nfse': '100.00',
+                        'valor_glosado': '20.00',
                         'convenio': 'Convênio Teste',
                         'cnpj_convenio': '98765432000110',
                         'processo_recebimento': 'PROC-100',
-                        'data_previsao_recebimento': '2026-07-10',
-                        'data_recebimento': '2026-07-13',
-                        'data_criacao': '2026-07-01T10:00:00',
-                        'data_atualizacao': '2026-07-13T09:30:00',
-                        'data_inativacao': None,
-                        'valor_nfse': '100.00',
                         'ativo': True,
                         'situacao_recebimento': 'recebido',
-                        'usuario_criacao': {
-                            'id': 1,
-                            'nome': 'Ana Financeiro',
-                            'email': 'ana@teste.com',
-                        },
-                        'usuario_atualizacao': {
-                            'id': 2,
-                            'nome': 'Bruno Recebimento',
-                            'email': 'bruno@teste.com',
-                        },
-                        'usuario_inativacao': None,
-                        'remessas': [
+                        'notas': [
                             {
-                                'cd_remessa': 987,
+                                'id': 10,
+                                'numero_nfse': 'NF-100',
                                 'tipo_conciliacao': 'faturamento',
-                                'valor_remessa': '120.00',
+                                'valor_nfse': '100.00',
+                                'valor_vinculado_remessa': '120.00',
                                 'valor_alocado_nfse': '100.00',
                                 'valor_glosado': '20.00',
-                            }
-                        ],
-                        'recebimentos': [
-                            {
-                                'id': 5,
-                                'cd_remessa': 987,
+                                'data_previsao_recebimento': '2026-07-10',
                                 'data_recebimento': '2026-07-13',
-                                'valor_recebido': '100.00',
-                                'conta_bancaria_id': 7,
-                                'conta_plano_contas': '1.1.1',
-                                'conta_centro_custo': 'CC-10',
-                                'lancamento_extrato_id': 22,
-                                'data_registro': '2026-07-13T09:30:00',
-                                'usuario': {
+                                'data_criacao': '2026-07-01T10:00:00',
+                                'data_atualizacao': '2026-07-13T09:30:00',
+                                'data_inativacao': None,
+                                'ativo': True,
+                                'situacao_recebimento': 'recebido',
+                                'usuario_criacao': {
+                                    'id': 1,
+                                    'nome': 'Ana Financeiro',
+                                    'email': 'ana@teste.com',
+                                },
+                                'usuario_atualizacao': {
                                     'id': 2,
                                     'nome': 'Bruno Recebimento',
                                     'email': 'bruno@teste.com',
                                 },
+                                'usuario_inativacao': None,
+                                'recebimentos': [
+                                    {
+                                        'id': 5,
+                                        'cd_remessa': 987,
+                                        'data_recebimento': '2026-07-13',
+                                        'valor_recebido': '100.00',
+                                        'conta_bancaria_id': 7,
+                                        'conta_plano_contas': '1.1.1',
+                                        'conta_centro_custo': 'CC-10',
+                                        'lancamento_extrato_id': 22,
+                                        'data_registro': (
+                                            '2026-07-13T09:30:00'
+                                        ),
+                                        'usuario': {
+                                            'id': 2,
+                                            'nome': 'Bruno Recebimento',
+                                            'email': 'bruno@teste.com',
+                                        },
+                                    }
+                                ],
                             }
                         ],
                         'auditoria': [
@@ -1935,6 +1943,8 @@ class ConciliacoesFinanceirasTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Consultar conciliações')
+        self.assertContains(response, 'Remessa 987')
+        self.assertContains(response, 'Notas fiscais vinculadas')
         self.assertContains(response, 'NF-100')
         self.assertContains(response, 'PROC-100')
         self.assertContains(response, 'Ana Financeiro')

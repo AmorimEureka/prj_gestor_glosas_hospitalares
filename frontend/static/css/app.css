@@ -7731,7 +7731,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .finance-history-summary {
   display: grid;
-  grid-template-columns: 18px minmax(90px, 0.5fr) minmax(210px, 1.4fr) minmax(170px, 1fr) minmax(130px, 0.7fr) minmax(190px, 0.8fr);
+  grid-template-columns: 18px minmax(90px, 0.5fr) minmax(190px, 1.3fr) minmax(160px, 1fr) minmax(130px, 0.7fr) minmax(105px, 0.5fr) minmax(190px, 0.8fr);
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -7820,6 +7820,35 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border: 1px solid #d3e1e7;
   border-radius: 8px;
   background: #fff;
+}
+
+.finance-history-note-list,
+.finance-history-note,
+.finance-history-note-receipts {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-history-note {
+  padding: 10px;
+  border: 1px solid #d3e1e7;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.finance-history-note.is-inactive {
+  border-color: #e2c9c6;
+  background: #fff9f8;
+}
+
+.finance-history-note-receipts {
+  padding-top: 9px;
+  border-top: 1px solid #dce8ed;
+}
+
+.finance-history-note-receipts > strong {
+  color: #244b5d;
+  font-size: 11px;
 }
 
 .finance-history-section-title {
