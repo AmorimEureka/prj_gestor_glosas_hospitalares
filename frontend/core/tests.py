@@ -979,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-grafo-auditoria-1',
+            '?v=20260717-navbar-capitalizacao-1',
             base_template.read_text(),
         )
 
@@ -1034,7 +1034,17 @@ class FollowUpGlosasTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'NÚCLEO GESTOR DE GLOSAS')
+        self.assertContains(
+            response,
+            '<span class="nav-label">Núcleo Gestor de Glosas</span>',
+        )
+        css = Path(finders.find('css/app.css')).read_text()
+        nav_group_rule = css.split('.nav-group-toggle {', 1)[1].split(
+            '}',
+            1,
+        )[0]
+        self.assertIn('text-transform: none;', nav_group_rule)
+        self.assertNotIn('text-transform: uppercase;', nav_group_rule)
         content = response.content.decode()
         self.assertLess(
             content.index('Follow-Up de Glosas'),
