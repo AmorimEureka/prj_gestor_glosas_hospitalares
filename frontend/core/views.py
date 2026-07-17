@@ -1,5 +1,7 @@
 from calendar import monthrange
+from copy import deepcopy
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 import json
 from math import ceil, log10
 from hashlib import sha256
@@ -3235,6 +3237,99 @@ def clear_filter_caches():
     cache.clear()
 
 
+def _conciliacao_remessas_cache_context(request):
+    try:
+        page = max(int(request.GET.get("page") or 1), 1)
+    except ValueError:
+        page = 1
+    page_size = 25
+    filtro_q = (request.GET.get("q") or "").strip()
+    params = {
+        "q": filtro_q or None,
+        "limit": page_size,
+        "offset": (page - 1) * page_size,
+    }
+    cache_key = build_api_cache_key(
+        "financeiro:remessas-conciliacao",
+        f"{CONCILIACAO_FATURAMENTO_PATH}/remessas",
+        params,
+    )
+    return (
+        page,
+        page_size,
+        filtro_q,
+        params,
+        cache_key,
+        f"{cache_key}:snapshot",
+    )
+
+
+def _restore_conciliacao_remessas_cache(
+    cache_key,
+    snapshot_key,
+    cached_payload,
+    api_response,
+):
+    if not isinstance(cached_payload, dict) or not isinstance(
+        api_response,
+        dict,
+    ):
+        return
+    remessa_atualizada = api_response.get("remessa")
+    remessas_anteriores = cached_payload.get("remessas")
+    if not isinstance(remessa_atualizada, dict) or not isinstance(
+        remessas_anteriores,
+        list,
+    ):
+        return
+
+    cd_remessa = remessa_atualizada.get("cd_remessa")
+    indice = next(
+        (
+            index
+            for index, remessa in enumerate(remessas_anteriores)
+            if remessa.get("cd_remessa") == cd_remessa
+        ),
+        None,
+    )
+    if indice is None:
+        return
+
+    try:
+        saldo_anterior = Decimal(
+            str(remessas_anteriores[indice].get("valor_nao_conciliado") or 0)
+        )
+        saldo_atual = Decimal(
+            str(remessa_atualizada.get("valor_nao_conciliado") or 0)
+        )
+        saldo_total = Decimal(
+            str(cached_payload.get("valor_total_nao_conciliado") or 0)
+        )
+    except (InvalidOperation, TypeError, ValueError):
+        return
+
+    payload_atualizado = deepcopy(cached_payload)
+    remessas_atualizadas = payload_atualizado["remessas"]
+    if saldo_atual <= 0:
+        remessas_atualizadas.pop(indice)
+        payload_atualizado["total"] = max(
+            int(payload_atualizado.get("total") or 1) - 1,
+            0,
+        )
+    else:
+        remessas_atualizadas[indice] = remessa_atualizada
+    payload_atualizado["valor_total_nao_conciliado"] = format(
+        max(saldo_total - saldo_anterior + saldo_atual, Decimal("0.00")),
+        ".2f",
+    )
+    cache.set(
+        cache_key,
+        payload_atualizado,
+        getattr(settings, "APP_FILTER_CACHE_SECONDS", 45),
+    )
+    cache.set(snapshot_key, payload_atualizado, 900)
+
+
 def dashboard(request):
     prazo_sla = as_positive_int(request.GET.get("sla"), 10)
     filtros = get_dashboard_filters(request)
@@ -4214,18 +4309,35 @@ def build_alteracoes_auditoria_conciliacao(evento):
 
 @require_http_methods(["GET", "POST"])
 def conciliacao_faturamento(request):
+    (
+        page,
+        page_size,
+        filtro_q,
+        remessas_params,
+        remessas_cache_key,
+        remessas_snapshot_key,
+    ) = _conciliacao_remessas_cache_context(request)
     if request.method == "POST":
         try:
             payload = build_conciliacao_faturamento_payload(request.POST)
             cd_remessa = payload.pop("cd_remessa")
-            api_post(
+            remessas_cached_payload = cache.get(
+                remessas_cache_key
+            ) or cache.get(remessas_snapshot_key)
+            api_response = api_post(
                 f"{CONCILIACAO_FATURAMENTO_PATH}/remessas/"
                 f"{cd_remessa}/conciliar",
                 payload,
             )
             clear_filter_caches()
+            _restore_conciliacao_remessas_cache(
+                remessas_cache_key,
+                remessas_snapshot_key,
+                remessas_cached_payload,
+                api_response,
+            )
             messages.success(request, "Remessa conciliada com sucesso.")
-            return redirect("conciliacao_faturamento")
+            return redirect(request.get_full_path())
         except (ApiError, ValueError) as exc:
             if isinstance(exc, ApiError):
                 error_message = extract_api_error_message(exc)
@@ -4233,24 +4345,15 @@ def conciliacao_faturamento(request):
                 error_message = str(exc)
             messages.error(request, error_message)
 
-    try:
-        page = max(int(request.GET.get("page") or 1), 1)
-    except ValueError:
-        page = 1
-    page_size = 25
-    filtro_q = (request.GET.get("q") or "").strip()
-    offset = (page - 1) * page_size
+    offset = remessas_params["offset"]
 
     try:
         remessas_payload = get_cached_api_payload(
             "financeiro:remessas-conciliacao",
             f"{CONCILIACAO_FATURAMENTO_PATH}/remessas",
-            params={
-                "q": filtro_q or None,
-                "limit": page_size,
-                "offset": offset,
-            },
+            params=remessas_params,
         )
+        cache.set(remessas_snapshot_key, deepcopy(remessas_payload), 900)
         remessas = remessas_payload.get("remessas", [])
         total_remessas = int(
             remessas_payload.get("total", len(remessas))

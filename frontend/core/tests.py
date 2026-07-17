@@ -979,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-historico-conciliacoes-3',
+            '?v=20260717-remessas-sem-recebimento-1',
             base_template.read_text(),
         )
 
@@ -1419,6 +1419,74 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertEqual(paths.count(CONCILIACAO_FATURAMENTO_PATH + '/remessas'), 1)
         self.assertEqual(paths.count('/app_glosas/financeiro/contas-bancarias'), 1)
 
+    @patch('core.views.api_post')
+    @patch('core.views.api_get')
+    def test_atualiza_card_em_cache_apos_conciliar(
+        self,
+        api_get,
+        api_post,
+    ):
+        api_get.side_effect = lambda path, params=None: (
+            {
+                'remessas': [
+                    {
+                        'cd_remessa': 987,
+                        'valor_nao_conciliado': '100.00',
+                    }
+                ],
+                'total': 1,
+                'valor_total_nao_conciliado': '100.00',
+                'limit': 25,
+                'offset': 0,
+            }
+            if path.endswith('/remessas')
+            else {'contas': []}
+        )
+        url = (
+            '/financeiro/conciliacao-fiscal-faturamento/'
+            '?q=987&page=1'
+        )
+        self.client.get(url)
+        api_get.reset_mock()
+        api_post.return_value = {
+            'cd_remessa': 987,
+            'valor_nao_conciliado': '0.00',
+            'remessa': {
+                'cd_remessa': 987,
+                'valor_nao_conciliado': '0.00',
+            },
+        }
+
+        response = self.client.post(
+            url,
+            {
+                'cd_remessa': '987',
+                'processo_recebimento': 'PROC-987',
+                'notas_json': (
+                    '[{"nfse_row_hash": "hash-1", '
+                    '"valor_bruto_remessa": "100.00", '
+                    '"sn_glosado": false, "valor_glosado": "0.00", '
+                    '"data_previsao_recebimento": "2026-08-10"}]'
+                ),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            url,
+            fetch_redirect_response=False,
+        )
+        refreshed = self.client.get(url)
+        remessas_paths = [
+            call.args[0]
+            for call in api_get.call_args_list
+            if call.args[0].endswith('/remessas')
+        ]
+        self.assertEqual(remessas_paths, [])
+        self.assertEqual(refreshed.context['remessas'], [])
+        self.assertEqual(refreshed.context['total_remessas'], 0)
+        self.assertEqual(refreshed.context['valor_total_pendente'], '0.00')
+
 
 class ConciliacoesSemRecebimentoTests(TestCase):
     def setUp(self):
@@ -1438,32 +1506,48 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         conciliacoes_payload = {
             'conciliacoes': [
                 {
-                    'id': 10,
-                    'numero_nfse': 'NF-100',
+                    'cd_remessa': 987,
                     'convenio': 'Convênio Teste',
                     'cnpj_convenio': '98765432000110',
                     'processo_recebimento': 'PROC-100',
-                    'data_previsao_recebimento': '2026-07-10',
-                    'data_criacao': '2026-07-01T10:00:00',
-                    'valor_nfse': '100.00',
-                    'quantidade_remessas': 2,
-                    'quantidade_remessas_sem_recebimento': 1,
-                    'valor_total_remessas': '140.00',
+                    'data_competencia': '2026-07-01',
+                    'valor_remessa': '140.00',
+                    'quantidade_nfses_sem_recebimento': 2,
                     'valor_total_glosas': '20.00',
-                    'valor_previsto_recebimento': '120.00',
                     'valor_recebido': '20.00',
                     'valor_pendente': '100.00',
                     'situacao': 'recebimento_parcial',
                     'em_atraso': True,
                     'dias_em_atraso': 3,
-                    'remessas': [
+                    'notas': [
                         {
-                            'cd_remessa': 987,
+                            'id': 10,
+                            'numero_nfse': 'NF-100',
                             'tp_conciliacao': 'faturamento',
-                            'valor_remessa': '120.00',
+                            'data_previsao_recebimento': '2026-07-10',
+                            'data_criacao': '2026-07-01T10:00:00',
+                            'valor_nfse': '100.00',
+                            'valor_vinculado_remessa': '80.00',
                             'valor_glosado': '20.00',
-                            'valor_pendente': '100.00',
-                        }
+                            'valor_pendente': '60.00',
+                            'situacao': 'recebimento_parcial',
+                            'em_atraso': True,
+                            'dias_em_atraso': 3,
+                        },
+                        {
+                            'id': 11,
+                            'numero_nfse': 'NF-101',
+                            'tp_conciliacao': 'faturamento',
+                            'data_previsao_recebimento': '2026-07-11',
+                            'data_criacao': '2026-07-02T10:00:00',
+                            'valor_nfse': '40.00',
+                            'valor_vinculado_remessa': '40.00',
+                            'valor_glosado': '0.00',
+                            'valor_pendente': '40.00',
+                            'situacao': 'recebimento_parcial',
+                            'em_atraso': True,
+                            'dias_em_atraso': 2,
+                        },
                     ],
                 }
             ],
@@ -1494,17 +1578,24 @@ class ConciliacoesSemRecebimentoTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Conciliações sem recebimento')
-        self.assertContains(response, '<span>TOTAL CONCILIAÇÕES</span>')
-        self.assertContains(response, '<span>REMESSAS SEM RECEBIMENTO</span>')
+        self.assertContains(response, '<span>REMESSAS PENDENTES</span>')
         self.assertContains(response, '<span>VALOR PENDENTE</span>')
         self.assertContains(response, 'NF-100')
+        self.assertContains(response, 'NF-101')
         self.assertContains(response, 'Convênio Teste')
         self.assertContains(response, 'PROC-100')
         self.assertContains(response, 'RECEBIMENTO PARCIAL')
         self.assertContains(response, 'EM ATRASO · 3 DIAS')
-        self.assertContains(response, '<small>REMESSA</small>')
+        self.assertContains(response, '<small>Remessa</small>')
         self.assertContains(response, '<strong>987</strong>')
+        self.assertContains(response, '<small>NFS-e pendentes</small>')
+        self.assertContains(response, '<strong>2</strong>')
         self.assertContains(response, 'R$ 100,00')
+        self.assertContains(
+            response,
+            'class="finance-note-card finance-pending-card"',
+            count=1,
+        )
         self.assertContains(response, 'Registrar recebimento')
         self.assertContains(response, 'Data do recebimento *')
         self.assertContains(response, 'Valor recebido *')
@@ -1541,7 +1632,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         conciliacoes_payload = {
             'conciliacoes': [],
             'total': 250,
-            'total_remessas_sem_recebimento': 300,
+            'total_remessas_sem_recebimento': 250,
             'valor_total_pendente': '5000.00',
             'limit': 25,
             'offset': 25,
@@ -1672,27 +1763,33 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             {
                 'conciliacoes': [
                     {
-                        'id': 10,
-                        'numero_nfse': 'NF-100',
+                        'cd_remessa': 987,
                         'convenio': 'Convênio Teste',
                         'cnpj_convenio': '98765432000110',
                         'processo_recebimento': 'PROC-100',
-                        'data_previsao_recebimento': '2026-08-15',
-                        'data_criacao': '2026-07-01T10:00:00',
-                        'valor_nfse': '100.00',
-                        'valor_total_remessas': '100.00',
+                        'data_competencia': '2026-07-01',
+                        'valor_remessa': '100.00',
+                        'quantidade_nfses_sem_recebimento': 1,
                         'valor_total_glosas': '10.00',
                         'valor_recebido': '0.00',
                         'valor_pendente': '90.00',
                         'situacao': 'sem_recebimento',
                         'em_atraso': False,
-                        'remessas': [
+                        'dias_em_atraso': 0,
+                        'notas': [
                             {
-                                'cd_remessa': 987,
+                                'id': 10,
+                                'numero_nfse': 'NF-100',
                                 'tp_conciliacao': 'faturamento',
-                                'valor_remessa': '100.00',
+                                'data_previsao_recebimento': '2026-08-15',
+                                'data_criacao': '2026-07-01T10:00:00',
+                                'valor_nfse': '100.00',
+                                'valor_vinculado_remessa': '100.00',
                                 'valor_glosado': '10.00',
                                 'valor_pendente': '90.00',
+                                'situacao': 'sem_recebimento',
+                                'em_atraso': False,
+                                'dias_em_atraso': 0,
                             }
                         ],
                     }

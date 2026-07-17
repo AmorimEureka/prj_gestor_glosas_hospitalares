@@ -6280,7 +6280,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 /* Financeiro · Conciliações sem recebimento */
 .finance-pending-summary {
   display: grid;
-  grid-template-columns: 18px minmax(100px, 0.7fr) minmax(210px, 1.7fr) minmax(125px, 0.9fr) minmax(110px, 0.7fr) minmax(135px, 0.9fr) minmax(175px, 1fr);
+  grid-template-columns: 18px minmax(85px, 0.55fr) minmax(105px, 0.7fr) minmax(180px, 1.4fr) minmax(90px, 0.55fr) repeat(2, minmax(125px, 0.85fr)) minmax(175px, 1fr);
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -6430,6 +6430,15 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-radius: 0;
 }
 
+.finance-pending-remittance-wrap .finance-conciliation-maintenance,
+.finance-pending-remittance-wrap .finance-conciliation-maintenance-notice {
+  margin: 0 10px 10px;
+}
+
+.finance-pending-invoice {
+  grid-template-columns: minmax(75px, 0.55fr) minmax(80px, 0.55fr) minmax(95px, 0.65fr) repeat(4, minmax(105px, 0.8fr)) minmax(145px, 1fr) minmax(145px, auto);
+}
+
 .finance-receipt-toggle {
   min-height: 34px;
   padding: 6px 10px;
@@ -6500,6 +6509,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .finance-pending-values,
   .finance-pending-receipt-form {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .finance-pending-invoice {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
   }
 }
 

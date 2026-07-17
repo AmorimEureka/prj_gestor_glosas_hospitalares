@@ -19,18 +19,14 @@
     <div class="panel-header">
       <div class="results-heading finance-list-heading">
         <div>
-          <span class="panel-title">NFS-e conciliadas sem recebimento bancário</span>
-          <span class="results-subtitle">Cada NFS-e sai da fila quando sua data e seus dados bancários são informados.</span>
+          <span class="panel-title">Remessas conciliadas sem recebimento bancário</span>
+          <span class="results-subtitle">Cada remessa reúne as NFS-e pendentes até que seus recebimentos bancários sejam informados.</span>
         </div>
       </div>
       <div class="results-toolbar finance-results-toolbar">
         <div class="results-totals">
           <span class="result-total">
-            <span>TOTAL CONCILIAÇÕES</span>
-            <strong>{{ total_conciliacoes }}</strong>
-          </span>
-          <span class="result-total">
-            <span>REMESSAS SEM RECEBIMENTO</span>
+            <span>REMESSAS PENDENTES</span>
             <strong>{{ total_remessas_sem_recebimento }}</strong>
           </span>
           <span class="result-total result-total--value">
@@ -68,115 +64,114 @@
     </div>
 
     <div class="finance-note-list">
-      {% for conciliacao in conciliacoes %}
+      {% for remessa in conciliacoes %}
       <article class="finance-note-card finance-pending-card" x-data="{ open: false }" :class="{ 'is-open': open }">
         <button type="button" class="finance-pending-summary" @click="open = !open" :aria-expanded="open">
           <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
-          <span><small>NFS-e</small><strong>{{ conciliacao.numero_nfse }}</strong></span>
-          <span><small>Convênio</small><strong>{{ conciliacao.convenio }}</strong></span>
-          <span><small>Previsão</small><strong>{{ conciliacao.data_previsao_recebimento|api_date }}</strong></span>
-          <span><small>Remessa</small><strong>{% for remessa in conciliacao.remessas %}{{ remessa.cd_remessa }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong></span>
-          <span><small>Valor pendente</small><strong>R$ {{ conciliacao.valor_pendente|br_currency }}</strong></span>
+          <span><small>Remessa</small><strong>{{ remessa.cd_remessa }}</strong></span>
+          <span><small>Competência</small><strong>{{ remessa.data_competencia|api_date }}</strong></span>
+          <span><small>Convênio</small><strong>{{ remessa.convenio }}</strong></span>
+          <span><small>NFS-e pendentes</small><strong>{{ remessa.quantidade_nfses_sem_recebimento }}</strong></span>
+          <span><small>Valor remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
+          <span><small>Valor pendente</small><strong>R$ {{ remessa.valor_pendente|br_currency }}</strong></span>
           <span class="finance-pending-statuses">
-            {% if conciliacao.situacao == "recebimento_parcial" %}
+            {% if remessa.situacao == "recebimento_parcial" %}
               <span class="finance-pending-status is-partial">RECEBIMENTO PARCIAL</span>
             {% else %}
               <span class="finance-pending-status">SEM RECEBIMENTO</span>
             {% endif %}
-            {% if conciliacao.em_atraso %}
-              <span class="finance-pending-status is-overdue">EM ATRASO · {{ conciliacao.dias_em_atraso }} DIA{{ conciliacao.dias_em_atraso|pluralize:"S" }}</span>
+            {% if remessa.em_atraso %}
+              <span class="finance-pending-status is-overdue">EM ATRASO · {{ remessa.dias_em_atraso }} DIA{{ remessa.dias_em_atraso|pluralize:"S" }}</span>
             {% endif %}
           </span>
         </button>
 
         <div class="finance-pending-details" x-show="open" x-cloak>
-          {% if conciliacao.situacao == "sem_recebimento" %}
-          <section class="finance-conciliation-maintenance" x-data="{ editing: false }">
-            <div class="finance-conciliation-maintenance-actions">
-              <div>
-                <strong>Manutenção da conciliação</strong>
-                <span>Disponível somente enquanto não houver recebimento bancário.</span>
-              </div>
-              <div>
-                <button class="btn btn-outline-secondary" type="button" @click="editing = !editing" x-text="editing ? 'Cancelar edição' : 'Editar conciliação'"></button>
-                <form method="post" class="finance-inline-form" onsubmit="return window.confirm('Confirma a inativação desta conciliação? Os saldos serão liberados para uma nova conciliação.');">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="inativar_conciliacao">
-                  <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
-                  <button class="btn finance-danger-button" type="submit">Inativar conciliação</button>
-                </form>
-              </div>
-            </div>
-            <form method="post" class="finance-conciliation-edit-form" x-show="editing" x-cloak>
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="editar_conciliacao">
-              <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
-              <label>
-                <span>Processo de recebimento *</span>
-                <input class="form-control" type="text" name="processo_recebimento" value="{{ conciliacao.processo_recebimento }}" maxlength="255" required>
-              </label>
-              <label>
-                <span>Data previsão de recebimento *</span>
-                <input class="form-control" type="date" name="data_previsao_recebimento" value="{{ conciliacao.data_previsao_recebimento }}" required>
-              </label>
-              <div class="finance-conciliation-edit-values">
-                <div>
-                  <strong>Valores por remessa</strong>
-                  <span>O valor recebido corresponde ao valor líquido vinculado à NFS-e.</span>
-                </div>
-                {% for remessa in conciliacao.remessas %}
-                <div class="finance-conciliation-edit-remittance">
-                  <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
-                  <span class="finance-conciliation-edit-code"><small>REMESSA</small><strong>{{ remessa.cd_remessa }}</strong></span>
-                  <label>
-                    <span>Valor glosa *</span>
-                    <input class="form-control finance-money-input" type="text" name="valor_glosado_{{ remessa.cd_remessa }}" value="R$ {{ remessa.valor_glosado|br_currency }}" inputmode="numeric" required>
-                  </label>
-                  <label>
-                    <span>Valor recebido *</span>
-                    <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ remessa.valor_pendente|br_currency }}" inputmode="numeric" required>
-                  </label>
-                </div>
-                {% endfor %}
-              </div>
-              <button class="btn btn-primary" type="submit">Salvar alterações</button>
-            </form>
-          </section>
-          {% else %}
-          <div class="finance-conciliation-maintenance-notice">
-            Esta conciliação já possui recebimento parcial. Edição e inativação não estão disponíveis para preservar o histórico bancário.
-          </div>
-          {% endif %}
           <div class="finance-pending-meta">
-            <span><small>Processo de recebimento</small><strong>{{ conciliacao.processo_recebimento }}</strong></span>
-            <span><small>Data da conciliação</small><strong>{{ conciliacao.data_criacao|api_date }}</strong></span>
-            <span><small>CNPJ do convênio</small><strong>{{ conciliacao.cnpj_convenio }}</strong></span>
-            <span><small>Valor NFS-e</small><strong>R$ {{ conciliacao.valor_nfse|br_currency }}</strong></span>
-          </div>
-          <div class="finance-pending-values">
-            <span class="finance-pending-value"><small>Total remessas</small><strong>R$ {{ conciliacao.valor_total_remessas|br_currency }}</strong></span>
-            <span class="finance-pending-value"><small>Total glosas</small><strong>R$ {{ conciliacao.valor_total_glosas|br_currency }}</strong></span>
-            <span class="finance-pending-value"><small>Valor recebido</small><strong>R$ {{ conciliacao.valor_recebido|br_currency }}</strong></span>
-            <span class="finance-pending-value is-pending"><small>Valor pendente</small><strong>R$ {{ conciliacao.valor_pendente|br_currency }}</strong></span>
+            <span><small>Processo de recebimento</small><strong>{{ remessa.processo_recebimento }}</strong></span>
+            <span><small>CNPJ do convênio</small><strong>{{ remessa.cnpj_convenio }}</strong></span>
+            <span><small>Total de glosas</small><strong>R$ {{ remessa.valor_total_glosas|br_currency }}</strong></span>
+            <span><small>Valor já recebido</small><strong>R$ {{ remessa.valor_recebido|br_currency }}</strong></span>
           </div>
           <div class="finance-pending-remittances">
-            <strong>NFS-e vinculada à remessa sem recebimento bancário</strong>
-            {% for remessa in conciliacao.remessas %}
-            <section class="finance-pending-remittance-wrap" x-data="recebimentoPendenteForm('{{ remessa.valor_pendente|escapejs }}')">
-              <div class="finance-pending-remittance">
-                <span><small>REMESSA</small><strong>{{ remessa.cd_remessa }}</strong></span>
-                <span><small>TIPO</small><strong>{% if remessa.tp_conciliacao == "recurso" %}RECURSO{% else %}FATURAMENTO{% endif %}</strong></span>
-                <span><small>VALOR REMESSA</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
-                <span><small>VALOR GLOSA</small><strong>R$ {{ remessa.valor_glosado|br_currency }}</strong></span>
-                <span><small>VALOR PENDENTE</small><strong>R$ {{ remessa.valor_pendente|br_currency }}</strong></span>
+            <strong>NFS-e pendentes de recebimento nesta remessa</strong>
+            {% for nota in remessa.notas %}
+            <section class="finance-pending-remittance-wrap" x-data="recebimentoPendenteForm('{{ nota.valor_pendente|escapejs }}')">
+              <div class="finance-pending-remittance finance-pending-invoice">
+                <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
+                <span><small>Tipo</small><strong>{% if nota.tp_conciliacao == "recurso" %}RECURSO{% else %}FATURAMENTO{% endif %}</strong></span>
+                <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
+                <span><small>Valor NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
+                <span><small>Valor vinculado</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
+                <span><small>Valor glosa</small><strong>R$ {{ nota.valor_glosado|br_currency }}</strong></span>
+                <span><small>Valor pendente</small><strong>R$ {{ nota.valor_pendente|br_currency }}</strong></span>
+                <span class="finance-pending-statuses">
+                  {% if nota.situacao == "recebimento_parcial" %}<span class="finance-pending-status is-partial">PARCIAL</span>{% else %}<span class="finance-pending-status">PENDENTE</span>{% endif %}
+                  {% if nota.em_atraso %}<span class="finance-pending-status is-overdue">{{ nota.dias_em_atraso }} DIA{{ nota.dias_em_atraso|pluralize:"S" }} EM ATRASO</span>{% endif %}
+                </span>
                 <button class="btn btn-primary finance-receipt-toggle" type="button" @click="showForm = !showForm" x-text="showForm ? 'Cancelar' : 'Registrar recebimento'"></button>
               </div>
+              {% if nota.situacao == "sem_recebimento" %}
+              <section class="finance-conciliation-maintenance" x-data="{ editing: false }">
+                <div class="finance-conciliation-maintenance-actions">
+                  <div>
+                    <strong>Manutenção da conciliação da NFS-e {{ nota.numero_nfse }}</strong>
+                    <span>Disponível somente enquanto não houver recebimento bancário.</span>
+                  </div>
+                  <div>
+                    <button class="btn btn-outline-secondary" type="button" @click="editing = !editing" x-text="editing ? 'Cancelar edição' : 'Editar conciliação'"></button>
+                    <form method="post" class="finance-inline-form" onsubmit="return window.confirm('Confirma a inativação desta conciliação? Os saldos serão liberados para uma nova conciliação.');">
+                      {% csrf_token %}
+                      <input type="hidden" name="form_action" value="inativar_conciliacao">
+                      <input type="hidden" name="conciliacao_id" value="{{ nota.id }}">
+                      <button class="btn finance-danger-button" type="submit">Inativar conciliação</button>
+                    </form>
+                  </div>
+                </div>
+                <form method="post" class="finance-conciliation-edit-form" x-show="editing" x-cloak>
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="editar_conciliacao">
+                  <input type="hidden" name="conciliacao_id" value="{{ nota.id }}">
+                  <label>
+                    <span>Processo de recebimento *</span>
+                    <input class="form-control" type="text" name="processo_recebimento" value="{{ remessa.processo_recebimento }}" maxlength="255" required>
+                  </label>
+                  <label>
+                    <span>Data previsão de recebimento *</span>
+                    <input class="form-control" type="date" name="data_previsao_recebimento" value="{{ nota.data_previsao_recebimento }}" required>
+                  </label>
+                  <div class="finance-conciliation-edit-values">
+                    <div>
+                      <strong>Valores da remessa nesta NFS-e</strong>
+                      <span>O valor recebido corresponde ao valor líquido vinculado à nota.</span>
+                    </div>
+                    <div class="finance-conciliation-edit-remittance">
+                      <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
+                      <span class="finance-conciliation-edit-code"><small>REMESSA</small><strong>{{ remessa.cd_remessa }}</strong></span>
+                      <label>
+                        <span>Valor glosa *</span>
+                        <input class="form-control finance-money-input" type="text" name="valor_glosado_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_glosado|br_currency }}" inputmode="numeric" required>
+                      </label>
+                      <label>
+                        <span>Valor recebido *</span>
+                        <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_pendente|br_currency }}" inputmode="numeric" required>
+                      </label>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Salvar alterações</button>
+                </form>
+              </section>
+              {% else %}
+              <div class="finance-conciliation-maintenance-notice">
+                Esta conciliação já possui recebimento parcial. Edição e inativação não estão disponíveis para preservar o histórico bancário.
+              </div>
+              {% endif %}
               <form method="post" class="finance-pending-receipt-form" x-show="showForm" x-cloak @submit="validateBeforeSubmit($event)">
                 {% csrf_token %}
                 <input type="hidden" name="form_action" value="recebimento">
-                <input type="hidden" name="conciliacao_id" value="{{ conciliacao.id }}">
+                <input type="hidden" name="conciliacao_id" value="{{ nota.id }}">
                 <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
-                <input type="hidden" name="numero_nfse" value="{{ conciliacao.numero_nfse }}">
+                <input type="hidden" name="numero_nfse" value="{{ nota.numero_nfse }}">
                 <label>
                   <span>Data do recebimento *</span>
                   <input class="form-control" type="date" name="data_recebimento" x-model="dataRecebimento" @change="receiptDataChanged" required>
@@ -224,8 +219,8 @@
       </article>
       {% empty %}
       <div class="finance-empty-state">
-        <strong>Nenhuma conciliação com recebimento pendente.</strong>
-        <span>As conciliações deixam esta fila quando todas as remessas com valor a receber possuem o recebimento exato registrado.</span>
+        <strong>Nenhuma remessa com recebimento pendente.</strong>
+        <span>As remessas deixam esta fila quando todas as NFS-e vinculadas possuem o recebimento exato registrado.</span>
       </div>
       {% endfor %}
     </div>
