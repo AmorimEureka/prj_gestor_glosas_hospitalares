@@ -979,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-acoes-nfse-1',
+            '?v=20260717-grafo-auditoria-1',
             base_template.read_text(),
         )
 
@@ -2012,6 +2012,17 @@ class ConciliacoesFinanceirasTests(TestCase):
                                 },
                                 'data_operacao': '2026-07-13T09:30:00',
                             },
+                            {
+                                'id': 4,
+                                'conciliacao_origem_id': 9,
+                                'acao': 'inativacao',
+                                'usuario': {
+                                    'id': 1,
+                                    'nome': 'Ana Financeiro',
+                                    'email': 'ana@teste.com',
+                                },
+                                'data_operacao': '2026-07-14T11:00:00',
+                            },
                         ],
                     }
                 ],
@@ -2059,6 +2070,15 @@ class ConciliacoesFinanceirasTests(TestCase):
         self.assertContains(response, 'Conciliação criada')
         self.assertContains(response, 'Conciliação editada')
         self.assertContains(response, 'Recebimento registrado')
+        self.assertContains(response, 'Conciliação inativada')
+        self.assertContains(response, 'finance-history-event is-created')
+        self.assertContains(response, 'finance-history-event is-updated')
+        self.assertContains(response, 'finance-history-event is-received')
+        self.assertContains(response, 'finance-history-event is-deleted')
+        self.assertContains(response, '>INCLUSÃO</small>')
+        self.assertContains(response, '>MODIFICAÇÃO</small>')
+        self.assertContains(response, '>RECEBIMENTO</small>')
+        self.assertContains(response, '>EXCLUSÃO</small>')
         self.assertContains(response, 'VÍNCULO ANTERIOR')
         self.assertContains(response, 'Valor recebido · remessa 987')
         self.assertContains(response, 'R$ 90,00')
