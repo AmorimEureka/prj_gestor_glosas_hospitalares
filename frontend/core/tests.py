@@ -979,7 +979,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-navbar-capitalizacao-1',
+            '?v=20260717-navbar-tipografia-1',
             base_template.read_text(),
         )
 
@@ -1055,6 +1055,9 @@ class FollowUpGlosasTests(TestCase):
         )[0]
         self.assertIn('text-transform: none;', nav_group_rule)
         self.assertNotIn('text-transform: uppercase;', nav_group_rule)
+        self.assertIn('font-family: inherit;', nav_group_rule)
+        self.assertIn('font-size: inherit;', nav_group_rule)
+        self.assertIn('font-weight: 400;', nav_group_rule)
         content = response.content.decode()
         self.assertLess(
             content.index('Follow-Up de Glosas'),
