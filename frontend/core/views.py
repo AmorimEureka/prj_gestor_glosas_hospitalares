@@ -1259,6 +1259,17 @@ def has_internal_treatment(registro):
     return bool(registro.get("processo_recurso") and registro.get("dt_recurso"))
 
 
+def is_pending_conciliation_registro(registro):
+    valor_pendente = registro.get("valor_indicador")
+    if valor_pendente in (None, ""):
+        valor_pendente = registro.get("valor_glosa_pendente")
+    return bool(
+        registro.get("conciliacao_remessa_id")
+        and not has_internal_treatment(registro)
+        and as_float_or_zero(valor_pendente) > 0
+    )
+
+
 def is_acato_registro(registro):
     return normalize_flag(registro.get("sn_glosado")) in {
         "not",
@@ -1312,7 +1323,9 @@ def is_recebimento_parcial_registro(registro):
 
 def registro_valor_glosado(registro):
     return as_float_or_zero(
-        registro.get("valor_recursado")
+        registro.get("valor_indicador")
+        if registro.get("valor_indicador") not in (None, "")
+        else registro.get("valor_recursado")
         if registro.get("valor_recursado") not in (None, "")
         else registro.get("valor_glosado")
         if registro.get("valor_glosado") not in (None, "")
@@ -2161,8 +2174,18 @@ def build_geral_indicators(rows, period_start=None, period_end=None):
         convenio = registro.get("convenio") or "Não informado"
         fatura = as_float_or_zero(registro.get("valor"))
         glosa = registro_valor_glosado(registro)
-        recursado = glosa if is_recurso_registro(registro) else 0
-        acato = glosa if is_acato_registro(registro) else 0
+        recursado = (
+            glosa
+            if has_internal_treatment(registro)
+            and is_recurso_registro(registro)
+            else 0
+        )
+        acato = (
+            glosa
+            if has_internal_treatment(registro)
+            and is_acato_registro(registro)
+            else 0
+        )
         recuperado = (
             as_float_or_zero(registro.get("valor_recebido"))
             if is_recebido_registro(registro)
@@ -2537,6 +2560,8 @@ def registro_tem_prazo_parametrizado(registro, prazos_lookup):
 
 
 def tipo_tratativa_registro(registro):
+    if is_pending_conciliation_registro(registro):
+        return "Pendente"
     if is_recurso_registro(registro):
         return "Recurso"
     if is_acato_registro(registro):
@@ -2810,14 +2835,27 @@ def build_dashboard_indicadores(
         for registro in registros
         if (
             is_active_registro(registro)
-            and has_internal_treatment(registro)
+            and (
+                has_internal_treatment(registro)
+                or is_pending_conciliation_registro(registro)
+            )
             and is_enabled_convenio_registro(registro, convenios_desabilitados)
         )
     ]
     aging_view = build_vw_indicadores_aging_glosas(rows, prazos_lookup)
     aging_indicators = build_aging_indicators(aging_view, period_start, period_end)
-    recursos = [registro for registro in rows if is_recurso_registro(registro)]
-    acatos = [registro for registro in rows if is_acato_registro(registro)]
+    recursos = [
+        registro
+        for registro in rows
+        if has_internal_treatment(registro)
+        and is_recurso_registro(registro)
+    ]
+    acatos = [
+        registro
+        for registro in rows
+        if has_internal_treatment(registro)
+        and is_acato_registro(registro)
+    ]
     total_glosado = sum(registro_valor_glosado(registro) for registro in rows)
     total_recursos_valor = sum(
         registro_valor_glosado(registro) for registro in recursos
@@ -2837,8 +2875,8 @@ def build_dashboard_indicadores(
     ]
     glosas_sem_processo = [
         registro
-        for registro in recursos
-        if not registro.get("processo_recurso") or not registro.get("dt_recurso")
+        for registro in rows
+        if is_pending_conciliation_registro(registro)
     ]
     total_glosas_sem_processo_valor = sum(
         registro_valor_glosado(registro) for registro in glosas_sem_processo
@@ -2898,9 +2936,9 @@ def build_dashboard_indicadores(
         )
         current["count"] += 1
         current["value"] += registro_valor_glosado(registro)
-        if is_recurso_registro(registro):
+        if has_internal_treatment(registro) and is_recurso_registro(registro):
             current["recursos"] += 1
-        elif is_acato_registro(registro):
+        elif has_internal_treatment(registro) and is_acato_registro(registro):
             current["acatos"] += 1
 
     volume_mensal = [
@@ -3102,9 +3140,15 @@ def apply_dashboard_filters(registros, filters):
             and normalize_lookup_text(registro.get("motivo_glosa")) not in motivos_glosa
         ):
             continue
-        if tratativa == "recurso" and not is_recurso_registro(registro):
+        if tratativa == "recurso" and not (
+            has_internal_treatment(registro)
+            and is_recurso_registro(registro)
+        ):
             continue
-        if tratativa == "acato" and not is_acato_registro(registro):
+        if tratativa == "acato" and not (
+            has_internal_treatment(registro)
+            and is_acato_registro(registro)
+        ):
             continue
         filtered.append(registro)
 
