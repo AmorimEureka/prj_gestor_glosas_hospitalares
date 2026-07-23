@@ -1085,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260723-workflow-nfse-22',
+            '?v=20260723-solicitacao-valores-23',
             base_template.read_text(),
         )
 
@@ -2846,15 +2846,25 @@ class CadastrarNotaTests(TestCase):
             'id': 7,
             'local': 'Clinica 1',
             'procedimento': 'Consulta cardiológica',
+            'valor_nota': '60.75',
             'usuario_id': 4,
+            'cadastrado_por': 'Amoras',
             'data_criacao': '2026-07-23T14:30:00',
             'workflow_id': 9,
             'status': status,
-            'validacao': None,
+            'validacao': (
+                status if status in {'VALIDADA', 'RECUSADA'} else None
+            ),
             'motivo_recusa': None,
-            'validado_por_id': None,
-            'validado_por': None,
-            'validado_em': None,
+            'validado_por_id': 4 if status != 'PENDENTE_VALIDACAO' else None,
+            'validado_por': (
+                'Amoras' if status != 'PENDENTE_VALIDACAO' else None
+            ),
+            'validado_em': (
+                '2026-07-23T15:00:00'
+                if status != 'PENDENTE_VALIDACAO'
+                else None
+            ),
             'workflow_atualizado_em': '2026-07-23T14:30:00',
         }
 
@@ -2895,6 +2905,7 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Convênio')
         self.assertContains(response, 'Telefone / Celular')
         self.assertContains(response, 'Tipo atendimento')
+        self.assertContains(response, 'Valor da nota')
         self.assertContains(response, 'Clínica 1')
         self.assertContains(response, 'Clínica 2')
         self.assertContains(response, 'Emergência')
@@ -2957,6 +2968,7 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(pagina.status_code, 200)
         self.assertContains(pagina, 'MARIA DA SILVA')
         self.assertContains(pagina, 'CONVÊNIO TESTE')
+        self.assertContains(pagina, 'name="valor_nota"')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/atendimentos/123456'
         )
@@ -2968,6 +2980,8 @@ class CadastrarNotaTests(TestCase):
             'id': 1,
             'local': 'Clinica 1',
             'procedimento': 'Consulta cardiológica',
+            'valor_nota': '60.75',
+            'cadastrado_por': 'Amoras',
         }
 
         response = self.client.post(
@@ -2976,6 +2990,7 @@ class CadastrarNotaTests(TestCase):
                 'codigo_atendimento': '123456',
                 'local': 'Clinica 1',
                 'procedimento': 'Consulta cardiológica',
+                'valor_nota': 'R$ 60,75',
             },
             follow=True,
         )
@@ -2991,8 +3006,36 @@ class CadastrarNotaTests(TestCase):
                 'codigo_atendimento': 123456,
                 'local': 'Clinica 1',
                 'procedimento': 'Consulta cardiológica',
+                'valor_nota': '60.75',
             },
         )
+
+    @patch('core.views.get_cached_atendimento_nota')
+    @patch('core.views.api_post')
+    def test_cadastro_exige_valor_informado_pelo_usuario(
+        self,
+        api_post,
+        get_cached_atendimento,
+    ):
+        get_cached_atendimento.return_value = self.atendimento_payload()
+
+        response = self.client.post(
+            '/requisicao/solicitacao-nota/',
+            {
+                'codigo_atendimento': '123456',
+                'local': 'Clinica 1',
+                'procedimento': 'Consulta cardiológica',
+                'valor_nota': '',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Informe um valor da nota maior que zero.',
+        )
+        api_post.assert_not_called()
 
     @patch('core.views.api_get')
     def test_lista_exibe_expansao_e_paginacao_no_padrao_triagem(
@@ -3004,7 +3047,9 @@ class CadastrarNotaTests(TestCase):
             'id': 7,
             'local': 'Clinica 1',
             'procedimento': 'Consulta cardiológica',
+            'valor_nota': '60.75',
             'usuario_id': 4,
+            'cadastrado_por': 'Amoras',
             'data_criacao': '2026-07-23T14:30:00',
         }
         api_get.return_value = self.lista_payload(
@@ -3025,6 +3070,8 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Atendimento')
         self.assertContains(response, '123456')
         self.assertContains(response, 'Consulta cardiológica')
+        self.assertContains(response, 'R$ 60,75')
+        self.assertContains(response, 'Amoras')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {'limit': 10, 'offset': 10},
@@ -3048,6 +3095,8 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Confirmar validação')
         self.assertContains(response, 'Recusar dados')
         self.assertContains(response, 'Consulta cardiológica')
+        self.assertContains(response, 'R$ 60,75')
+        self.assertContains(response, 'Amoras')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
             {
@@ -3125,6 +3174,9 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Emitir selecionadas')
         self.assertContains(response, 'Emitir esta NFS-e')
+        self.assertContains(response, 'R$ 60,75')
+        self.assertContains(response, 'Validada por')
+        self.assertContains(response, 'Amoras')
         self.assertContains(response, 'form="batch-emission-form"')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
