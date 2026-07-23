@@ -8,9 +8,11 @@ from django.test import RequestFactory, TestCase
 
 from core.services import ApiError
 from core.views import (
+    ACOMPANHAMENTO_BUCKETS,
     ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
     apply_dashboard_filters,
     attach_registros_glosa,
+    build_acompanhamento_cards,
     build_acompanhamento_rows,
     build_acompanhamento_resumo,
     build_conciliacao_faturamento_payload,
@@ -18,6 +20,7 @@ from core.views import (
     build_recebimento_remessa_payload,
     build_dashboard_indicadores,
     build_geral_indicators,
+    build_kanban_columns,
     build_recuperacao_indicators,
     CONCILIACAO_FATURAMENTO_PATH,
     contextualize_registro_glosa_error,
@@ -169,7 +172,7 @@ class ContaAtendimentoRegistroTests(TestCase):
 
 
 class AcompanhamentoRowsTests(TestCase):
-    def test_glosa_da_conciliacao_agrupa_itens_sem_duplicar_valor(self):
+    def test_glosa_aguardando_tratativa_nao_aparece_no_acompanhamento(self):
         registros = [
             {
                 'id': item_id,
@@ -194,17 +197,16 @@ class AcompanhamentoRowsTests(TestCase):
         rows = build_acompanhamento_rows(registros)
         resumo = build_acompanhamento_resumo(rows)
 
-        self.assertEqual(len(rows), 2)
-        self.assertTrue(all(row['tratativa_pendente'] for row in rows))
-        self.assertTrue(
-            all(
-                row['idade_bucket'] == 'aguardando_tratativa'
-                for row in rows
-            )
-        )
-        self.assertEqual(resumo['processos'], 1)
-        self.assertEqual(resumo['em_aberto'], 1)
-        self.assertEqual(resumo['valor_em_aberto_total'], 20)
+        self.assertEqual(rows, [])
+        self.assertEqual(resumo['processos'], 0)
+        self.assertEqual(resumo['em_aberto'], 0)
+        self.assertEqual(resumo['valor_em_aberto_total'], 0)
+        self.assertNotIn('aguardando_tratativa', ACOMPANHAMENTO_BUCKETS)
+
+        template = Path(
+            finders.find('css/app.css')
+        ).parent.parent.parent / 'templates' / 'acompanhamento.html'
+        self.assertNotIn('Aguardando tratativa', template.read_text())
 
     def test_convenio_desabilitado_exclui_registro_do_acompanhamento(self):
         convenios_desabilitados = disabled_convenio_ids(
@@ -251,6 +253,7 @@ class AcompanhamentoRowsTests(TestCase):
                     'id': 10,
                     'sn_glosado': 'true',
                     'processo_recurso': 'REC-1',
+                    'dt_recurso': '2026-07-04',
                     'processo_controle_fatura_gab': 'ORI-1',
                     'nm_paciente': 'Paciente Teste',
                     'data_glosa': '2026-07-03',
@@ -289,6 +292,7 @@ class AcompanhamentoRowsTests(TestCase):
                     'id': 10,
                     'sn_glosado': 'true',
                     'processo_recurso': 'REC-1',
+                    'dt_recurso': '2026-07-04',
                     'processo_controle_fatura_gab': 'ORI-1',
                     'nm_paciente': 'Paciente Teste',
                     'data_glosa': '2026-07-03',
@@ -366,32 +370,48 @@ class AcompanhamentoRowsTests(TestCase):
         self.assertEqual(resumo['valor_em_aberto_total'], 130.45)
         self.assertEqual(resumo['recebidos'], 1)
 
-    def test_resumo_desconta_recebimento_parcial_do_valor_em_aberto(self):
-        rows = build_acompanhamento_rows(
-            [
-                {
-                    'id': 10,
-                    'sn_glosado': 'true',
-                    'processo_recurso': 'REC-PARCIAL',
-                    'processo_controle_fatura_gab': 'ORI-1',
-                    'data_glosa': '2026-07-03',
-                    'qtd_registro': 1,
-                    'qtd_recursado': 1,
-                    'qtd_recebida': 1,
-                    'valor': 100,
-                    'valor_recursado': 100,
-                    'valor_recebido': 40,
-                    'dt_recebimento': '2026-07-15',
-                }
-            ]
-        )
+    def test_recebimento_parcial_usa_mesma_regra_dos_indicadores(self):
+        registros = [
+            {
+                'id': 10,
+                'sn_ativo': 'true',
+                'sn_glosado': 'true',
+                'processo_recurso': 'REC-PARCIAL',
+                'dt_recurso': '2026-07-04',
+                'processo_controle_fatura_gab': 'ORI-1',
+                'data_glosa': '2026-07-03',
+                'qtd_registro': 1,
+                'qtd_recursado': 1,
+                'qtd_recebida': 1,
+                'valor': 100,
+                'valor_recursado': 100,
+                'valor_recebido': 40,
+                'dt_recebimento': '2026-07-15',
+            }
+        ]
+        rows = build_acompanhamento_rows(registros)
 
         resumo = build_acompanhamento_resumo(rows)
+        indicadores = build_dashboard_indicadores(registros)
+        colunas = build_kanban_columns(build_acompanhamento_cards(rows))
+        recebidas = next(
+            coluna for coluna in colunas if coluna['key'] == 'recebidas'
+        )
 
-        self.assertEqual(resumo['em_aberto'], 1)
-        self.assertEqual(resumo['recebidos'], 0)
-        self.assertEqual(resumo['valor_em_aberto_total'], 60)
+        self.assertEqual(resumo['em_aberto'], 0)
+        self.assertEqual(resumo['recebidos'], 1)
+        self.assertEqual(resumo['valor_em_aberto_total'], 0)
         self.assertEqual(resumo['valor_recebido_total'], 40)
+        self.assertEqual(len(recebidas['cards']), 1)
+        self.assertEqual(recebidas['valor_total'], 40)
+        self.assertEqual(
+            recebidas['valor_total'],
+            indicadores['kpis']['total_recebido'],
+        )
+        self.assertEqual(
+            resumo['recebidos'],
+            indicadores['kpis']['total_recuperado'],
+        )
 
 
 class DashboardIndicadoresTests(TestCase):
@@ -995,12 +1015,27 @@ class FollowUpGlosasTests(TestCase):
         get_cached_api_payload,
     ):
         api_get.return_value = self._api_payload()
-        get_cached_api_payload.return_value = {'itens': []}
+        get_cached_api_payload.return_value = {
+            'itens': [
+                {
+                    'codigo_termo': '1016',
+                    'termo': 'BENEFICIARIO COM ATENDIMENTO SUSPENSO',
+                },
+                {
+                    'codigo_termo': '1305',
+                    'termo': 'CONTA SEM ASSINATURA DO PACIENTE',
+                },
+            ]
+        }
 
         response = self.client.get('/follow-up-glosas/')
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '#987')
+        self.assertContains(response, 'name="numero_nfse"')
+        self.assertContains(response, 'name="cd_remessa"')
+        self.assertContains(response, 'name="convenio"')
+        self.assertNotContains(response, 'name="q"')
         self.assertContains(
             response,
             'hx-get="/follow-up-glosas/?detalhar_vinculo=12"',
@@ -1050,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260717-filtros-indicadores-1',
+            '?v=20260723-cadastrar-nota-20',
             base_template.read_text(),
         )
 
@@ -1064,28 +1099,56 @@ class FollowUpGlosasTests(TestCase):
         payload = self._api_payload()
         payload.update({'total': 25, 'limit': 10, 'offset': 10})
         api_get.return_value = payload
-        get_cached_api_payload.return_value = {'itens': []}
+        get_cached_api_payload.return_value = {
+            'itens': [
+                {
+                    'codigo_termo': '1016',
+                    'termo': 'BENEFICIARIO COM ATENDIMENTO SUSPENSO',
+                },
+                {
+                    'codigo_termo': '1305',
+                    'termo': 'CONTA SEM ASSINATURA DO PACIENTE',
+                },
+            ]
+        }
 
         response = self.client.get(
             '/follow-up-glosas/',
-            {'q': 'IPM', 'page': '2'},
+            {
+                'numero_nfse': '5333',
+                'cd_remessa': '987',
+                'convenio': 'IPM',
+                'page': '2',
+            },
         )
 
         self.assertEqual(response.status_code, 200)
         pagination = response.context['pagination']
-        self.assertEqual(pagination['previous_url'], '?q=IPM&page=1')
-        self.assertEqual(pagination['next_url'], '?q=IPM&page=3')
+        query = 'numero_nfse=5333&cd_remessa=987&convenio=IPM'
+        self.assertEqual(pagination['previous_url'], f'?{query}&page=1')
+        self.assertEqual(pagination['next_url'], f'?{query}&page=3')
         self.assertContains(response, '<option value="2" selected>2</option>')
         self.assertContains(response, 'Página 2 de 3')
-        self.assertContains(response, 'href="?q=IPM&amp;page=1"', count=2)
-        self.assertContains(response, 'href="?q=IPM&amp;page=3"', count=2)
+        escaped_query = query.replace('&', '&amp;')
+        self.assertContains(
+            response,
+            f'href="?{escaped_query}&amp;page=1"',
+            count=2,
+        )
+        self.assertContains(
+            response,
+            f'href="?{escaped_query}&amp;page=3"',
+            count=2,
+        )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
             params={
                 'limit': 10,
                 'offset': 10,
                 'incluir_detalhes': 'false',
-                'q': 'IPM',
+                'numero_nfse': '5333',
+                'cd_remessa': '987',
+                'convenio': 'IPM',
             },
         )
 
@@ -1097,7 +1160,18 @@ class FollowUpGlosasTests(TestCase):
         get_cached_api_payload,
     ):
         api_get.return_value = self._api_payload()
-        get_cached_api_payload.return_value = {'itens': []}
+        get_cached_api_payload.return_value = {
+            'itens': [
+                {
+                    'codigo_termo': '1016',
+                    'termo': 'BENEFICIARIO COM ATENDIMENTO SUSPENSO',
+                },
+                {
+                    'codigo_termo': '1305',
+                    'termo': 'CONTA SEM ASSINATURA DO PACIENTE',
+                },
+            ]
+        }
 
         response = self.client.get(
             '/follow-up-glosas/',
@@ -1156,13 +1230,19 @@ class FollowUpGlosasTests(TestCase):
             'DT Lanç.',
             'Tipo Atendimento',
             'Qtd Lanç.',
-            'Recursar',
+            '+Recusar',
             '+ Acatar',
             'follow-up-glosa-records-scroll',
             '<template x-if="patientOpen">',
             '<template x-if="atdOpen">',
+            'followUpTissReasonSelect',
+            'data-tiss-reason',
+            'role="listbox"',
+            'BENEFICIARIO COM ATENDIMENTO SUSPENSO',
+            'CONTA SEM ASSINATURA DO PACIENTE',
         ):
             self.assertContains(response, expected)
+        self.assertNotContains(response, 'list="tiss-motivo-options"')
         self.assertNotContains(
             response,
             'Processo / N Controle / N Fatura / N GAB (Processo Original)',
@@ -1181,6 +1261,16 @@ class FollowUpGlosasTests(TestCase):
             response,
             'name="dt_pagamento" value="2026-07-10"',
         )
+        self.assertContains(
+            response,
+            'name="qt_lancamento" value="2.00"',
+        )
+        self.assertContains(
+            response,
+            'name="vl_total_conta" value="150.00"',
+        )
+        self.assertContains(response, 'data-max-quantity="2.00"')
+        self.assertContains(response, 'data-max-value="150.00"')
         paciente = response.context['cards'][0]['pacientes'][0]
         self.assertEqual(paciente['total_atendimentos'], 1)
         self.assertEqual(paciente['atendimentos'][0]['total_grupos'], 1)
@@ -1268,6 +1358,69 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['processo_recurso'], 'REC-71')
         self.assertEqual(payload['valor_recursado'], 75.0)
 
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_modal_nao_reutiliza_valor_ao_trocar_tipo_de_tratativa(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        registro = payload['cards'][0]['pacientes'][0]['itens'][0][
+            'registro_glosa'
+        ]
+        registro.update(
+            {
+                'processo_recurso': 'REC-71',
+                'dt_recurso': '2026-07-11',
+                'qtd_recursado': '1.00',
+                'valor_recursado': '75.00',
+                'motivo_glosa': '3021 - MOTIVO DO RECURSO',
+                'sn_glosado': 'true',
+            }
+        )
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "registroRecusaId: '71'")
+        self.assertContains(response, "registroAcatoId: ''")
+        self.assertContains(response, "valorRecusado: 'R$ 75,00'")
+        self.assertContains(response, "valorAcatado: ''")
+        item_context = response.context['cards'][0]['pacientes'][0][
+            'itens'
+        ][0]
+        self.assertEqual(
+            item_context['registro_recusa']['motivo_glosa'],
+            '3021 - MOTIVO DO RECURSO',
+        )
+        self.assertFalse(
+            item_context['registro_acato'].get('motivo_glosa')
+        )
+        self.assertContains(response, "motivoAcato: ''")
+        self.assertContains(response, "@click=\"openTreatment('acatar')\"")
+        self.assertContains(response, 'x-model="qtdTratada"')
+        self.assertContains(
+            response,
+            "this.valorTratado = acato ? "
+            "this.valorAcatado : this.valorRecusado;",
+        )
+        self.assertContains(
+            response,
+            "this.motivoTratado = acato ? "
+            "this.motivoAcato : this.motivoRecusa;",
+        )
+        self.assertContains(
+            response,
+            "@follow-up-tiss-reason.window=",
+        )
+        self.assertContains(response, ':required="modal !== \'acatar\'"', count=3)
+
 
 class ConciliacaoFaturamentoTests(TestCase):
     def setUp(self):
@@ -1351,6 +1504,7 @@ class ConciliacaoFaturamentoTests(TestCase):
                         }
                     ],
                     'total': 250,
+                    'valor_total_conciliado': '98765.43',
                     'valor_total_nao_conciliado': '123456.78',
                     'limit': 25,
                     'offset': 0,
@@ -1364,14 +1518,25 @@ class ConciliacaoFaturamentoTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
         self.assertContains(response, 'Conciliação (Faturamento X Fiscal)')
         self.assertContains(response, '987')
         self.assertContains(response, '12345')
         self.assertContains(response, 'Convênio Teste')
         self.assertContains(response, 'Financeiro')
         self.assertContains(response, '<span>TOTAL REMESSAS</span>')
+        self.assertContains(response, '<span>TOTAL CONCILIADO</span>')
         self.assertContains(response, '<span>SALDO NÃO CONCILIADO</span>')
+        self.assertContains(response, '<strong>R$ 98.765,43</strong>')
         self.assertContains(response, '<strong>R$ 123.456,78</strong>')
+        self.assertLess(
+            content.index('<span>TOTAL REMESSAS</span>'),
+            content.index('<span>TOTAL CONCILIADO</span>'),
+        )
+        self.assertLess(
+            content.index('<span>TOTAL CONCILIADO</span>'),
+            content.index('<span>SALDO NÃO CONCILIADO</span>'),
+        )
         self.assertNotContains(response, '250 pendentes')
         self.assertNotContains(response, 'Página atual')
         self.assertNotContains(response, 'Regra da conciliação')
@@ -1389,6 +1554,31 @@ class ConciliacaoFaturamentoTests(TestCase):
             'Conciliar remessa</button>',
         )
         self.assertContains(response, 'panel filter-panel finance-search-bar')
+        self.assertContains(response, 'name="numero_nfse"')
+        self.assertContains(response, 'placeholder="Número da NFS-e"')
+        self.assertContains(response, 'name="cd_remessa"')
+        self.assertContains(response, 'placeholder="Código da remessa"')
+        self.assertContains(response, 'name="convenio"')
+        self.assertContains(response, 'placeholder="Nome ou CNPJ do convênio"')
+        self.assertNotContains(response, 'name="q"')
+        self.assertContains(response, '>Expandir</button>')
+        self.assertContains(response, '>Colapsar todos</button>')
+        self.assertContains(
+            response,
+            '@expand-all-fiscal-reconciliations.window="open = true"',
+        )
+        self.assertContains(
+            response,
+            '@collapse-all-fiscal-reconciliations.window="open = false"',
+        )
+        self.assertLess(
+            content.index('class="collapse-actions"'),
+            content.index('class="results-toolbar finance-results-toolbar"'),
+        )
+        self.assertLess(
+            content.index('>Expandir</button>'),
+            content.index('>Colapsar todos</button>'),
+        )
         self.assertContains(response, 'panel finance-results-panel')
         self.assertContains(response, 'results-toolbar finance-results-toolbar')
         self.assertContains(response, '<small>Número remessa</small>')
@@ -1420,7 +1610,7 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertContains(response, "this.searchTerm = '';")
         self.assertContains(
             response,
-            'A soma das parcelas vinculadas excede o saldo '
+            'A soma das parcelas conciliadas excede o saldo '
             'disponível da remessa.',
         )
 
@@ -1441,26 +1631,47 @@ class ConciliacaoFaturamentoTests(TestCase):
 
         response = self.client.get(
             '/financeiro/conciliacao-fiscal-faturamento/',
-            {'q': 'Convênio A', 'page': 2},
+            {
+                'numero_nfse': '12345',
+                'cd_remessa': '987',
+                'convenio': 'Convênio A',
+                'page': 2,
+            },
         )
 
         self.assertEqual(response.status_code, 200)
         pagination = response.context['pagination']
         self.assertEqual(
             pagination['previous_url'],
-            '?q=Conv%C3%AAnio+A&page=1',
+            '?numero_nfse=12345&cd_remessa=987&'
+            'convenio=Conv%C3%AAnio+A&page=1',
         )
         self.assertEqual(
             pagination['next_url'],
-            '?q=Conv%C3%AAnio+A&page=3',
+            '?numero_nfse=12345&cd_remessa=987&'
+            'convenio=Conv%C3%AAnio+A&page=3',
         )
         self.assertEqual(
             api_get.call_args_list[0].args[1],
-            {'q': 'Convênio A', 'limit': 25, 'offset': 25},
+            {
+                'numero_nfse': '12345',
+                'cd_remessa': '987',
+                'convenio': 'Convênio A',
+                'limit': 25,
+                'offset': 25,
+            },
         )
         self.assertContains(
             response,
-            '<input type="hidden" name="q" value="Convênio A">',
+            '<input type="hidden" name="numero_nfse" value="12345">',
+        )
+        self.assertContains(
+            response,
+            '<input type="hidden" name="cd_remessa" value="987">',
+        )
+        self.assertContains(
+            response,
+            '<input type="hidden" name="convenio" value="Convênio A">',
         )
         self.assertContains(response, '<option value="2" selected>2</option>')
 
@@ -1538,7 +1749,7 @@ class ConciliacaoFaturamentoTests(TestCase):
         )
         url = (
             '/financeiro/conciliacao-fiscal-faturamento/'
-            '?q=987&page=1'
+            '?cd_remessa=987&page=1'
         )
         self.client.get(url)
         api_get.reset_mock()
@@ -1608,8 +1819,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                     'valor_remessa': '140.00',
                     'quantidade_nfses_sem_recebimento': 2,
                     'valor_total_glosas': '20.00',
-                    'valor_recebido': '20.00',
-                    'valor_pendente': '100.00',
+                    'valor_recebido': '50.00',
+                    'valor_pendente': '70.00',
                     'situacao': 'recebimento_parcial',
                     'em_atraso': True,
                     'dias_em_atraso': 3,
@@ -1623,10 +1834,48 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                             'valor_nfse': '100.00',
                             'valor_vinculado_remessa': '80.00',
                             'valor_glosado': '20.00',
-                            'valor_pendente': '60.00',
+                            'valor_recebido': '50.00',
+                            'valor_pendente': '30.00',
                             'situacao': 'recebimento_parcial',
                             'em_atraso': True,
                             'dias_em_atraso': 3,
+                            'recebimentos': [
+                                {
+                                    'id': 51,
+                                    'data_recebimento': '2026-07-08',
+                                    'valor_recebido': '45.00',
+                                    'saldo_financeiro': '35.00',
+                                    'conta_bancaria_id': 7,
+                                    'conta_plano_contas': '1.1.1',
+                                    'conta_centro_custo': 'CC-10',
+                                    'lancamento_extrato_id': 501,
+                                    'lancamento_extrato': {
+                                        'id': 501,
+                                        'conta_bancaria_id': 7,
+                                        'data_lancamento': '2026-07-08',
+                                        'valor': '45.00',
+                                        'descricao': 'Crédito NFS-e NF-100',
+                                        'documento': 'DOC-501',
+                                    },
+                                    'data_registro': (
+                                        '2026-07-08T10:00:00'
+                                    ),
+                                },
+                                {
+                                    'id': 52,
+                                    'data_recebimento': '2026-07-09',
+                                    'valor_recebido': '5.00',
+                                    'saldo_financeiro': '30.00',
+                                    'conta_bancaria_id': 7,
+                                    'conta_plano_contas': '1.1.2',
+                                    'conta_centro_custo': 'CC-11',
+                                    'lancamento_extrato_id': None,
+                                    'lancamento_extrato': None,
+                                    'data_registro': (
+                                        '2026-07-09T10:00:00'
+                                    ),
+                                },
+                            ],
                         },
                         {
                             'id': 11,
@@ -1637,17 +1886,20 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                             'valor_nfse': '40.00',
                             'valor_vinculado_remessa': '40.00',
                             'valor_glosado': '0.00',
+                            'valor_recebido': '0.00',
                             'valor_pendente': '40.00',
-                            'situacao': 'recebimento_parcial',
+                            'situacao': 'sem_recebimento',
                             'em_atraso': True,
                             'dias_em_atraso': 2,
+                            'recebimentos': [],
                         },
                     ],
                 }
             ],
             'total': 1,
             'total_remessas_sem_recebimento': 1,
-            'valor_total_pendente': '100.00',
+            'valor_total_recebido': '50.00',
+            'valor_total_pendente': '70.00',
             'limit': 25,
             'offset': 0,
         }
@@ -1671,9 +1923,50 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Conciliações sem recebimento')
+        self.assertContains(response, '<h1>Conciliação Financeira</h1>')
+        self.assertNotContains(response, '<h1>Conciliação Recebimento</h1>')
+        self.assertContains(response, 'name="numero_nfse"')
+        self.assertContains(response, 'placeholder="Número da NFS-e"')
+        self.assertContains(response, 'name="cd_remessa"')
+        self.assertContains(response, 'placeholder="Código da remessa"')
+        self.assertContains(response, 'name="convenio"')
+        self.assertContains(response, 'placeholder="Nome do convênio"')
+        self.assertContains(response, 'name="processo_recebimento"')
+        self.assertContains(
+            response,
+            'placeholder="Processo de recebimento"',
+        )
+        self.assertContains(response, '>Expandir</button>')
+        self.assertContains(response, '>Colapsar todos</button>')
+        self.assertContains(
+            response,
+            '@expand-all-financial-reconciliations.window',
+        )
+        self.assertContains(
+            response,
+            '@collapse-all-financial-reconciliations.window',
+        )
+        content = response.content.decode()
+        self.assertLess(
+            content.index('class="collapse-actions"'),
+            content.index('class="results-toolbar finance-results-toolbar"'),
+        )
+        self.assertLess(
+            content.index('>Expandir</button>'),
+            content.index('>Colapsar todos</button>'),
+        )
         self.assertContains(response, '<span>REMESSAS PENDENTES</span>')
+        self.assertContains(response, '<span>TOTAL RECEBIDO</span>')
         self.assertContains(response, '<span>VALOR PENDENTE</span>')
+        self.assertContains(response, '<strong>R$ 50,00</strong>')
+        self.assertLess(
+            content.index('<span>REMESSAS PENDENTES</span>'),
+            content.index('<span>TOTAL RECEBIDO</span>'),
+        )
+        self.assertLess(
+            content.index('<span>TOTAL RECEBIDO</span>'),
+            content.index('<span>VALOR PENDENTE</span>'),
+        )
         self.assertContains(response, 'NF-100')
         self.assertContains(response, 'NF-101')
         self.assertContains(response, 'Convênio Teste')
@@ -1684,35 +1977,119 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertContains(response, '<strong>987</strong>')
         self.assertContains(response, '<small>NFS-e pendentes</small>')
         self.assertContains(response, '<strong>2</strong>')
+        self.assertLess(
+            content.index('<small>Valor remessa</small>'),
+            content.index('<small>Valor recebido</small>'),
+        )
+        self.assertLess(
+            content.index('<small>Valor recebido</small>'),
+            content.index('<small>Valor pendente</small>'),
+        )
         self.assertContains(response, 'R$ 100,00')
         self.assertContains(
             response,
             'class="finance-note-card finance-pending-card"',
             count=1,
         )
-        self.assertContains(response, "'Receber'")
-        self.assertContains(response, 'Data do recebimento *')
-        self.assertContains(response, 'Valor recebido *')
-        self.assertContains(response, 'readonly aria-readonly="true"')
+        self.assertNotContains(response, '>Receber</button>')
+        self.assertNotContains(response, '>Novo recebimento</button>')
+        self.assertContains(response, 'Novo recebimento financeiro')
         self.assertContains(
             response,
-            'O valor recebido deve ser exatamente',
+            'Informe o saldo de R$ 30,00 ou qualquer valor inferior.',
+        )
+        self.assertContains(
+            response,
+            'class="finance-pending-receipt-form '
+            'finance-new-receipt-record"',
+        )
+        new_receipt_form = content.index(
+            'class="finance-pending-receipt-form '
+            'finance-new-receipt-record"'
+        )
+        self.assertNotIn(
+            'x-show=',
+            content[new_receipt_form:content.index('>', new_receipt_form)],
+        )
+        self.assertContains(response, 'RECEBIMENTO *')
+        self.assertContains(response, 'Valor recebido *')
+        self.assertNotContains(response, 'readonly aria-readonly="true"')
+        self.assertContains(response, '@input="updateMoney($event)"')
+        self.assertNotContains(response, 'Valor já recebido')
+        self.assertNotContains(response, '<small>Valor glosa</small>')
+        self.assertNotContains(response, '<small>Tipo</small>')
+        self.assertNotContains(response, '<small>Valor do recebimento</small>')
+        self.assertNotContains(response, 'Recebimentos financeiros anteriores')
+        self.assertContains(
+            response,
+            'finance-pending-invoice finance-pending-invoice--history',
+            count=3,
+        )
+        combined_row = content.index(
+            'finance-pending-invoice finance-pending-invoice--history'
+        )
+        receipt_edit_form = content.index(
+            'finance-previous-receipt-edit-form',
+            combined_row,
+        )
+        combined_content = content[combined_row:receipt_edit_form]
+        for label in (
+            'NFS-e',
+            'Previsão',
+            'Valor NFS-e',
+            'Valor conciliado',
+            'Valor recebido',
+            'Saldo financeiro',
+            'RECEBIMENTO',
+            'CONTA BANCÁRIA',
+            'CONTA PLANO CONTAS',
+            'CONTA CENTRO CUSTO',
+            'LANÇAMENTO FINANCEIRO',
+        ):
+            self.assertIn(f'<small>{label}</small>', combined_content)
+        self.assertContains(response, '<small>RECEBIMENTO</small>', count=3)
+        self.assertContains(response, '<small>CONTA BANCÁRIA</small>', count=3)
+        self.assertContains(response, '<small>CONTA PLANO CONTAS</small>', count=3)
+        self.assertContains(response, '<small>CONTA CENTRO CUSTO</small>', count=3)
+        self.assertContains(response, '<small>LANÇAMENTO FINANCEIRO</small>', count=3)
+        self.assertContains(response, 'R$ 45,00')
+        self.assertContains(response, 'R$ 35,00')
+        self.assertContains(response, 'R$ 5,00')
+        self.assertContains(response, '08/07/2026')
+        self.assertContains(response, 'Banco Teste · Ag. 1234 · C/C 56789')
+        self.assertContains(response, 'class="finance-bank-data"')
+        self.assertContains(
+            response,
+            '<span>Banco Teste</span><em>Ag. 1234 · C/C 56789</em>',
+        )
+        self.assertContains(response, '1.1.1')
+        self.assertContains(response, 'CC-10')
+        self.assertContains(response, 'Crédito NFS-e NF-100')
+        self.assertNotContains(response, 'RECEBIDA FINANCEIRAMENTE')
+        self.assertContains(
+            response,
+            'class="finance-pending-statuses"',
+            count=1,
+        )
+        self.assertNotIn('finance-pending-statuses', combined_content)
+        self.assertContains(response, '<small>Saldo financeiro</small>')
+        self.assertContains(response, 'name="form_action" value="editar_recebimento"')
+        self.assertContains(response, 'name="form_action" value="excluir_recebimento"')
+        self.assertContains(response, 'Salvar recebimento')
+        self.assertContains(
+            response,
+            'O valor recebido não pode exceder o saldo',
         )
         self.assertContains(response, 'Conta bancária *')
-        self.assertContains(response, 'Conta do plano de contas')
-        self.assertContains(response, 'Conta do centro de custo')
+        self.assertContains(response, 'CONTA PLANO CONTAS')
+        self.assertContains(response, 'CONTA CENTRO CUSTO')
         self.assertContains(response, 'Lançamento no extrato')
         self.assertContains(response, 'Banco Teste · Ag. 1234 · C/C 56789')
         self.assertContains(response, 'recebimentoPendenteForm(')
         self.assertContains(response, 'loadLancamentos()')
-        self.assertNotContains(response, 'Editar conciliação')
+        self.assertContains(response, 'Editar conciliação')
         self.assertNotContains(response, 'Inativar conciliação')
-        self.assertNotContains(response, '>Editar</button>')
-        self.assertNotContains(response, '>Excluir</button>')
-        self.assertContains(
-            response,
-            'Esta conciliação já possui recebimento parcial.',
-        )
+        self.assertContains(response, '>Excluir</button>')
         self.assertContains(
             response,
             'class="nav-subitem is-active" '
@@ -1720,7 +2097,14 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         )
         self.assertEqual(
             api_get.call_args_list[0].args[1],
-            {'q': None, 'limit': 25, 'offset': 0},
+            {
+                'numero_nfse': None,
+                'cd_remessa': None,
+                'convenio': None,
+                'processo_recebimento': None,
+                'limit': 25,
+                'offset': 0,
+            },
         )
 
     @patch('core.views.api_get')
@@ -1741,25 +2125,53 @@ class ConciliacoesSemRecebimentoTests(TestCase):
 
         response = self.client.get(
             '/financeiro/conciliacoes-sem-recebimento/',
-            {'q': '987', 'page': 2},
+            {
+                'numero_nfse': '5032',
+                'cd_remessa': '987',
+                'convenio': 'BRADESCO',
+                'processo_recebimento': 'PROC-987',
+                'page': 2,
+            },
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context['pagination']['previous_url'],
-            '?q=987&page=1',
+            '?numero_nfse=5032&cd_remessa=987&convenio=BRADESCO&'
+            'processo_recebimento=PROC-987&page=1',
         )
         self.assertEqual(
             response.context['pagination']['next_url'],
-            '?q=987&page=3',
+            '?numero_nfse=5032&cd_remessa=987&convenio=BRADESCO&'
+            'processo_recebimento=PROC-987&page=3',
         )
         self.assertEqual(
             api_get.call_args_list[0].args[1],
-            {'q': '987', 'limit': 25, 'offset': 25},
+            {
+                'numero_nfse': '5032',
+                'cd_remessa': '987',
+                'convenio': 'BRADESCO',
+                'processo_recebimento': 'PROC-987',
+                'limit': 25,
+                'offset': 25,
+            },
         )
         self.assertContains(
             response,
-            '<input type="hidden" name="q" value="987">',
+            '<input type="hidden" name="numero_nfse" value="5032">',
+        )
+        self.assertContains(
+            response,
+            '<input type="hidden" name="cd_remessa" value="987">',
+        )
+        self.assertContains(
+            response,
+            '<input type="hidden" name="convenio" value="BRADESCO">',
+        )
+        self.assertContains(
+            response,
+            '<input type="hidden" name="processo_recebimento" '
+            'value="PROC-987">',
         )
         self.assertContains(response, '<option value="2" selected>2</option>')
 
@@ -1811,6 +2223,76 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                 }
             ],
         )
+
+    @patch('core.views.clear_filter_caches')
+    @patch('core.views.api_patch')
+    def test_edita_recebimento_financeiro(
+        self,
+        api_patch,
+        clear_filter_caches,
+    ):
+        response = self.client.post(
+            '/financeiro/conciliacoes-sem-recebimento/?q=987',
+            {
+                'form_action': 'editar_recebimento',
+                'recebimento_id': '51',
+                'conciliacao_id': '10',
+                'cd_remessa': '987',
+                'numero_nfse': 'NF-100',
+                'data_recebimento': '2026-07-13',
+                'valor_recebido': 'R$ 52,85',
+                'conta_bancaria_id': '7',
+                'conta_plano_contas': '1.1.1',
+                'conta_centro_custo': 'CC-10',
+                'lancamento_extrato_id': '501',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/financeiro/conciliacoes-sem-recebimento/?q=987',
+            fetch_redirect_response=False,
+        )
+        api_patch.assert_called_once_with(
+            CONCILIACAO_FATURAMENTO_PATH + '/recebimentos-remessas/51',
+            {
+                'conciliacao_id': 10,
+                'cd_remessa': 987,
+                'numero_nfse': 'NF-100',
+                'data_recebimento': '2026-07-13',
+                'valor_recebido': '52.85',
+                'conta_bancaria_id': 7,
+                'conta_plano_contas': '1.1.1',
+                'conta_centro_custo': 'CC-10',
+                'lancamento_extrato_id': 501,
+            },
+        )
+        clear_filter_caches.assert_called_once_with()
+
+    @patch('core.views.clear_filter_caches')
+    @patch('core.views.api_delete')
+    def test_exclui_recebimento_financeiro(
+        self,
+        api_delete,
+        clear_filter_caches,
+    ):
+        response = self.client.post(
+            '/financeiro/conciliacoes-sem-recebimento/?q=987',
+            {
+                'form_action': 'excluir_recebimento',
+                'recebimento_id': '51',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/financeiro/conciliacoes-sem-recebimento/?q=987',
+            fetch_redirect_response=False,
+        )
+        api_delete.assert_called_once_with(
+            CONCILIACAO_FATURAMENTO_PATH + '/recebimentos-remessas/51'
+        )
+        clear_filter_caches.assert_called_once_with()
 
     @patch('core.views.clear_filter_caches')
     @patch('core.views.api_put')
@@ -1903,7 +2385,12 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         )
 
         self.assertContains(response, 'finance-pending-invoice-actions')
-        self.assertContains(response, "'Receber'")
+        self.assertNotContains(response, '>Receber</button>')
+        self.assertContains(
+            response,
+            'class="finance-pending-receipt-form '
+            'finance-new-receipt-record"',
+        )
         self.assertContains(response, "'Editar'")
         self.assertContains(response, '>Excluir</button>')
         self.assertNotContains(response, 'Registrar recebimento')
@@ -2052,6 +2539,7 @@ class ConciliacoesFinanceirasTests(TestCase):
                             {
                                 'id': 1,
                                 'conciliacao_origem_id': 9,
+                                'numero_nfse': 'NF-100',
                                 'acao': 'criacao',
                                 'usuario': {
                                     'id': 1,
@@ -2063,6 +2551,7 @@ class ConciliacoesFinanceirasTests(TestCase):
                             {
                                 'id': 2,
                                 'conciliacao_origem_id': 10,
+                                'numero_nfse': 'NF-100',
                                 'acao': 'edicao',
                                 'usuario': {
                                     'id': 2,
@@ -2098,6 +2587,7 @@ class ConciliacoesFinanceirasTests(TestCase):
                             {
                                 'id': 3,
                                 'conciliacao_origem_id': 10,
+                                'numero_nfse': 'NF-100',
                                 'acao': 'recebimento',
                                 'usuario': {
                                     'id': 2,
@@ -2109,6 +2599,7 @@ class ConciliacoesFinanceirasTests(TestCase):
                             {
                                 'id': 4,
                                 'conciliacao_origem_id': 9,
+                                'numero_nfse': 'NF-100',
                                 'acao': 'inativacao',
                                 'usuario': {
                                     'id': 1,
@@ -2120,7 +2611,7 @@ class ConciliacoesFinanceirasTests(TestCase):
                         ],
                     }
                 ],
-                'total': 1,
+                'total': 30,
                 'total_ativas': 1,
                 'total_inativas': 0,
                 'total_recebidas': 1,
@@ -2145,7 +2636,10 @@ class ConciliacoesFinanceirasTests(TestCase):
         response = self.client.get(
             '/financeiro/conciliacoes/',
             {
-                'q': '987',
+                'numero_nfse': 'NF-100',
+                'cd_remessa': '987',
+                'convenio': 'Convênio Teste',
+                'processo_recebimento': 'PROC-100',
                 'situacao': 'recebido',
                 'incluir_inativas': '1',
             },
@@ -2154,9 +2648,68 @@ class ConciliacoesFinanceirasTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Consultar conciliações')
         self.assertContains(response, '<span class="nav-label">Auditória</span>')
+        self.assertContains(response, 'name="numero_nfse"')
+        self.assertContains(response, 'name="cd_remessa"')
+        self.assertContains(response, 'name="convenio"')
+        self.assertContains(response, 'name="processo_recebimento"')
+        self.assertContains(response, '>Expandir</button>')
+        self.assertContains(response, '>Colapsar todos</button>')
+        self.assertContains(response, '@expand-all-finance-history.window')
+        self.assertContains(response, '@collapse-all-finance-history.window')
+        self.assertContains(response, 'id="finance-history-page-select"')
+        self.assertContains(response, '<option value="1" selected>1</option>')
+        self.assertContains(response, '<span>de 2</span>')
+        self.assertNotContains(response, 'class="pagination-footer"')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('class="collapse-actions"'),
+            content.index('class="results-toolbar finance-results-toolbar"'),
+        )
+        self.assertLess(
+            content.index('>Expandir</button>'),
+            content.index('>Colapsar todos</button>'),
+        )
+        self.assertLess(
+            content.index('finance-history-totals'),
+            content.index('id="finance-history-page-select"'),
+        )
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.finance-list-heading > div:not(.collapse-actions),',
+            css,
+        )
         self.assertContains(response, 'Remessa 987')
-        self.assertContains(response, 'Notas fiscais vinculadas')
+        self.assertContains(response, 'Notas fiscais conciliadas')
         self.assertContains(response, 'NF-100')
+        self.assertNotContains(response, '<small>TIPO</small>')
+        self.assertContains(
+            response,
+            'class="finance-history-data-grid finance-history-note-grid"',
+        )
+        self.assertContains(
+            response,
+            'class="finance-history-data-grid finance-history-receipt-grid"',
+        )
+        for label in (
+            'VALOR NFS-e',
+            'VALOR CONCILIADO',
+            'VALOR ALOCADO NA NFS-e',
+            'VALOR GLOSADO',
+            'PREVISÃO',
+            'SITUAÇÃO',
+            'CRIADA EM',
+            'CRIADA POR',
+            'ÚLTIMA ALTERAÇÃO',
+        ):
+            self.assertContains(response, f'<small>{label}</small>')
+        self.assertIn(
+            '.finance-history-note-grid {\n  grid-template-columns:',
+            css,
+        )
+        self.assertIn(
+            '.finance-history-receipt-grid {\n  grid-template-columns:',
+            css,
+        )
         self.assertContains(response, 'PROC-100')
         self.assertContains(response, 'Ana Financeiro')
         self.assertContains(response, 'Bruno Recebimento')
@@ -2173,7 +2726,16 @@ class ConciliacoesFinanceirasTests(TestCase):
         self.assertContains(response, '>MODIFICAÇÃO</small>')
         self.assertContains(response, '>RECEBIMENTO</small>')
         self.assertContains(response, '>EXCLUSÃO</small>')
-        self.assertContains(response, 'VÍNCULO ANTERIOR')
+        self.assertContains(
+            response,
+            'class="finance-history-event-context"',
+            count=4,
+        )
+        self.assertContains(response, '<small>NFS-e</small>')
+        self.assertContains(response, '<small>USUÁRIO</small>', count=4)
+        self.assertContains(response, '<small>TIPO DE AÇÃO</small>', count=4)
+        self.assertContains(response, 'Campos alterados')
+        self.assertContains(response, 'CONCILIAÇÃO ANTERIOR')
         self.assertContains(response, 'Valor recebido · remessa 987')
         self.assertContains(response, 'R$ 90,00')
         self.assertContains(response, 'R$ 100,00')
@@ -2185,20 +2747,38 @@ class ConciliacoesFinanceirasTests(TestCase):
         self.assertEqual(
             api_get.call_args_list[0].kwargs['params'],
             {
-                'q': '987',
+                'numero_nfse': 'NF-100',
+                'cd_remessa': '987',
+                'convenio': 'Convênio Teste',
+                'processo_recebimento': 'PROC-100',
                 'situacao': 'recebido',
                 'incluir_inativas': 'true',
                 'limit': 25,
                 'offset': 0,
             },
         )
-        self.client.get(
+        self.assertEqual(
+            response.context['pagination']['next_url'],
+            '?numero_nfse=NF-100&cd_remessa=987&'
+            'convenio=Conv%C3%AAnio+Teste&'
+            'processo_recebimento=PROC-100&situacao=recebido&'
+            'incluir_inativas=true&page=2',
+        )
+        response_page_2 = self.client.get(
             '/financeiro/conciliacoes/',
             {
-                'q': '987',
+                'numero_nfse': 'NF-100',
+                'cd_remessa': '987',
+                'convenio': 'Convênio Teste',
+                'processo_recebimento': 'PROC-100',
                 'situacao': 'recebido',
                 'incluir_inativas': '1',
+                'page': '2',
             },
+        )
+        self.assertContains(
+            response_page_2,
+            '<option value="2" selected>2</option>',
         )
         chamadas_historico = [
             chamada
@@ -2206,3 +2786,223 @@ class ConciliacoesFinanceirasTests(TestCase):
             if chamada.args[0].endswith('/conciliacoes')
         ]
         self.assertEqual(len(chamadas_historico), 2)
+        self.assertEqual(
+            chamadas_historico[1].kwargs['params'],
+            {
+                'numero_nfse': 'NF-100',
+                'cd_remessa': '987',
+                'convenio': 'Convênio Teste',
+                'processo_recebimento': 'PROC-100',
+                'situacao': 'recebido',
+                'incluir_inativas': 'true',
+                'limit': 25,
+                'offset': 25,
+            },
+        )
+
+
+class CadastrarNotaTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 4,
+            'nome': 'Amoras',
+            'email': 'raffaekk@gmail.com',
+            'perfil': 'usuario',
+        }
+        session.save()
+
+    def atendimento_payload(self):
+        return {
+            'codigo_atendimento': 123456,
+            'codigo_paciente': 789,
+            'codigo_convenio': 20,
+            'nm_paciente': 'MARIA DA SILVA',
+            'convenio': 'CONVÊNIO TESTE',
+            'nr_cpf': '12345678901',
+            'nr_cep': '60000000',
+            'ds_endereco': 'RUA TESTE',
+            'nr_endereco': '100',
+            'nm_bairro': 'CENTRO',
+            'ds_complemento': 'APTO 10',
+            'email': 'maria@example.com',
+            'nr_fone': '85999999999',
+            'tipo_atendimento': 'Ambulatório',
+        }
+
+    def lista_payload(self, solicitacoes=None, total=0, offset=0):
+        return {
+            'solicitacoes': solicitacoes or [],
+            'total': total,
+            'limit': 10,
+            'offset': offset,
+        }
+
+    @patch('core.views.api_get')
+    def test_renderiza_novo_menu_e_formulario(self, api_get):
+        api_get.return_value = self.lista_payload()
+
+        response = self.client.get('/requisicao/cadastrar-nota/')
+
+        self.assertEqual(response.status_code, 200)
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota',
+            {'limit': 10, 'offset': 0},
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Requisição</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Cadastrar Nota</span>',
+        )
+        self.assertContains(response, 'Código atendimento *')
+        self.assertContains(response, 'Nome do paciente')
+        self.assertContains(response, 'Convênio')
+        self.assertContains(response, 'Telefone / Celular')
+        self.assertContains(response, 'Tipo atendimento')
+        self.assertContains(response, 'Clínica 1')
+        self.assertContains(response, 'Clínica 2')
+        self.assertContains(response, 'Emergência')
+        self.assertContains(response, 'Procedimento *')
+        self.assertContains(response, 'loadAttendance')
+
+    @patch('core.views.api_get')
+    def test_consulta_atendimento_para_preenchimento_automatico(
+        self,
+        api_get,
+    ):
+        api_get.return_value = self.atendimento_payload()
+
+        response = self.client.get(
+            '/requisicao/cadastrar-nota/atendimentos/123456/'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), self.atendimento_payload())
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/atendimentos/123456'
+        )
+
+    @patch('core.views.api_get')
+    def test_consulta_reutiliza_cache_por_codigo_de_atendimento(
+        self,
+        api_get,
+    ):
+        api_get.return_value = self.atendimento_payload()
+
+        primeira = self.client.get(
+            '/requisicao/cadastrar-nota/atendimentos/123456/'
+        )
+        segunda = self.client.get(
+            '/requisicao/cadastrar-nota/atendimentos/123456/'
+        )
+
+        self.assertEqual(primeira.status_code, 200)
+        self.assertEqual(segunda.status_code, 200)
+        self.assertEqual(segunda.json(), self.atendimento_payload())
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/atendimentos/123456'
+        )
+
+    @patch('core.views.api_get')
+    def test_formulario_e_ajax_compartilham_cache_do_atendimento(
+        self,
+        api_get,
+    ):
+        api_get.side_effect = [
+            self.atendimento_payload(),
+            self.lista_payload(),
+        ]
+
+        ajax = self.client.get(
+            '/requisicao/cadastrar-nota/atendimentos/123456/'
+        )
+        pagina = self.client.get(
+            '/requisicao/cadastrar-nota/?codigo_atendimento=123456'
+        )
+
+        self.assertEqual(ajax.status_code, 200)
+        self.assertEqual(pagina.status_code, 200)
+        self.assertContains(pagina, 'MARIA DA SILVA')
+        self.assertContains(pagina, 'CONVÊNIO TESTE')
+        self.assertEqual(api_get.call_count, 2)
+        api_get.assert_any_call(
+            '/app_glosas/requisicoes/atendimentos/123456'
+        )
+        api_get.assert_any_call(
+            '/app_glosas/requisicoes/solicitacoes-nota',
+            {'limit': 10, 'offset': 0},
+        )
+
+    @patch('core.views.api_get')
+    @patch('core.views.api_post')
+    def test_cadastra_solicitacao_e_redireciona(self, api_post, api_get):
+        api_get.return_value = self.lista_payload()
+        api_post.return_value = {
+            **self.atendimento_payload(),
+            'id': 1,
+            'local': 'Clinica 1',
+            'procedimento': 'Consulta cardiológica',
+        }
+
+        response = self.client.post(
+            '/requisicao/cadastrar-nota/',
+            {
+                'codigo_atendimento': '123456',
+                'local': 'Clinica 1',
+                'procedimento': 'Consulta cardiológica',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Solicitação de nota cadastrada com sucesso.',
+        )
+        api_post.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota',
+            {
+                'codigo_atendimento': 123456,
+                'local': 'Clinica 1',
+                'procedimento': 'Consulta cardiológica',
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_lista_exibe_expansao_e_paginacao_no_padrao_triagem(
+        self,
+        api_get,
+    ):
+        solicitacao = {
+            **self.atendimento_payload(),
+            'id': 7,
+            'local': 'Clinica 1',
+            'procedimento': 'Consulta cardiológica',
+            'usuario_id': 4,
+            'data_criacao': '2026-07-23T14:30:00',
+        }
+        api_get.return_value = self.lista_payload(
+            [solicitacao],
+            total=12,
+            offset=10,
+        )
+
+        response = self.client.get('/requisicao/cadastrar-nota/?page=2')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '>Expandir</button>')
+        self.assertContains(response, '>Colapsar todos</button>')
+        self.assertContains(response, 'Pagina</label>')
+        self.assertContains(response, 'de 2</span>')
+        self.assertContains(response, 'Atendimento')
+        self.assertContains(response, '123456')
+        self.assertContains(response, 'Consulta cardiológica')
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota',
+            {'limit': 10, 'offset': 10},
+        )

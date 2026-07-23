@@ -4093,8 +4093,6 @@ body:not(.sidebar-collapsed) .indicator-grid {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
-  --pending-treatment: #6554a4;
-  --pending-treatment-soft: #f0edfb;
   --age-30: #2f7f95;
   --age-30-soft: #e8f5f8;
   --age-60: #8a6f25;
@@ -4186,16 +4184,15 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #fff;
 }
 
-.age-palette a:nth-child(2).active { background: var(--pending-treatment); }
-.age-palette a:nth-child(3).active { background: var(--age-30); }
-.age-palette a:nth-child(4).active { background: var(--age-60); }
-.age-palette a:nth-child(5).active { background: var(--age-90); }
-.age-palette a:nth-child(6).active { background: var(--age-more); }
-.age-palette a:nth-child(7).active { background: var(--received); }
+.age-palette a:nth-child(2).active { background: var(--age-30); }
+.age-palette a:nth-child(3).active { background: var(--age-60); }
+.age-palette a:nth-child(4).active { background: var(--age-90); }
+.age-palette a:nth-child(5).active { background: var(--age-more); }
+.age-palette a:nth-child(6).active { background: var(--received); }
 
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   overflow-x: visible;
   height: 100%;
@@ -4213,12 +4210,6 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #f8fbfc;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.kanban-column--aguardando_tratativa {
-  --column-color: var(--pending-treatment);
-  --column-soft: var(--pending-treatment-soft);
-  --column-border: #d2c9ef;
 }
 
 .kanban-column--ate_30 {
@@ -5789,6 +5780,103 @@ body:not(.sidebar-collapsed) .indicator-grid {
   letter-spacing: 0.04em;
 }
 
+.tiss-reason-select {
+  position: relative;
+  z-index: 30;
+  width: 100%;
+}
+
+.tiss-reason-control {
+  display: flex;
+  width: 100%;
+}
+
+.tiss-reason-control .tiss-reason-input {
+  min-width: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.tiss-reason-toggle {
+  position: relative;
+  flex: 0 0 42px;
+  border: 1px solid #ced4da;
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+  background: #fff;
+  color: #526875;
+  cursor: pointer;
+}
+
+.tiss-reason-toggle:hover,
+.tiss-reason-toggle:focus-visible {
+  background: #eef6f8;
+  color: var(--primary-dark);
+}
+
+.tiss-reason-toggle span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translate(-50%, -70%) rotate(45deg);
+}
+
+.tiss-reason-dropdown {
+  position: absolute;
+  inset: calc(100% + 4px) 0 auto;
+  z-index: 80;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #b9d2dc;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(16, 42, 58, 0.2);
+  padding: 5px;
+}
+
+.tiss-reason-option {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #173d4f;
+  padding: 8px 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tiss-reason-option:hover,
+.tiss-reason-option.is-active {
+  background: #eaf4f7;
+}
+
+.tiss-reason-option strong {
+  color: #17617a;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tiss-reason-option span {
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.tiss-reason-empty {
+  margin: 0;
+  color: var(--muted);
+  padding: 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
 .required-marker {
   color: #c0392b;
   font-weight: 800;
@@ -5965,7 +6053,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   padding: 12px 14px;
 }
 
-.finance-list-heading > div,
+.finance-list-heading > div:not(.collapse-actions),
 .finance-section-title > div {
   display: grid;
   gap: 2px;
@@ -6278,10 +6366,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-weight: 700;
 }
 
-/* Financeiro · Conciliações sem recebimento */
+/* Financeiro · Conciliação Financeira */
 .finance-pending-summary {
   display: grid;
-  grid-template-columns: 18px minmax(85px, 0.55fr) minmax(105px, 0.7fr) minmax(180px, 1.4fr) minmax(90px, 0.55fr) repeat(2, minmax(125px, 0.85fr)) minmax(175px, 1fr);
+  grid-template-columns: 18px minmax(85px, 0.55fr) minmax(105px, 0.7fr) minmax(180px, 1.4fr) minmax(90px, 0.55fr) repeat(3, minmax(115px, 0.8fr)) minmax(220px, 1.2fr);
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -6329,7 +6417,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .finance-pending-statuses {
   display: flex !important;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px !important;
 }
@@ -6355,6 +6443,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #5147a5;
 }
 
+.finance-pending-status.is-received {
+  border-color: #9ed8c3;
+  background: #edf9f4;
+  color: #157451;
+}
+
 .finance-pending-status.is-overdue {
   border-color: #efb4ad;
   background: #fff1ef;
@@ -6372,7 +6466,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .finance-pending-meta,
 .finance-pending-values {
   display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
   gap: 8px;
 }
 
@@ -6437,7 +6531,66 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .finance-pending-invoice {
-  grid-template-columns: minmax(75px, 0.55fr) minmax(80px, 0.55fr) minmax(95px, 0.65fr) repeat(4, minmax(105px, 0.8fr)) minmax(145px, 1fr) minmax(210px, auto);
+  grid-template-columns: minmax(75px, 0.45fr) minmax(95px, 0.6fr) repeat(4, minmax(105px, 0.75fr)) minmax(145px, 1fr) minmax(210px, auto);
+}
+
+.finance-pending-invoice.finance-pending-invoice--history {
+  grid-template-columns: minmax(65px, 0.45fr) minmax(80px, 0.55fr) repeat(4, minmax(88px, 0.65fr)) minmax(85px, 0.6fr) minmax(165px, 1.25fr) repeat(2, minmax(105px, 0.75fr)) minmax(130px, 0.9fr) 190px;
+  width: 100%;
+  min-width: 0;
+}
+
+.finance-pending-invoice.finance-pending-invoice--history > span {
+  align-self: start;
+}
+
+.finance-pending-remittance .finance-bank-data {
+  display: grid;
+  gap: 2px;
+  white-space: normal;
+}
+
+.finance-bank-data span,
+.finance-bank-data em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-bank-data em {
+  color: #123748;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.finance-previous-receipt-item {
+  width: 100%;
+  min-width: 0;
+  background: #f3f9fb;
+}
+
+.finance-previous-receipt-item + .finance-previous-receipt-item {
+  border-top: 1px solid #cfe1e8;
+}
+
+.finance-previous-receipt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.finance-previous-receipt-actions .btn {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.finance-previous-receipt-edit-form {
+  border-top-color: #cfe1e8;
 }
 
 .finance-pending-invoice-actions {
@@ -6464,11 +6617,33 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .finance-pending-receipt-form {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: minmax(125px, 0.7fr) minmax(115px, 0.6fr) minmax(180px, 1.2fr) repeat(2, minmax(140px, 0.85fr)) minmax(180px, 1.2fr);
   gap: 10px;
   padding: 12px;
   border-top: 1px solid #dce8ed;
   background: #f8fbfc;
+}
+
+.finance-new-receipt-record {
+  border-top-color: #b9d8e2;
+  background: #f3f9fb;
+}
+
+.finance-new-receipt-heading {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  gap: 8px;
+  color: #123748;
+}
+
+.finance-new-receipt-heading strong {
+  font-size: 11px;
+}
+
+.finance-new-receipt-heading span {
+  color: #627987;
+  font-size: 10px;
 }
 
 .finance-pending-receipt-form label {
@@ -6497,7 +6672,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .finance-pending-launch-field {
-  grid-column: span 2;
+  grid-column: auto;
 }
 
 .finance-pending-receipt-submit {
@@ -6576,6 +6751,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .finance-pending-invoice-actions .finance-inline-form .btn {
     flex: 1;
   }
+
 }
 
 .finance-selected-context {
@@ -7400,7 +7576,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 @media (max-width: 1280px) {
   .kanban-board {
-    grid-template-columns: repeat(6, minmax(210px, 1fr));
+    grid-template-columns: repeat(5, minmax(210px, 1fr));
     overflow-x: auto;
   }
 }
@@ -7499,7 +7675,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .kanban-board {
-    grid-template-columns: repeat(6, minmax(240px, 1fr));
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
   }
 }
 
@@ -7701,7 +7877,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .finance-history-filters {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(210px, 0.35fr) max-content max-content;
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(180px, 0.8fr) max-content max-content;
   align-items: end;
   gap: 10px;
   margin: 0;
@@ -7921,6 +8097,33 @@ body:not(.sidebar-collapsed) .indicator-grid {
   gap: 8px;
 }
 
+.finance-history-note-grid {
+  grid-template-columns: minmax(75px, 0.5fr) repeat(4, minmax(100px, 0.75fr)) minmax(90px, 0.65fr) minmax(115px, 0.85fr) minmax(115px, 0.85fr) minmax(145px, 1.1fr) minmax(135px, 1fr);
+}
+
+.finance-history-receipt-grid {
+  grid-template-columns: minmax(85px, 0.55fr) minmax(95px, 0.65fr) minmax(190px, 1.4fr) repeat(2, minmax(115px, 0.8fr)) minmax(135px, 0.9fr) minmax(140px, 1fr);
+}
+
+.finance-history-note-inactivation {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #8c3c33;
+  font-size: 10px;
+}
+
+.finance-history-note-inactivation small {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-history-note-inactivation em {
+  color: var(--muted);
+  font-style: normal;
+}
+
 .finance-history-data-grid > span {
   display: grid;
   gap: 3px;
@@ -8105,6 +8308,44 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-size: 10px;
 }
 
+.finance-history-event-context {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.65fr) minmax(14rem, 1.35fr) minmax(8rem, 0.7fr) minmax(10rem, 0.9fr);
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.finance-history-event-context > span {
+  display: grid;
+  gap: 0.12rem;
+  align-content: start;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d8e6ec;
+  border-radius: 0.45rem;
+  background: rgb(255 255 255 / 68%);
+}
+
+.finance-history-event-context small {
+  color: #6a7e89;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+}
+
+.finance-history-event-context strong {
+  color: #123748;
+  font-size: 0.72rem;
+}
+
+.finance-history-event-context em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .finance-history-lineage {
   display: inline-flex;
   margin-left: 0.45rem;
@@ -8120,7 +8361,19 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .finance-history-changes {
   display: grid;
   gap: 0.35rem;
-  margin: 0.55rem 0 0;
+  margin: 0.25rem 0 0;
+}
+
+.finance-history-changes-title {
+  margin-top: 0.55rem;
+  color: #466172;
+  font-size: 0.68rem;
+}
+
+.finance-history-changes-empty {
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.68rem;
 }
 
 .finance-history-changes > div {
@@ -8165,6 +8418,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   text-align: center;
 }
 
+@media (max-width: 1450px) {
+  .finance-history-filters {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+  }
+}
+
 @media (max-width: 1100px) {
   .finance-history-filters {
     grid-template-columns: 1fr 1fr;
@@ -8179,6 +8438,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .finance-history-data-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .finance-history-event-context {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 }
@@ -8196,6 +8459,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .finance-history-filters,
   .finance-history-summary,
   .finance-history-data-grid,
+  .finance-history-event-context,
   .finance-history-changes > div {
     grid-template-columns: 1fr;
   }
@@ -8215,5 +8479,464 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .finance-history-statuses {
     grid-column: auto;
+  }
+}
+
+/* Requisição · Cadastrar Nota */
+.note-request-page {
+  padding-bottom: 1.5rem;
+}
+
+.note-request-card {
+  overflow: hidden;
+  border: 1px solid #c9dde6;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 0.45rem 1.4rem rgb(23 85 105 / 8%);
+}
+
+.note-request-head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem 1.3rem;
+  border-bottom: 1px solid #cfe0e7;
+  background:
+    linear-gradient(115deg, rgb(232 246 250 / 94%), rgb(255 255 255 / 98%));
+}
+
+.note-request-head h2,
+.note-request-head p {
+  margin: 0;
+}
+
+.note-request-head h2 {
+  color: #102f40;
+  font-size: 1.05rem;
+}
+
+.note-request-head p {
+  margin-top: 0.25rem;
+  color: #647b88;
+  font-size: 0.78rem;
+}
+
+.note-request-kicker {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: #14748c;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.note-request-step {
+  padding: 0.36rem 0.68rem;
+  border: 1px solid #a8d2de;
+  border-radius: 999px;
+  background: #f2fbfd;
+  color: #176b80;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.note-request-form {
+  display: grid;
+}
+
+.note-request-section {
+  padding: 1.1rem 1.3rem;
+  border-bottom: 1px solid #dce8ed;
+}
+
+.note-request-section-title {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.note-request-section-title > span {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #176f85;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.note-request-section-title > div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.note-request-section-title strong {
+  color: #153849;
+  font-size: 0.84rem;
+}
+
+.note-request-section-title small {
+  color: #6b808b;
+  font-size: 0.68rem;
+}
+
+.note-request-lookup {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.42fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.note-request-lookup label,
+.note-request-patient-grid label,
+.note-request-data-grid label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.note-request-lookup label > span,
+.note-request-patient-grid label > span,
+.note-request-data-grid label > span {
+  color: #526b78;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.note-request-lookup input,
+.note-request-patient-grid input,
+.note-request-data-grid select,
+.note-request-data-grid textarea {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid #c9dce5;
+  border-radius: 0.45rem;
+  outline: none;
+  background: #fff;
+  color: #123345;
+  font: inherit;
+  font-size: 0.8rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.note-request-lookup input:focus,
+.note-request-data-grid select:focus,
+.note-request-data-grid textarea:focus {
+  border-color: #2486a0;
+  box-shadow: 0 0 0 0.18rem rgb(36 134 160 / 15%);
+}
+
+.note-request-patient-grid input[readonly] {
+  overflow: hidden;
+  background: #f4f8fa;
+  color: #173c4d;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.note-request-search {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
+  padding: 0.62rem 0.85rem;
+  border: 1px solid #176f85;
+  border-radius: 0.45rem;
+  background: #176f85;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.note-request-search svg {
+  width: 1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+}
+
+.note-request-search:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.note-request-status {
+  min-height: 1rem;
+  margin: 0.48rem 0 0;
+  color: #6b808b;
+  font-size: 0.68rem;
+}
+
+.note-request-status.is-success {
+  color: #16704f;
+  font-weight: 700;
+}
+
+.note-request-status.is-error {
+  color: #b13c35;
+  font-weight: 700;
+}
+
+.note-request-status.is-loading {
+  color: #176f85;
+}
+
+.note-request-patient-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.72rem;
+}
+
+.note-request-patient-grid .is-wide,
+.note-request-patient-grid .is-address {
+  grid-column: span 2;
+}
+
+.note-request-data-grid {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.65fr) minmax(22rem, 2fr);
+  gap: 0.72rem;
+  align-items: start;
+}
+
+.note-request-data-grid textarea {
+  min-height: 5.2rem;
+  resize: vertical;
+}
+
+.note-request-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.9rem 1.3rem;
+  background: #f7fafb;
+}
+
+.note-request-actions a,
+.note-request-actions button {
+  min-height: 2.45rem;
+  padding: 0.62rem 0.95rem;
+  border-radius: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.note-request-actions a {
+  border: 1px solid #aebfc7;
+  background: #fff;
+  color: #526b78;
+}
+
+.note-request-actions button {
+  border: 1px solid #176f85;
+  background: #176f85;
+  color: #fff;
+}
+
+.note-request-actions button:disabled {
+  border-color: #b8c8cf;
+  background: #dce5e9;
+  color: #7a8d96;
+  cursor: not-allowed;
+}
+
+.note-request-results {
+  overflow: hidden;
+}
+
+.note-request-results-toolbar {
+  justify-content: space-between;
+}
+
+.note-request-results-total {
+  display: grid;
+  min-width: 7rem;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid #c7dce5;
+  border-left: 0.28rem solid #65a9ba;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.note-request-results-total span {
+  color: #607985;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.note-request-results-total strong {
+  color: #123849;
+  font-size: 0.92rem;
+}
+
+.note-request-records {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.72rem;
+  overflow-x: auto;
+}
+
+.note-request-record {
+  min-width: 65rem;
+  overflow: hidden;
+  border: 1px solid #c9dde6;
+  border-radius: 0.62rem;
+  background: #fff;
+}
+
+.note-request-record-header {
+  display: grid;
+  width: 100%;
+  grid-template-columns:
+    1.1rem minmax(6.8rem, 0.7fr) minmax(14rem, 1.6fr)
+    minmax(8rem, 1fr) minmax(6rem, 0.75fr)
+    minmax(8rem, 0.9fr) minmax(9.5rem, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.78rem 0.88rem;
+  border: 0;
+  background: #2b7184;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-request-record-header > span:not(.note-request-record-chevron),
+.note-request-record-details > span {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.note-request-record-header small {
+  color: rgb(255 255 255 / 72%);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.note-request-record-header strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-request-record-chevron {
+  display: inline-block;
+  color: #d8edf3;
+  font-size: 0.65rem;
+  transition: transform 0.16s ease;
+}
+
+.note-request-record-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.note-request-record-body {
+  padding: 0.78rem;
+  background: #f5fafc;
+}
+
+.note-request-record-details {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.62rem;
+}
+
+.note-request-record-details > span {
+  min-height: 3.3rem;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid #d4e3e9;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.note-request-record-details > span.is-wide {
+  grid-column: span 3;
+}
+
+.note-request-record-details small {
+  color: #647b87;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.note-request-record-details strong {
+  color: #14394a;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .note-request-patient-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .note-request-data-grid {
+    grid-template-columns: 1fr 2fr;
+  }
+
+  .note-request-record-details {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .note-request-head,
+  .note-request-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-request-step {
+    align-self: flex-start;
+  }
+
+  .note-request-lookup,
+  .note-request-patient-grid,
+  .note-request-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .note-request-patient-grid .is-wide,
+  .note-request-patient-grid .is-address {
+    grid-column: auto;
+  }
+
+  .note-request-actions a,
+  .note-request-actions button {
+    text-align: center;
+  }
+
+  .note-request-results-toolbar {
+    gap: 0.7rem;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-request-results .pagination-control {
+    padding: 0.65rem 0 0;
+    border-top: 1px solid #dbe4ea;
+    border-left: 0;
   }
 }

@@ -4,18 +4,132 @@
 {% block page_title %}Follow-Up de Glosas{% endblock %}
 {% block content %}
 
-<datalist id="tiss-motivo-options">
-  {% for motivo in tiss_motivos %}
-    <option value="{{ motivo.codigo_termo }} - {{ motivo.termo }}">{{ motivo.codigo_termo }} - {{ motivo.termo }}</option>
-  {% endfor %}
-</datalist>
+{{ tiss_motivos|json_script:"follow-up-tiss-motivos-data" }}
+<script>
+  (() => {
+    const normalizeText = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('pt-BR')
+      .trim();
+
+    const loadTissReasons = () => {
+      if (window.followUpTissReasons) return window.followUpTissReasons;
+      const source = document.getElementById('follow-up-tiss-motivos-data');
+      let rows = [];
+      try {
+        rows = JSON.parse(source?.textContent || '[]');
+      } catch (error) {
+        rows = [];
+      }
+      window.followUpTissReasons = rows.map((item) => {
+        const code = String(item.codigo_termo || '').trim();
+        const description = String(item.termo || '').trim();
+        const value = [code, description].filter(Boolean).join(' - ');
+        return {
+          code,
+          description,
+          value,
+          searchText: normalizeText(`${code} ${description}`),
+        };
+      });
+      return window.followUpTissReasons;
+    };
+
+    window.followUpTissReasonSelect = (initialValue = '') => ({
+      options: loadTissReasons(),
+      query: String(initialValue || '').trim(),
+      selectedValue: '',
+      open: false,
+      activeIndex: 0,
+      init() {
+        this.syncValue(this.query);
+      },
+      syncValue(value) {
+        this.query = String(value || '').trim();
+        const exact = this.findExact(this.query);
+        if (exact) {
+          this.query = exact.value;
+          this.selectedValue = exact.value;
+        } else {
+          this.selectedValue = '';
+        }
+        this.activeIndex = 0;
+        this.open = false;
+        this.$refs.search?.setCustomValidity('');
+      },
+      normalize(value) {
+        return normalizeText(value);
+      },
+      findExact(value) {
+        const normalized = this.normalize(value);
+        return this.options.find(
+          (option) => this.normalize(option.value) === normalized
+        );
+      },
+      get filteredOptions() {
+        const terms = this.normalize(this.query).split(/\s+/).filter(Boolean);
+        const matches = terms.length
+          ? this.options.filter(
+              (option) => terms.every(
+                (term) => option.searchText.includes(term)
+              )
+            )
+          : this.options;
+        return matches.slice(0, 20);
+      },
+      onInput(event) {
+        this.query = event.target.value;
+        this.selectedValue = '';
+        this.activeIndex = 0;
+        this.open = true;
+        event.target.setCustomValidity('');
+      },
+      toggle() {
+        this.open = !this.open;
+        this.activeIndex = 0;
+        if (this.open) this.$nextTick(() => this.$refs.search?.focus());
+      },
+      close() {
+        this.open = false;
+        const exact = this.findExact(this.query);
+        if (exact) this.select(exact, false);
+      },
+      move(step) {
+        if (!this.open) this.open = true;
+        const count = this.filteredOptions.length;
+        if (!count) return;
+        this.activeIndex = (this.activeIndex + step + count) % count;
+      },
+      selectActive() {
+        const option = this.filteredOptions[this.activeIndex];
+        if (option) this.select(option);
+      },
+      select(option, focus = true) {
+        this.query = option.value;
+        this.selectedValue = option.value;
+        this.open = false;
+        this.$refs.search?.setCustomValidity('');
+        if (focus) this.$nextTick(() => this.$refs.search?.focus());
+      },
+    });
+  })();
+</script>
 
 <section class="panel filter-panel follow-up-glosa-page" x-data="{ loading: false }">
   <form class="remessa-filters" method="get" @submit="loading = true">
     <div class="filter-row">
-      <div class="filter-group follow-up-glosa-search">
-        <label for="follow-up-glosa-q">Remessa, convênio ou NFS</label>
-        <input id="follow-up-glosa-q" name="q" value="{{ filtros.q }}" class="form-control" placeholder="Digite para pesquisar">
+      <div class="filter-group">
+        <label for="follow-up-glosa-nfse">NFS-e</label>
+        <input id="follow-up-glosa-nfse" name="numero_nfse" value="{{ filtros.numero_nfse }}" class="form-control" placeholder="Número da NFS-e">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-glosa-remessa">Remessa</label>
+        <input id="follow-up-glosa-remessa" name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" inputmode="numeric" placeholder="Código da remessa">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-glosa-convenio">Convênio</label>
+        <input id="follow-up-glosa-convenio" name="convenio" value="{{ filtros.convenio }}" class="form-control" placeholder="Nome do convênio">
       </div>
       <div class="filter-actions">
         <button class="btn btn-primary" :disabled="loading">
@@ -214,7 +328,48 @@
                   {% for item in grupo_procedimento.itens %}
                   <tbody x-data="{
                     modal: '',
-                    valorTratado: '{{ item.registro_glosa.valor_glosado_input|default:""|escapejs }}',
+                    registroBaseId: '{{ item.registro_glosa.id|default:"" }}',
+                    registroRecusaId: '{{ item.registro_recusa.id|default:"" }}',
+                    registroAcatoId: '{{ item.registro_acato.id|default:"" }}',
+                    processoRecusa: '{{ item.registro_recusa.processo_recurso|default:""|escapejs }}',
+                    processoAcato: '{{ item.registro_acato.processo_recurso|default:""|escapejs }}',
+                    qtdRecusada: '{{ item.registro_recusa.qtd_glosada_input|default:""|escapejs }}',
+                    qtdAcatada: '{{ item.registro_acato.qtd_glosada_input|default:""|escapejs }}',
+                    valorRecusado: '{{ item.registro_recusa.valor_glosado_input|default:""|escapejs }}',
+                    valorAcatado: '{{ item.registro_acato.valor_glosado_input|default:""|escapejs }}',
+                    dataRecusa: '{{ item.registro_recusa.dt_recurso_input|default:""|escapejs }}',
+                    dataAcato: '{{ item.registro_acato.dt_recurso_input|default:""|escapejs }}',
+                    motivoRecusa: '{{ item.registro_recusa.motivo_glosa|default:""|escapejs }}',
+                    motivoAcato: '{{ item.registro_acato.motivo_glosa|default:""|escapejs }}',
+                    descricaoRecusa: '{{ item.registro_recusa.descricao_glosa|default:""|escapejs }}',
+                    descricaoAcato: '{{ item.registro_acato.descricao_glosa|default:""|escapejs }}',
+                    registroTratadoId: '',
+                    processoTratado: '',
+                    qtdTratada: '',
+                    valorTratado: '',
+                    dataTratada: '',
+                    motivoTratado: '',
+                    descricaoTratada: '',
+                    editingExisting: false,
+                    openTreatment(tipo) {
+                      const acato = tipo === 'acatar';
+                      const actionId = acato ? this.registroAcatoId : this.registroRecusaId;
+                      this.editingExisting = Boolean(actionId);
+                      this.registroTratadoId = actionId || this.registroBaseId;
+                      this.processoTratado = acato ? this.processoAcato : this.processoRecusa;
+                      this.qtdTratada = acato ? this.qtdAcatada : this.qtdRecusada;
+                      this.valorTratado = acato ? this.valorAcatado : this.valorRecusado;
+                      this.dataTratada = acato ? this.dataAcato : this.dataRecusa;
+                      this.motivoTratado = acato ? this.motivoAcato : this.motivoRecusa;
+                      this.descricaoTratada = acato ? this.descricaoAcato : this.descricaoRecusa;
+                      this.modal = tipo;
+                      this.$nextTick(() => window.dispatchEvent(new CustomEvent('follow-up-tiss-reason', {
+                        detail: {
+                          itemId: String(this.registroBaseId),
+                          value: this.motivoTratado,
+                        },
+                      })));
+                    },
                     formatValorTratado() {
                       const digits = this.valorTratado.replace(/\D/g, '');
                       const cents = Number(digits || 0);
@@ -230,12 +385,12 @@
                       <td>{{ item.dt_alta_formatada }}</td>
                       <td>{{ item.dt_lancamento_formatada }}</td>
                       <td>{{ item.tp_atendimento|default:"-" }}</td>
-                      <td class="cell-center">{{ item.qt_lancamento|stringformat:"g" }}</td>
+                      <td class="cell-center">{{ item.qt_lancamento|floatformat:"-2" }}</td>
                       <td class="cell-valor">R$ {{ item.vl_total_conta|br_currency }}</td>
                       <td class="account-action-cell">
                         <div class="follow-up-glosa-actions">
-                          <button type="button" class="btn-glosar {% if item.registro_glosa_status == 'true' %}btn-glosar--filled{% endif %}" @click="modal = 'recursar'">Recursar</button>
-                          <button type="button" class="btn-acatar {% if item.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="modal = 'acatar'">+ Acatar</button>
+                          <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+Recusar</button>
+                          <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ Acatar</button>
                         </div>
 
                         <div class="glosa-modal" x-show="modal" x-cloak @keydown.escape.window="modal = ''">
@@ -243,7 +398,7 @@
                           <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="follow-up-modal-title-{{ item.registro_glosa_id }}">
                             <form method="post" class="glosa-modal-form" data-has-registro="true" data-reload-on-success="true" onsubmit="return window.handleGlosaSubmit(this, event);">
                               {% csrf_token %}
-                              <input type="hidden" name="registro_glosa_id" value="{{ item.registro_glosa_id }}">
+                              <input type="hidden" name="registro_glosa_id" :value="registroTratadoId">
                               <input type="hidden" name="cd_paciente" value="{{ item.cd_paciente }}">
                               <input type="hidden" name="nm_paciente" value="{{ item.nm_paciente }}">
                               <input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
@@ -265,8 +420,8 @@
                               <input type="hidden" name="dt_atendimento" value="{{ item.dt_atendimento }}">
                               <input type="hidden" name="dt_alta" value="{{ item.dt_alta|default:'' }}">
                               <input type="hidden" name="dt_lancamento" value="{{ item.dt_lancamento|default:'' }}">
-                              <input type="hidden" name="qt_lancamento" value="{{ item.qt_lancamento|stringformat:'g' }}">
-                              <input type="hidden" name="vl_total_conta" value="{{ item.vl_total_conta|stringformat:'g' }}">
+                              <input type="hidden" name="qt_lancamento" value="{{ item.qt_lancamento }}">
+                              <input type="hidden" name="vl_total_conta" value="{{ item.vl_total_conta }}">
                               <input type="hidden" name="sn_glosado" :value="modal === 'acatar' ? 'not' : 'true'">
                               <input type="hidden" name="processo_controle_fatura_gab" value="{{ item.registro_glosa.processo_controle_fatura_gab }}">
                               <input type="hidden" name="data_glosa" value="{{ item.registro_glosa.data_glosa_input }}">
@@ -289,43 +444,93 @@
                                   <div class="glosa-section-grid">
                                     <div class="glosa-field glosa-field--wide">
                                       <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
-                                      <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ item.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
+                                      <div
+                                        class="tiss-reason-select"
+                                        x-data="followUpTissReasonSelect('')"
+                                        @follow-up-tiss-reason.window="if ($event.detail.itemId === '{{ item.registro_glosa.id }}') syncValue($event.detail.value)"
+                                        @click.outside="close()"
+                                      >
+                                        <div class="tiss-reason-control">
+                                          <input
+                                            x-ref="search"
+                                            name="motivo_glosa"
+                                            class="form-control tiss-reason-input"
+                                            x-model="query"
+                                            :data-tiss-selected-value="selectedValue"
+                                            data-tiss-reason
+                                            placeholder="Digite o código ou a descrição TISS"
+                                            autocomplete="off"
+                                            role="combobox"
+                                            aria-autocomplete="list"
+                                            :aria-expanded="open"
+                                            @focus="open = true"
+                                            @input="onInput($event)"
+                                            @keydown.arrow-down.prevent="move(1)"
+                                            @keydown.arrow-up.prevent="move(-1)"
+                                            @keydown.enter="if (open) { $event.preventDefault(); selectActive(); }"
+                                            @keydown.escape.stop="open = false"
+                                            required
+                                          >
+                                          <button
+                                            type="button"
+                                            class="tiss-reason-toggle"
+                                            @click="toggle()"
+                                            :aria-expanded="open"
+                                            aria-label="Exibir motivos de glosa TISS"
+                                          ><span aria-hidden="true"></span></button>
+                                        </div>
+                                        <div class="tiss-reason-dropdown" x-show="open" x-cloak role="listbox">
+                                          <template x-for="(option, index) in filteredOptions" :key="option.value">
+                                            <button
+                                              type="button"
+                                              class="tiss-reason-option"
+                                              :class="{ 'is-active': index === activeIndex }"
+                                              role="option"
+                                              :aria-selected="selectedValue === option.value"
+                                              @mouseenter="activeIndex = index"
+                                              @mousedown.prevent="select(option)"
+                                            >
+                                              <strong x-text="option.code"></strong>
+                                              <span x-text="option.description"></span>
+                                            </button>
+                                          </template>
+                                          <p class="tiss-reason-empty" x-show="filteredOptions.length === 0">Nenhum motivo TISS encontrado.</p>
+                                        </div>
+                                      </div>
                                     </div>
                                     <div class="glosa-field glosa-field--wide">
-                                      <label>Processo do Recurso <span class="required-marker" aria-hidden="true">*</span></label>
-                                      <input name="processo_recurso" class="form-control" value="{{ item.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso" required>
+                                      <label>Processo do Recurso <span class="required-marker" aria-hidden="true" x-show="modal !== 'acatar'">*</span></label>
+                                      <input name="processo_recurso" class="form-control" x-model="processoTratado" placeholder="Informe o processo do recurso" :required="modal !== 'acatar'">
                                     </div>
                                     <div class="glosa-field">
                                       <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
-                                      <input type="date" name="dt_recurso" class="form-control" value="{{ item.registro_glosa.dt_recurso_input|default:'' }}" required>
+                                      <input type="date" name="dt_recurso" class="form-control" x-model="dataTratada" required>
                                     </div>
                                     <div class="glosa-field">
                                       <label>Qtd glosada</label>
-                                      <input type="text" class="form-control form-control-readonly" value="{{ item.qt_lancamento|stringformat:'g' }}" readonly aria-readonly="true">
+                                      <input type="text" class="form-control form-control-readonly" value="{{ item.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
                                     </div>
                                     <div class="glosa-field">
                                       <label>Valor glosado</label>
                                       <input type="text" class="form-control form-control-readonly" value="R$ {{ item.vl_total_conta|br_currency }}" readonly aria-readonly="true">
                                     </div>
                                     <div class="glosa-field">
-                                      <label x-text="modal === 'acatar' ? 'Qtd Acatada *' : 'Qtd Recursada *'"></label>
-                                      <input type="number" step="1" min="1" max="{{ item.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ item.qt_lancamento|stringformat:'g' }}" inputmode="numeric" name="qtd_glosada" class="form-control" value="{{ item.registro_glosa.qtd_glosada_input|default:'' }}" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                      <label x-text="modal === 'acatar' ? 'Qtd Acatada' : 'Qtd Recursada *'"></label>
+                                      <input type="number" step="1" min="1" max="{{ item.qt_lancamento }}" data-max-quantity="{{ item.qt_lancamento }}" inputmode="numeric" name="qtd_glosada" class="form-control" x-model="qtdTratada" :required="modal !== 'acatar'" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                     </div>
                                     <div class="glosa-field">
-                                      <label x-text="modal === 'acatar' ? 'Valor Acatado *' : 'Valor Recursado *'"></label>
-                                      <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ item.vl_total_conta|stringformat:'g' }}" x-model="valorTratado" required @input="valorTratado = $event.target.value; formatValorTratado()">
+                                      <label x-text="modal === 'acatar' ? 'Valor Acatado' : 'Valor Recursado *'"></label>
+                                      <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ item.vl_total_conta }}" x-model="valorTratado" :required="modal !== 'acatar'" @input="valorTratado = $event.target.value; formatValorTratado()">
                                     </div>
                                     <div class="glosa-field glosa-field--full">
                                       <label>Descrição</label>
-                                      <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do tratamento">{{ item.registro_glosa.descricao_glosa|default:'' }}</textarea>
+                                      <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do tratamento" x-model="descricaoTratada"></textarea>
                                     </div>
                                   </div>
                                 </section>
                               </div>
                               <div class="glosa-modal-actions">
-                                {% if item.registro_glosa_status != "pending" %}
-                                <button class="btn btn-outline-danger" name="form_action" value="desfazer" formnovalidate><span class="submit-label">Desfazer</span><span class="loading-label">Desfazendo...</span></button>
-                                {% endif %}
+                                <button class="btn btn-outline-danger" name="form_action" value="desfazer" formnovalidate x-show="editingExisting" x-cloak><span class="submit-label">Desfazer</span><span class="loading-label">Desfazendo...</span></button>
                                 <button type="button" class="btn btn-outline-secondary" @click="modal = ''">Cancelar</button>
                                 <button :class="modal === 'acatar' ? 'btn-success-outline' : 'btn-danger-outline'" name="form_action" value="salvar">
                                   <span class="submit-label" x-text="modal === 'acatar' ? 'Registrar acato' : 'Registrar recurso'"></span>

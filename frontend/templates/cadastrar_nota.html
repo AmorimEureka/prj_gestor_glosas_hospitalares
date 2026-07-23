@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Requisição{% endblock %}
+{% block page_title %}Cadastrar Nota{% endblock %}
+{% block content %}
+<section class="note-request-page">
+  <article class="note-request-card">
+    <header class="note-request-head">
+      <div>
+        <span class="note-request-kicker">Emissão de nota fiscal</span>
+        <h2>Dados da solicitação</h2>
+        <p>Consulte o atendimento no MV, confira os dados do paciente e informe os dados da nota.</p>
+      </div>
+      <span class="note-request-step">Cadastro</span>
+    </header>
+
+    <form method="post" id="note-request-form" class="note-request-form" novalidate>
+      {% csrf_token %}
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>1</span>
+          <div>
+            <strong>Atendimento</strong>
+            <small>Os dados são consultados no Oracle.</small>
+          </div>
+        </div>
+        <div class="note-request-lookup">
+          <label>
+            <span>Código atendimento *</span>
+            <input
+              type="number"
+              id="codigo-atendimento"
+              name="codigo_atendimento"
+              value="{{ codigo_atendimento }}"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              autocomplete="off"
+              required
+            >
+          </label>
+          <button type="button" id="buscar-atendimento" class="note-request-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+            Buscar atendimento
+          </button>
+        </div>
+        <p
+          id="atendimento-status"
+          class="note-request-status {% if atendimento %}is-success{% endif %}"
+          aria-live="polite"
+        >
+          {% if atendimento %}Atendimento encontrado. Confira os dados abaixo.{% else %}Informe o código para carregar o paciente.{% endif %}
+        </p>
+      </section>
+
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>2</span>
+          <div>
+            <strong>Paciente</strong>
+            <small>Informações recuperadas da view HPC_V_PACIENTES.</small>
+          </div>
+        </div>
+        <div class="note-request-patient-grid">
+          <label class="is-wide">
+            <span>Nome do paciente</span>
+            <input data-patient-field="nm_paciente" value="{{ atendimento.nm_paciente|default:'' }}" readonly>
+          </label>
+          <label class="is-wide">
+            <span>Convênio</span>
+            <input data-patient-field="convenio" value="{{ atendimento.convenio|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>CPF</span>
+            <input data-patient-field="nr_cpf" value="{{ atendimento.nr_cpf|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>CEP</span>
+            <input data-patient-field="nr_cep" value="{{ atendimento.nr_cep|default:'' }}" readonly>
+          </label>
+          <label class="is-address">
+            <span>Endereço</span>
+            <input data-patient-field="ds_endereco" value="{{ atendimento.ds_endereco|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Número</span>
+            <input data-patient-field="nr_endereco" value="{{ atendimento.nr_endereco|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Bairro</span>
+            <input data-patient-field="nm_bairro" value="{{ atendimento.nm_bairro|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Complemento</span>
+            <input data-patient-field="ds_complemento" value="{{ atendimento.ds_complemento|default:'' }}" readonly>
+          </label>
+          <label class="is-wide">
+            <span>E-mail</span>
+            <input data-patient-field="email" value="{{ atendimento.email|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Telefone / Celular</span>
+            <input data-patient-field="nr_fone" value="{{ atendimento.nr_fone|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Tipo atendimento</span>
+            <input data-patient-field="tipo_atendimento" value="{{ atendimento.tipo_atendimento|default:'' }}" readonly>
+          </label>
+        </div>
+      </section>
+
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>3</span>
+          <div>
+            <strong>Nota fiscal</strong>
+            <small>Preencha os dados que serão utilizados na emissão.</small>
+          </div>
+        </div>
+        <div class="note-request-data-grid">
+          <label>
+            <span>Local *</span>
+            <select name="local" required>
+              <option value="">Selecione o local</option>
+              {% for value, label in locais %}
+                <option value="{{ value }}" {% if local == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="is-wide">
+            <span>Procedimento *</span>
+            <textarea name="procedimento" rows="3" maxlength="500" required placeholder="Descreva o procedimento">{{ procedimento }}</textarea>
+          </label>
+        </div>
+      </section>
+
+      <footer class="note-request-actions">
+        <a href="{% url 'cadastrar_nota' %}">Limpar</a>
+        <button
+          type="submit"
+          id="cadastrar-solicitacao"
+          {% if not atendimento %}disabled{% endif %}
+        >Cadastrar nota</button>
+      </footer>
+    </form>
+  </article>
+</section>
+
+<section class="panel results-summary-panel note-request-results">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Solicitações cadastradas</span>
+        {% if pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
+        {% else %}
+        <span class="results-subtitle">Nenhuma solicitação cadastrada.</span>
+        {% endif %}
+      </div>
+      {% if solicitacoes %}
+      <div class="collapse-actions">
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.dispatchEvent(new CustomEvent('expand-all-note-requests'))"
+        >Expandir</button>
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.dispatchEvent(new CustomEvent('collapse-all-note-requests'))"
+        >Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if pagination.total %}
+    <div class="results-toolbar note-request-results-toolbar">
+      <span class="note-request-results-total">
+        <span>Registros</span>
+        <strong>{{ pagination.total }}</strong>
+      </span>
+      <div class="pagination-control">
+        {% if pagination.has_previous %}
+        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Anterior</span>
+        {% endif %}
+        <form method="get" class="page-select-form">
+          <label for="note-request-page-select">Pagina</label>
+          <select
+            id="note-request-page-select"
+            name="page"
+            class="form-select form-select-sm"
+            onchange="this.form.submit()"
+          >
+            {% for option in pagination.page_options %}
+            <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+            {% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}
+        <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Proxima</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if solicitacoes %}
+  <div class="note-request-records">
+    {% for solicitacao in solicitacoes %}
+    <article
+      class="note-request-record"
+      x-data="{ open: false }"
+      @expand-all-note-requests.window="open = true"
+      @collapse-all-note-requests.window="open = false"
+    >
+      <button
+        type="button"
+        class="note-request-record-header"
+        @click="open = !open"
+        :aria-expanded="open"
+      >
+        <span class="note-request-record-chevron" :class="{ 'is-open': open }">&#9654;</span>
+        <span>
+          <small>Atendimento</small>
+          <strong>{{ solicitacao.codigo_atendimento }}</strong>
+        </span>
+        <span class="is-patient">
+          <small>Paciente</small>
+          <strong>{{ solicitacao.nm_paciente }}</strong>
+        </span>
+        <span>
+          <small>Convênio</small>
+          <strong>{{ solicitacao.convenio }}</strong>
+        </span>
+        <span>
+          <small>Local</small>
+          <strong>{{ solicitacao.local }}</strong>
+        </span>
+        <span>
+          <small>Tipo atendimento</small>
+          <strong>{{ solicitacao.tipo_atendimento }}</strong>
+        </span>
+        <span>
+          <small>Cadastrada em</small>
+          <strong>{{ solicitacao.data_criacao_formatada }}</strong>
+        </span>
+      </button>
+      <div class="note-request-record-body" x-show="open" x-cloak>
+        <div class="note-request-record-details">
+          <span><small>Código paciente</small><strong>{{ solicitacao.codigo_paciente }}</strong></span>
+          <span><small>Código convênio</small><strong>{{ solicitacao.codigo_convenio }}</strong></span>
+          <span><small>CPF</small><strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong></span>
+          <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
+          <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
+          <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+          <span class="is-wide">
+            <small>Endereço</small>
+            <strong>
+              {{ solicitacao.ds_endereco|default:"Não informado" }}
+              {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
+              {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
+              {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
+            </strong>
+          </span>
+          <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
+          <span><small>Usuário</small><strong>#{{ solicitacao.usuario_id }}</strong></span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<script>
+  (() => {
+    const form = document.getElementById('note-request-form');
+    const codeInput = document.getElementById('codigo-atendimento');
+    const searchButton = document.getElementById('buscar-atendimento');
+    const submitButton = document.getElementById('cadastrar-solicitacao');
+    const status = document.getElementById('atendimento-status');
+    const fields = [...document.querySelectorAll('[data-patient-field]')];
+    const urlTemplate = "{% url 'consultar_atendimento_nota' 0 %}";
+    let loadedCode = "{% if atendimento %}{{ atendimento.codigo_atendimento }}{% endif %}";
+    let requestSequence = 0;
+
+    const clearPatient = () => {
+      fields.forEach((field) => { field.value = ''; });
+      loadedCode = '';
+      submitButton.disabled = true;
+    };
+
+    const setStatus = (message, state = '') => {
+      status.textContent = message;
+      status.classList.toggle('is-success', state === 'success');
+      status.classList.toggle('is-error', state === 'error');
+      status.classList.toggle('is-loading', state === 'loading');
+    };
+
+    const loadAttendance = async () => {
+      const code = codeInput.value.trim();
+      if (!code || Number(code) <= 0) {
+        clearPatient();
+        setStatus('Informe um código de atendimento válido.', 'error');
+        codeInput.focus();
+        return;
+      }
+
+      const currentSequence = ++requestSequence;
+      clearPatient();
+      searchButton.disabled = true;
+      setStatus('Consultando atendimento no MV...', 'loading');
+      try {
+        const response = await fetch(
+          urlTemplate.replace('/0/', `/${encodeURIComponent(code)}/`),
+          { headers: { Accept: 'application/json' } }
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || 'Atendimento não encontrado.');
+        }
+        if (currentSequence !== requestSequence) return;
+        fields.forEach((field) => {
+          field.value = payload[field.dataset.patientField] || 'Não informado';
+        });
+        loadedCode = String(payload.codigo_atendimento);
+        submitButton.disabled = false;
+        setStatus('Atendimento encontrado. Confira os dados abaixo.', 'success');
+      } catch (error) {
+        if (currentSequence !== requestSequence) return;
+        clearPatient();
+        setStatus(error.message || 'Não foi possível consultar o atendimento.', 'error');
+      } finally {
+        if (currentSequence === requestSequence) searchButton.disabled = false;
+      }
+    };
+
+    codeInput.addEventListener('input', () => {
+      if (codeInput.value.trim() !== loadedCode) {
+        clearPatient();
+        setStatus('Código alterado. Aguarde a nova consulta.');
+      }
+    });
+    codeInput.addEventListener('change', loadAttendance);
+    searchButton.addEventListener('click', loadAttendance);
+    form.addEventListener('submit', (event) => {
+      if (!loadedCode || loadedCode !== codeInput.value.trim()) {
+        event.preventDefault();
+        loadAttendance();
+        return;
+      }
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        form.reportValidity();
+      }
+    });
+  })();
+</script>
+{% endblock %}

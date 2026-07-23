@@ -18,6 +18,17 @@ urlpatterns = [
     path("follow-up-glosas/", views.follow_up_glosas, name="follow_up_glosas"),
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),
+    path(
+        "requisicao/cadastrar-nota/",
+        views.cadastrar_nota,
+        name="cadastrar_nota",
+    ),
+    path(
+        "requisicao/cadastrar-nota/atendimentos/"
+        "<int:codigo_atendimento>/",
+        views.consultar_atendimento_nota,
+        name="consultar_atendimento_nota",
+    ),
     path("glosas/", views.glosas, name="glosas"),
     path("remessas/", views.remessas, name="remessas"),
     path("recursos/", views.recursos, name="recursos"),
