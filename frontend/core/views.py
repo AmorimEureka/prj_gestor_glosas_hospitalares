@@ -50,6 +50,10 @@ CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
 REQUISICOES_NOTA_PATH = "/app_glosas/requisicoes"
 ATENDIMENTO_NOTA_CACHE_NAMESPACE = "solicitacao-nota:atendimento"
+WORKFLOW_SOLICITACOES_PATH = (
+    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/workflow"
+)
+EMISSOES_NFSE_PATH = f"{REQUISICOES_NOTA_PATH}/emissoes-nfse"
 LOCAIS_SOLICITACAO_NOTA = {
     "Clinica 1": "Clínica 1",
     "Clinica 2": "Clínica 2",
@@ -232,7 +236,7 @@ def logout_view(request):
 
 
 @require_http_methods(["GET", "POST"])
-def cadastrar_nota(request):
+def solicitacao_nota(request):
     codigo_atendimento = (
         request.POST.get("codigo_atendimento")
         if request.method == "POST"
@@ -242,11 +246,6 @@ def cadastrar_nota(request):
     local = (request.POST.get("local") or "").strip()
     procedimento = (request.POST.get("procedimento") or "").strip()
     atendimento = None
-    page = as_positive_int(request.GET.get("page"), 1)
-    limit = 10
-    offset = (page - 1) * limit
-    solicitacoes = []
-    total_solicitacoes = 0
 
     if request.method == "POST":
         try:
@@ -274,7 +273,7 @@ def cadastrar_nota(request):
                     request,
                     "Solicitação de nota cadastrada com sucesso.",
                 )
-                return redirect("cadastrar_nota")
+                return redirect("solicitacao_nota")
             except ApiError as exc:
                 messages.error(
                     request,
@@ -294,6 +293,27 @@ def cadastrar_nota(request):
                     request,
                     f"Consulta do atendimento: {extract_api_error_message(exc)}",
                 )
+
+    return render(
+        request,
+        "solicitacao_nota.html",
+        {
+            "atendimento": atendimento,
+            "codigo_atendimento": codigo_atendimento,
+            "local": local,
+            "procedimento": procedimento,
+            "locais": LOCAIS_SOLICITACAO_NOTA.items(),
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def solicitacoes_nota(request):
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    solicitacoes = []
+    total_solicitacoes = 0
 
     try:
         response = api_get(
@@ -334,20 +354,210 @@ def cadastrar_nota(request):
         "total": total_solicitacoes,
         "query": {},
     }
-
     return render(
         request,
-        "cadastrar_nota.html",
+        "solicitacoes_nota.html",
         {
-            "atendimento": atendimento,
-            "codigo_atendimento": codigo_atendimento,
-            "local": local,
-            "procedimento": procedimento,
-            "locais": LOCAIS_SOLICITACAO_NOTA.items(),
             "solicitacoes": solicitacoes,
             "pagination": pagination,
         },
     )
+
+
+def _carregar_fila_solicitacoes(request, status, filtros=None):
+    filtros = filtros or {}
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    api_params = {
+        "status": status,
+        "limit": limit,
+        "offset": offset,
+        **{
+            key: value
+            for key, value in filtros.items()
+            if value
+        },
+    }
+    solicitacoes = []
+    total = 0
+    try:
+        response = api_get(WORKFLOW_SOLICITACOES_PATH, api_params)
+        solicitacoes = response.get("solicitacoes") or []
+        total = as_int_or_zero(response.get("total"))
+        limit = as_positive_int(response.get("limit"), limit)
+        offset = as_int_or_zero(response.get("offset"))
+    except ApiError as exc:
+        messages.error(
+            request,
+            f"Consulta do workflow: {extract_api_error_message(exc)}",
+        )
+
+    for solicitacao in solicitacoes:
+        solicitacao["data_criacao_formatada"] = format_api_datetime(
+            solicitacao.get("data_criacao")
+        )
+        solicitacao["validado_em_formatada"] = format_api_datetime(
+            solicitacao.get("validado_em")
+        )
+        solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
+            solicitacao.get("local"),
+            solicitacao.get("local") or "Não informado",
+        )
+
+    base_query = {
+        key: value for key, value in filtros.items() if value
+    }
+    total_pages = max(ceil(total / limit), 1)
+    if page > total_pages:
+        return {
+            "redirect_url": (
+                f"{request.path}?"
+                f"{urlencode({**base_query, 'page': total_pages})}"
+            )
+        }
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "start": offset + 1 if solicitacoes and total else 0,
+        "end": min(offset + len(solicitacoes), total),
+        "total": total,
+        "query": base_query,
+    }
+    return {
+        "solicitacoes": solicitacoes,
+        "pagination": pagination,
+        "filtros": filtros,
+        "locais": LOCAIS_SOLICITACAO_NOTA.items(),
+        "tipos_atendimento": TIPOS_ATENDIMENTO,
+    }
+
+
+@require_http_methods(["GET", "POST"])
+def workflow_solicitacoes(request):
+    if request.method == "POST":
+        solicitacao_id = as_int_or_zero(
+            request.POST.get("solicitacao_id")
+        )
+        decisao = (request.POST.get("decisao") or "").strip()
+        motivo_recusa = (
+            request.POST.get("motivo_recusa") or ""
+        ).strip()
+        try:
+            if solicitacao_id <= 0:
+                raise ValueError
+            api_post(
+                f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                f"{solicitacao_id}/validacao",
+                {
+                    "decisao": decisao,
+                    "motivo_recusa": motivo_recusa or None,
+                },
+            )
+            if decisao == "VALIDADA":
+                messages.success(
+                    request,
+                    "Solicitação validada e encaminhada para emissão.",
+                )
+            else:
+                messages.success(
+                    request,
+                    "Solicitação recusada e encaminhada para recusas.",
+                )
+            return redirect("workflow_solicitacoes")
+        except ValueError:
+            messages.error(request, "Solicitação inválida.")
+        except ApiError as exc:
+            messages.error(
+                request,
+                f"Validação da solicitação: "
+                f"{extract_api_error_message(exc)}",
+            )
+
+    context = _carregar_fila_solicitacoes(
+        request,
+        "PENDENTE_VALIDACAO",
+    )
+    if redirect_url := context.get("redirect_url"):
+        return redirect(redirect_url)
+    return render(request, "workflow_solicitacoes.html", context)
+
+
+@require_http_methods(["GET"])
+def solicitacoes_recusas(request):
+    context = _carregar_fila_solicitacoes(request, "RECUSADA")
+    if redirect_url := context.get("redirect_url"):
+        return redirect(redirect_url)
+    return render(request, "solicitacoes_recusas.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def emissao_nfse(request):
+    if request.method == "POST":
+        ids_raw = request.POST.getlist("solicitacao_ids")
+        if not ids_raw and request.POST.get("solicitacao_id"):
+            ids_raw = [request.POST.get("solicitacao_id")]
+        try:
+            solicitacao_ids = [
+                int(value) for value in ids_raw if int(value) > 0
+            ]
+            if not solicitacao_ids:
+                raise ValueError
+            response = api_post(
+                EMISSOES_NFSE_PATH,
+                {"solicitacao_ids": solicitacao_ids},
+            )
+            messages.success(
+                request,
+                response.get("message")
+                or "Emissão encaminhada ao Airflow.",
+            )
+            return redirect("emissao_nfse")
+        except (TypeError, ValueError):
+            messages.error(
+                request,
+                "Selecione pelo menos uma solicitação para emissão.",
+            )
+        except ApiError as exc:
+            messages.error(
+                request,
+                f"Emissão de NFS-e: {extract_api_error_message(exc)}",
+            )
+
+    filtros = {
+        "nome_paciente": (
+            request.GET.get("nome_paciente") or ""
+        ).strip(),
+        "cpf": (request.GET.get("cpf") or "").strip(),
+        "tipo_atendimento": (
+            request.GET.get("tipo_atendimento") or ""
+        ).strip(),
+        "local": (request.GET.get("local") or "").strip(),
+    }
+    context = _carregar_fila_solicitacoes(
+        request,
+        "VALIDADA",
+        filtros,
+    )
+    if redirect_url := context.get("redirect_url"):
+        return redirect(redirect_url)
+    return render(request, "emissao_nfse.html", context)
 
 
 @require_http_methods(["GET"])

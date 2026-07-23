@@ -19,15 +19,46 @@ urlpatterns = [
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),
     path(
+        "requisicao/solicitacao-nota/",
+        views.solicitacao_nota,
+        name="solicitacao_nota",
+    ),
+    path(
+        "requisicao/solicitacao-nota/atendimentos/"
+        "<int:codigo_atendimento>/",
+        views.consultar_atendimento_nota,
+        name="consultar_atendimento_nota",
+    ),
+    path(
+        "requisicao/solicitacoes-cadastradas/",
+        views.solicitacoes_nota,
+        name="solicitacoes_nota",
+    ),
+    path(
+        "requisicao/workflow-solicitacoes/",
+        views.workflow_solicitacoes,
+        name="workflow_solicitacoes",
+    ),
+    path(
+        "requisicao/solicitacoes-recusas/",
+        views.solicitacoes_recusas,
+        name="solicitacoes_recusas",
+    ),
+    path(
+        "requisicao/emissao-nfse/",
+        views.emissao_nfse,
+        name="emissao_nfse",
+    ),
+    path(
         "requisicao/cadastrar-nota/",
-        views.cadastrar_nota,
+        views.solicitacao_nota,
         name="cadastrar_nota",
     ),
     path(
         "requisicao/cadastrar-nota/atendimentos/"
         "<int:codigo_atendimento>/",
         views.consultar_atendimento_nota,
-        name="consultar_atendimento_nota",
+        name="consultar_atendimento_nota_legacy",
     ),
     path("glosas/", views.glosas, name="glosas"),
     path("remessas/", views.remessas, name="remessas"),

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block breadcrumb_label %}Requisição{% endblock %}
-{% block page_title %}Cadastrar Nota{% endblock %}
+{% block page_title %}Solicitação Nota{% endblock %}
 {% block content %}
 <section class="note-request-page">
   <article class="note-request-card">
@@ -134,7 +134,7 @@
       </section>
 
       <footer class="note-request-actions">
-        <a href="{% url 'cadastrar_nota' %}">Limpar</a>
+        <a href="{% url 'solicitacao_nota' %}">Limpar</a>
         <button
           type="submit"
           id="cadastrar-solicitacao"
@@ -143,137 +143,6 @@
       </footer>
     </form>
   </article>
-</section>
-
-<section class="panel results-summary-panel note-request-results">
-  <div class="panel-header">
-    <div class="results-heading">
-      <div>
-        <span class="panel-title">Solicitações cadastradas</span>
-        {% if pagination.total %}
-        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
-        {% else %}
-        <span class="results-subtitle">Nenhuma solicitação cadastrada.</span>
-        {% endif %}
-      </div>
-      {% if solicitacoes %}
-      <div class="collapse-actions">
-        <button
-          type="button"
-          class="collapse-action"
-          onclick="window.dispatchEvent(new CustomEvent('expand-all-note-requests'))"
-        >Expandir</button>
-        <button
-          type="button"
-          class="collapse-action"
-          onclick="window.dispatchEvent(new CustomEvent('collapse-all-note-requests'))"
-        >Colapsar todos</button>
-      </div>
-      {% endif %}
-    </div>
-
-    {% if pagination.total %}
-    <div class="results-toolbar note-request-results-toolbar">
-      <span class="note-request-results-total">
-        <span>Registros</span>
-        <strong>{{ pagination.total }}</strong>
-      </span>
-      <div class="pagination-control">
-        {% if pagination.has_previous %}
-        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
-        {% else %}
-        <span class="page-step page-step--disabled">Anterior</span>
-        {% endif %}
-        <form method="get" class="page-select-form">
-          <label for="note-request-page-select">Pagina</label>
-          <select
-            id="note-request-page-select"
-            name="page"
-            class="form-select form-select-sm"
-            onchange="this.form.submit()"
-          >
-            {% for option in pagination.page_options %}
-            <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
-            {% endfor %}
-          </select>
-          <span>de {{ pagination.total_pages }}</span>
-        </form>
-        {% if pagination.has_next %}
-        <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
-        {% else %}
-        <span class="page-step page-step--disabled">Proxima</span>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-  </div>
-
-  {% if solicitacoes %}
-  <div class="note-request-records">
-    {% for solicitacao in solicitacoes %}
-    <article
-      class="note-request-record"
-      x-data="{ open: false }"
-      @expand-all-note-requests.window="open = true"
-      @collapse-all-note-requests.window="open = false"
-    >
-      <button
-        type="button"
-        class="note-request-record-header"
-        @click="open = !open"
-        :aria-expanded="open"
-      >
-        <span class="note-request-record-chevron" :class="{ 'is-open': open }">&#9654;</span>
-        <span>
-          <small>Atendimento</small>
-          <strong>{{ solicitacao.codigo_atendimento }}</strong>
-        </span>
-        <span class="is-patient">
-          <small>Paciente</small>
-          <strong>{{ solicitacao.nm_paciente }}</strong>
-        </span>
-        <span>
-          <small>Convênio</small>
-          <strong>{{ solicitacao.convenio }}</strong>
-        </span>
-        <span>
-          <small>Local</small>
-          <strong>{{ solicitacao.local }}</strong>
-        </span>
-        <span>
-          <small>Tipo atendimento</small>
-          <strong>{{ solicitacao.tipo_atendimento }}</strong>
-        </span>
-        <span>
-          <small>Cadastrada em</small>
-          <strong>{{ solicitacao.data_criacao_formatada }}</strong>
-        </span>
-      </button>
-      <div class="note-request-record-body" x-show="open" x-cloak>
-        <div class="note-request-record-details">
-          <span><small>Código paciente</small><strong>{{ solicitacao.codigo_paciente }}</strong></span>
-          <span><small>Código convênio</small><strong>{{ solicitacao.codigo_convenio }}</strong></span>
-          <span><small>CPF</small><strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong></span>
-          <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
-          <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
-          <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
-          <span class="is-wide">
-            <small>Endereço</small>
-            <strong>
-              {{ solicitacao.ds_endereco|default:"Não informado" }}
-              {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
-              {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
-              {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
-            </strong>
-          </span>
-          <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
-          <span><small>Usuário</small><strong>#{{ solicitacao.usuario_id }}</strong></span>
-        </div>
-      </div>
-    </article>
-    {% endfor %}
-  </div>
-  {% endif %}
 </section>
 
 <script>
