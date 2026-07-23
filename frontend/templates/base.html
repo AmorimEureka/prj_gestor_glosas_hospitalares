@@ -7,7 +7,7 @@
   <title>Gestao de Glosas</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20260723-solicitacao-acoes-23" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20260723-menu-solicitacoes-23" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -67,10 +67,18 @@
           <a class="nav-subitem {% if request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}" href="{% url 'acompanhamento' %}" title="Acompanhamento"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17V7"></path><path d="M10 17V4"></path><path d="M16 17v-7"></path><path d="M22 17H2"></path></svg></span><span class="nav-label">Acompanhamento</span></a>
         </div>
       </div>
-      <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('/financeiro/')">
+      <div
+        class="nav-group"
+        x-data="{ open: false, requestOpen: false }"
+        x-init="
+          open = '{{ request.path }}'.startsWith('/financeiro/')
+            || '{{ request.path }}'.startsWith('/requisicao/');
+          requestOpen = '{{ request.path }}'.startsWith('/requisicao/');
+        "
+      >
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'solicitacao_nota' or request.resolver_match.url_name == 'solicitacoes_nota' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'solicitacoes_recusas' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'cadastrar_nota' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
           :aria-expanded="sidebarOpen && open"
           title="Financeiro"
@@ -82,25 +90,26 @@
           <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacao_faturamento' %}is-active{% endif %}" href="{% url 'conciliacao_faturamento' %}" title="Conciliação Faturamento X Fiscal"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13"></path><path d="M14 4l3 3-3 3"></path><path d="M20 17H7"></path><path d="M10 14l-3 3 3 3"></path></svg></span><span class="nav-label">Conciliação (Faturamento X Fiscal)</span></a>
           <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacoes_sem_recebimento' %}is-active{% endif %}" href="{% url 'conciliacoes_sem_recebimento' %}" title="Conciliação Financeira"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path><path d="M17 15v4"></path><path d="M15 17h4"></path></svg></span><span class="nav-label">Conciliação Financeira</span></a>
           <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacoes_financeiras' %}is-active{% endif %}" href="{% url 'conciliacoes_financeiras' %}" title="Auditória"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 5 5"></path><path d="M7 8h6"></path><path d="M7 11h4"></path></svg></span><span class="nav-label">Auditória</span></a>
-        </div>
-      </div>
-      <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('/requisicao/')">
-        <button
-          type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'solicitacao_nota' or request.resolver_match.url_name == 'solicitacoes_nota' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'solicitacoes_recusas' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'cadastrar_nota' %}is-active{% endif %}"
-          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
-          :aria-expanded="sidebarOpen && open"
-          title="Requisição"
-        >
-          <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3h2z"></path><path d="M15 3v5h5"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg></span>
-          <span class="nav-label">Requisição</span>
-        </button>
-        <div class="nav-submenu" x-show="open">
-          <a class="nav-subitem {% if request.resolver_match.url_name == 'solicitacao_nota' or request.resolver_match.url_name == 'cadastrar_nota' %}is-active{% endif %}" href="{% url 'solicitacao_nota' %}" title="Solicitação Nota"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6z"></path><path d="M9 9h6"></path><path d="M9 13h6"></path><path d="M9 17h4"></path></svg></span><span class="nav-label">Solicitação Nota</span></a>
-          <a class="nav-subitem {% if request.resolver_match.url_name == 'solicitacoes_nota' %}is-active{% endif %}" href="{% url 'solicitacoes_nota' %}" title="Solicitações cadastradas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span><span class="nav-label">Solicitações cadastradas</span></a>
-          <a class="nav-subitem {% if request.resolver_match.url_name == 'workflow_solicitacoes' %}is-active{% endif %}" href="{% url 'workflow_solicitacoes' %}" title="Workflow Solicitações"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h9"></path><path d="M6 12h12"></path><path d="M6 19h9"></path><circle cx="18" cy="5" r="2"></circle><circle cx="4" cy="12" r="2"></circle><circle cx="18" cy="19" r="2"></circle></svg></span><span class="nav-label">Workflow Solicitações</span></a>
-          <a class="nav-subitem {% if request.resolver_match.url_name == 'solicitacoes_recusas' %}is-active{% endif %}" href="{% url 'solicitacoes_recusas' %}" title="Solicitações Recusas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6"></path><path d="m15 9-6 6"></path></svg></span><span class="nav-label">Solicitações Recusas</span></a>
-          <a class="nav-subitem {% if request.resolver_match.url_name == 'emissao_nfse' %}is-active{% endif %}" href="{% url 'emissao_nfse' %}" title="Emissão NFS-e"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h3"></path><path d="m15 15 3 2-3 2"></path></svg></span><span class="nav-label">Emissão NFS-e</span></a>
+          <div class="nav-subgroup">
+            <button
+              type="button"
+              class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'solicitacao_nota' or request.resolver_match.url_name == 'solicitacoes_nota' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'solicitacoes_recusas' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'cadastrar_nota' %}is-active{% endif %}"
+              @click="requestOpen = !requestOpen"
+              :aria-expanded="requestOpen"
+              title="Solicitação Notas"
+            >
+              <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3h2z"></path><path d="M15 3v5h5"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg></span>
+              <span class="nav-label">Solicitação Notas</span>
+              <span class="nav-nested-chevron" aria-hidden="true">&#9654;</span>
+            </button>
+            <div class="nav-submenu nav-submenu--nested" x-show="requestOpen">
+              <a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'solicitacao_nota' or request.resolver_match.url_name == 'cadastrar_nota' %}is-active{% endif %}" href="{% url 'solicitacao_nota' %}" title="Solicitação Nota"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6z"></path><path d="M9 9h6"></path><path d="M9 13h6"></path><path d="M9 17h4"></path></svg></span><span class="nav-label">Solicitação Nota</span></a>
+              <a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'solicitacoes_nota' %}is-active{% endif %}" href="{% url 'solicitacoes_nota' %}" title="Solicitações cadastradas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span><span class="nav-label">Solicitações cadastradas</span></a>
+              <a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'workflow_solicitacoes' %}is-active{% endif %}" href="{% url 'workflow_solicitacoes' %}" title="Workflow Solicitações"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h9"></path><path d="M6 12h12"></path><path d="M6 19h9"></path><circle cx="18" cy="5" r="2"></circle><circle cx="4" cy="12" r="2"></circle><circle cx="18" cy="19" r="2"></circle></svg></span><span class="nav-label">Workflow Solicitações</span></a>
+              <a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'solicitacoes_recusas' %}is-active{% endif %}" href="{% url 'solicitacoes_recusas' %}" title="Solicitações Recusas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6"></path><path d="m15 9-6 6"></path></svg></span><span class="nav-label">Solicitações Recusas</span></a>
+              <a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'emissao_nfse' %}is-active{% endif %}" href="{% url 'emissao_nfse' %}" title="Emissão NFS-e"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h3"></path><path d="m15 15 3 2-3 2"></path></svg></span><span class="nav-label">Emissão NFS-e</span></a>
+            </div>
+          </div>
         </div>
       </div>
       <a class="{% if request.resolver_match.url_name == 'prazos_recurso_convenio' %}is-active{% endif %}" href="{% url 'prazos_recurso_convenio' %}" title="Administrativo"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"></path><path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.05.05-2.12 2.12-.05-.05a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.66V20.5h-3V20.4a1.8 1.8 0 0 0-1.1-1.66 1.8 1.8 0 0 0-1.98.36l-.05.05-2.12-2.12.05-.05A1.8 1.8 0 0 0 4.6 15a1.8 1.8 0 0 0-1.66-1.1H2.8v-3h.14A1.8 1.8 0 0 0 4.6 9.8a1.8 1.8 0 0 0-.36-1.98l-.05-.05 2.12-2.12.05.05a1.8 1.8 0 0 0 1.98.36 1.8 1.8 0 0 0 1.1-1.66V4.3h3v.1a1.8 1.8 0 0 0 1.1 1.66 1.8 1.8 0 0 0 1.98-.36l.05-.05 2.12 2.12-.05.05a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.66 1.1h.14v3h-.14A1.8 1.8 0 0 0 19.4 15z"></path></svg></span><span class="nav-label">Administrativo</span></a>

@@ -1085,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260723-solicitacao-acoes-23',
+            '?v=20260723-menu-solicitacoes-23',
             base_template.read_text(),
         )
 
@@ -2874,9 +2874,17 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         api_get.assert_not_called()
-        self.assertContains(
+        self.assertNotContains(
             response,
             '<span class="nav-label">Requisição</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Financeiro</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Solicitação Notas</span>',
         )
         self.assertContains(
             response,
@@ -2897,6 +2905,23 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(
             response,
             '<span class="nav-label">Emissão NFS-e</span>',
+        )
+        html = response.content.decode()
+        self.assertLess(
+            html.index('<span class="nav-label">Financeiro</span>'),
+            html.index('<span class="nav-label">Solicitação Notas</span>'),
+        )
+        self.assertLess(
+            html.index('<span class="nav-label">Solicitação Notas</span>'),
+            html.index(
+                '<span class="nav-label">Workflow Solicitações</span>'
+            ),
+        )
+        self.assertLess(
+            html.index('<span class="nav-label">Solicitação Notas</span>'),
+            html.index(
+                '<span class="nav-label">Solicitações Recusas</span>'
+            ),
         )
         self.assertContains(response, '<h1>Solicitação Nota</h1>')
         self.assertNotContains(response, '<span class="panel-title">Solicitações cadastradas</span>')
