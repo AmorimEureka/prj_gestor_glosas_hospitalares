@@ -98,6 +98,10 @@
           <strong>{{ solicitacao.local }}</strong>
         </span>
         <span>
+          <small>Valor da nota</small>
+          <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
+        </span>
+        <span>
           <small>Tipo atendimento</small>
           <strong>{{ solicitacao.tipo_atendimento }}</strong>
         </span>
@@ -124,7 +128,10 @@
             </strong>
           </span>
           <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
-          <span><small>Usuário</small><strong>#{{ solicitacao.usuario_id }}</strong></span>
+          <span>
+            <small>Solicitada por</small>
+            <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
+          </span>
         </div>
       </div>
     </article>

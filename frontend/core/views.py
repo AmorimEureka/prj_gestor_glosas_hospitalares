@@ -245,6 +245,8 @@ def solicitacao_nota(request):
     codigo_atendimento = str(codigo_atendimento or "").strip()
     local = (request.POST.get("local") or "").strip()
     procedimento = (request.POST.get("procedimento") or "").strip()
+    valor_nota = (request.POST.get("valor_nota") or "").strip()
+    valor_nota_numerico = as_float_or_none(valor_nota)
     atendimento = None
 
     if request.method == "POST":
@@ -259,6 +261,8 @@ def solicitacao_nota(request):
             messages.error(request, "Selecione o local da emissão.")
         elif not procedimento:
             messages.error(request, "Informe o procedimento.")
+        elif valor_nota_numerico is None or valor_nota_numerico <= 0:
+            messages.error(request, "Informe um valor da nota maior que zero.")
         else:
             try:
                 api_post(
@@ -267,6 +271,7 @@ def solicitacao_nota(request):
                         "codigo_atendimento": codigo,
                         "local": local,
                         "procedimento": procedimento,
+                        "valor_nota": f"{valor_nota_numerico:.2f}",
                     },
                 )
                 messages.success(
@@ -302,6 +307,7 @@ def solicitacao_nota(request):
             "codigo_atendimento": codigo_atendimento,
             "local": local,
             "procedimento": procedimento,
+            "valor_nota": valor_nota,
             "locais": LOCAIS_SOLICITACAO_NOTA.items(),
         },
     )
@@ -333,6 +339,9 @@ def solicitacoes_nota(request):
     for solicitacao in solicitacoes:
         solicitacao["data_criacao_formatada"] = format_api_datetime(
             solicitacao.get("data_criacao")
+        )
+        solicitacao["valor_nota_formatado"] = format_brl_input(
+            solicitacao.get("valor_nota")
         )
 
     total_pages = max(ceil(total_solicitacoes / limit), 1)
@@ -396,6 +405,9 @@ def _carregar_fila_solicitacoes(request, status, filtros=None):
     for solicitacao in solicitacoes:
         solicitacao["data_criacao_formatada"] = format_api_datetime(
             solicitacao.get("data_criacao")
+        )
+        solicitacao["valor_nota_formatado"] = format_brl_input(
+            solicitacao.get("valor_nota")
         )
         solicitacao["validado_em_formatada"] = format_api_datetime(
             solicitacao.get("validado_em")

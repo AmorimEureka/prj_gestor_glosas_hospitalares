@@ -8614,6 +8614,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-lookup input,
 .note-request-patient-grid input,
+.note-request-data-grid input,
 .note-request-data-grid select,
 .note-request-data-grid textarea {
   width: 100%;
@@ -8636,7 +8637,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   box-shadow: 0 0 0 0.18rem rgb(36 134 160 / 15%);
 }
 
-.note-request-patient-grid input[readonly] {
+.note-request-patient-grid input[readonly],
+.note-request-data-grid input[readonly] {
   overflow: hidden;
   background: #f4f8fa;
   color: #173c4d;
@@ -8705,7 +8707,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-data-grid {
   display: grid;
-  grid-template-columns: minmax(13rem, 0.65fr) minmax(22rem, 2fr);
+  grid-template-columns:
+    minmax(13rem, 0.65fr) minmax(13rem, 0.65fr) minmax(22rem, 2fr);
   gap: 0.72rem;
   align-items: start;
 }
@@ -8805,7 +8808,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns:
     1.1rem minmax(6.8rem, 0.7fr) minmax(14rem, 1.6fr)
     minmax(8rem, 1fr) minmax(6rem, 0.75fr)
-    minmax(8rem, 0.9fr) minmax(9.5rem, 1fr);
+    minmax(7rem, 0.75fr) minmax(8rem, 0.9fr)
+    minmax(9.5rem, 1fr);
   gap: 0.75rem;
   align-items: center;
   padding: 0.78rem 0.88rem;
@@ -8917,7 +8921,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns:
     1.1rem minmax(6rem, 0.65fr) minmax(13rem, 1.5fr)
     minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
-    minmax(6.5rem, 0.7fr) minmax(9rem, 0.9fr) minmax(8rem, auto);
+    minmax(6.5rem, 0.7fr) minmax(7rem, 0.75fr)
+    minmax(9rem, 0.9fr) minmax(8rem, auto);
   gap: 0.72rem;
   align-items: center;
   padding: 0.78rem 0.88rem;
@@ -8930,7 +8935,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns:
     1.4rem 1.1rem minmax(6rem, 0.65fr) minmax(12rem, 1.5fr)
     minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
-    minmax(6.5rem, 0.7fr) minmax(9rem, 0.9fr) minmax(6.5rem, auto);
+    minmax(6.5rem, 0.7fr) minmax(7rem, 0.75fr)
+    minmax(9rem, 0.9fr) minmax(6.5rem, auto);
 }
 
 .workflow-request-header > span:not(.workflow-request-chevron, .workflow-request-status) {
@@ -9154,7 +9160,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .note-request-data-grid {
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 1fr 1fr 2fr;
   }
 
   .note-request-record-details {

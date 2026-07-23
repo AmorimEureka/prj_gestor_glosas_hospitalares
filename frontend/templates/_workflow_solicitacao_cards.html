@@ -49,6 +49,10 @@
         <strong>{{ solicitacao.local_label }}</strong>
       </span>
       <span>
+        <small>Valor da nota</small>
+        <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
+      </span>
+      <span>
         <small>Solicitada em</small>
         <strong>{{ solicitacao.data_criacao_formatada }}</strong>
       </span>
@@ -65,6 +69,20 @@
         <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
         <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
         <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+        <span>
+          <small>Solicitada por</small>
+          <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
+        </span>
+        {% if solicitacao.validado_por and workflow_mode != "recusa" %}
+        <span>
+          <small>Validada por</small>
+          <strong>{{ solicitacao.validado_por }}</strong>
+        </span>
+        <span>
+          <small>Validada em</small>
+          <strong>{{ solicitacao.validado_em_formatada }}</strong>
+        </span>
+        {% endif %}
         <span class="is-wide">
           <small>Endereço</small>
           <strong>
