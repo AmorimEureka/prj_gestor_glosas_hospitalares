@@ -48,6 +48,32 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
+REQUISICOES_NOTA_PATH = "/app_glosas/requisicoes"
+ATENDIMENTO_NOTA_CACHE_NAMESPACE = "solicitacao-nota:atendimento"
+LOCAIS_SOLICITACAO_NOTA = {
+    "Clinica 1": "Clínica 1",
+    "Clinica 2": "Clínica 2",
+    "Emergencia": "Emergência",
+}
+
+
+def get_cached_atendimento_nota(codigo_atendimento):
+    path = (
+        f"{REQUISICOES_NOTA_PATH}/atendimentos/{codigo_atendimento}"
+    )
+    cache_key = build_api_cache_key(
+        ATENDIMENTO_NOTA_CACHE_NAMESPACE,
+        path,
+    )
+    payload = cache.get(cache_key)
+    if payload is None:
+        payload = api_get(path)
+        cache.set(
+            cache_key,
+            payload,
+            getattr(settings, "SOLICITACAO_NOTA_CACHE_SECONDS", 300),
+        )
+    return payload
 
 
 def _safe_login_redirect(request):
@@ -205,6 +231,137 @@ def logout_view(request):
     return redirect("login")
 
 
+@require_http_methods(["GET", "POST"])
+def cadastrar_nota(request):
+    codigo_atendimento = (
+        request.POST.get("codigo_atendimento")
+        if request.method == "POST"
+        else request.GET.get("codigo_atendimento")
+    )
+    codigo_atendimento = str(codigo_atendimento or "").strip()
+    local = (request.POST.get("local") or "").strip()
+    procedimento = (request.POST.get("procedimento") or "").strip()
+    atendimento = None
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    solicitacoes = []
+    total_solicitacoes = 0
+
+    if request.method == "POST":
+        try:
+            codigo = int(codigo_atendimento)
+        except ValueError:
+            codigo = 0
+
+        if codigo <= 0:
+            messages.error(request, "Informe um código de atendimento válido.")
+        elif local not in LOCAIS_SOLICITACAO_NOTA:
+            messages.error(request, "Selecione o local da emissão.")
+        elif not procedimento:
+            messages.error(request, "Informe o procedimento.")
+        else:
+            try:
+                api_post(
+                    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota",
+                    {
+                        "codigo_atendimento": codigo,
+                        "local": local,
+                        "procedimento": procedimento,
+                    },
+                )
+                messages.success(
+                    request,
+                    "Solicitação de nota cadastrada com sucesso.",
+                )
+                return redirect("cadastrar_nota")
+            except ApiError as exc:
+                messages.error(
+                    request,
+                    f"Cadastro da solicitação: {extract_api_error_message(exc)}",
+                )
+
+    if codigo_atendimento:
+        try:
+            codigo = int(codigo_atendimento)
+            if codigo > 0:
+                atendimento = get_cached_atendimento_nota(codigo)
+        except ValueError:
+            atendimento = None
+        except ApiError as exc:
+            if request.method == "GET":
+                messages.error(
+                    request,
+                    f"Consulta do atendimento: {extract_api_error_message(exc)}",
+                )
+
+    try:
+        response = api_get(
+            f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota",
+            {"limit": limit, "offset": offset},
+        )
+        solicitacoes = response.get("solicitacoes") or []
+        total_solicitacoes = as_int_or_zero(response.get("total"))
+        limit = as_positive_int(response.get("limit"), limit)
+        offset = as_int_or_zero(response.get("offset"))
+    except ApiError as exc:
+        messages.error(
+            request,
+            f"Consulta das solicitações: {extract_api_error_message(exc)}",
+        )
+
+    for solicitacao in solicitacoes:
+        solicitacao["data_criacao_formatada"] = format_api_datetime(
+            solicitacao.get("data_criacao")
+        )
+
+    total_pages = max(ceil(total_solicitacoes / limit), 1)
+    if page > total_pages:
+        return redirect(f"{request.path}?page={total_pages}")
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": f"?page={page - 1}" if page > 1 else "",
+        "next_url": f"?page={page + 1}" if page < total_pages else "",
+        "start": offset + 1 if solicitacoes and total_solicitacoes else 0,
+        "end": min(offset + len(solicitacoes), total_solicitacoes),
+        "total": total_solicitacoes,
+        "query": {},
+    }
+
+    return render(
+        request,
+        "cadastrar_nota.html",
+        {
+            "atendimento": atendimento,
+            "codigo_atendimento": codigo_atendimento,
+            "local": local,
+            "procedimento": procedimento,
+            "locais": LOCAIS_SOLICITACAO_NOTA.items(),
+            "solicitacoes": solicitacoes,
+            "pagination": pagination,
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def consultar_atendimento_nota(request, codigo_atendimento):
+    try:
+        payload = get_cached_atendimento_nota(codigo_atendimento)
+        return JsonResponse(payload)
+    except ApiError as exc:
+        return JsonResponse(
+            {"detail": extract_api_error_message(exc)},
+            status=exc.status_code or 502,
+        )
+
+
 def format_api_date(value):
     if not value:
         return "-"
@@ -274,6 +431,22 @@ def format_lancamento_datetime(dt_lancamento, hr_lancamento):
     if formatted == "-":
         return data
     return f"{data} {formatted}"
+
+
+def format_conta_bancaria_label(conta, conta_bancaria_id):
+    if not conta:
+        return f"Conta #{conta_bancaria_id}"
+
+    agencia = str(conta.get("agencia") or "-")
+    if conta.get("digito_agencia"):
+        agencia += f"-{conta['digito_agencia']}"
+    numero_conta = str(conta.get("conta") or "-")
+    if conta.get("digito"):
+        numero_conta += f"-{conta['digito']}"
+    return (
+        f"{conta.get('banco') or 'Banco'} · "
+        f"Ag. {agencia} · C/C {numero_conta}"
+    )
 
 
 def format_api_error(exc: ApiError, endpoint_name: str) -> str:
@@ -700,43 +873,28 @@ def build_acompanhamento_rows(registros):
     for registro in registros:
         if not isinstance(registro, dict):
             continue
-        if registro.get("sn_glosado") != "true":
+        if not is_recurso_registro(registro):
             continue
-        tratativa_pendente = bool(
-            registro.get("conciliacao_remessa_id")
-            and not has_internal_treatment(registro)
-        )
-        if not registro.get("processo_recurso") and not tratativa_pendente:
+        if not has_internal_treatment(registro):
             continue
 
         row = dict(registro)
-        row["tratativa_pendente"] = tratativa_pendente
+        row["tratativa_pendente"] = False
         row["paciente_label"] = (
             row.get("nm_paciente")
-            or ("Itens da remessa" if tratativa_pendente else None)
             or f"Paciente {row.get('codigo_paciente') or '-'}"
         )
-        row["idade_bucket"] = (
-            "aguardando_tratativa" if tratativa_pendente else age_bucket(row)
-        )
+        row["idade_bucket"] = age_bucket(row)
         row["idade_bucket_label"] = ACOMPANHAMENTO_BUCKETS[row["idade_bucket"]]
-        row["qtd_recurso"] = (
-            0 if tratativa_pendente else qtd_registro_recurso(row)
-        )
+        row["qtd_recurso"] = qtd_registro_recurso(row)
         row["qtd_glosada"] = qtd_registro_glosada(row)
         if row.get("qtd_recebida") not in (None, ""):
             row["qtd_recebida"] = as_float_or_zero(row.get("qtd_recebida"))
         else:
             row["qtd_recebida"] = 0
         row["valor_item"] = as_float_or_zero(row.get("valor"))
-        row["valor_glosado_total"] = as_float_or_zero(
-            row.get("valor_glosa_pendente")
-            if tratativa_pendente
-            else row.get("valor")
-        )
-        row["valor_recurso"] = (
-            0 if tratativa_pendente else valor_registro_recurso(row)
-        )
+        row["valor_glosado_total"] = as_float_or_zero(row.get("valor"))
+        row["valor_recurso"] = valor_registro_recurso(row)
         row["valor_recebido"] = as_float_or_zero(row.get("valor_recebido"))
         row["possui_recebimento"] = possui_recebimento_registro(row)
         row["recebido"] = is_recebimento_integral_registro(row)
@@ -788,7 +946,6 @@ def build_acompanhamento_rows(registros):
 
 
 ACOMPANHAMENTO_BUCKETS = {
-    "aguardando_tratativa": "Aguardando tratativa",
     "ate_30": "Até 30 dias",
     "ate_60": "Até 60 dias",
     "ate_90": "Até 90 dias",
@@ -815,17 +972,12 @@ def build_acompanhamento_cards(rows):
     cards = []
     for key, itens in grouped.items():
         single_item = itens[0] if len(itens) == 1 else None
-        tratativa_pendente = any(
-            item.get("tratativa_pendente") for item in itens
-        )
         all_received = all(
-            is_recebimento_integral_registro(item) for item in itens
+            possui_recebimento_registro(item) for item in itens
         )
         oldest_item = min(itens, key=bucket_reference_date)
         bucket_key = (
-            "aguardando_tratativa"
-            if tratativa_pendente
-            else "recebidas"
+            "recebidas"
             if all_received
             else age_bucket(oldest_item)
         )
@@ -839,16 +991,8 @@ def build_acompanhamento_cards(rows):
             for item in itens
             if possui_recebimento_registro(item)
         )
-        total_em_aberto = (
-            max(
-                (
-                    as_float_or_zero(item.get("valor_glosa_pendente"))
-                    for item in itens
-                ),
-                default=0,
-            )
-            if tratativa_pendente
-            else sum(valor_em_aberto_registro(item) for item in itens)
+        total_em_aberto = sum(
+            valor_em_aberto_registro(item) for item in itens
         )
         total = total_recebido if bucket_key == "recebidas" else total_em_aberto
         qtd = sum(item["qtd_recurso"] for item in itens)
@@ -865,7 +1009,7 @@ def build_acompanhamento_cards(rows):
                 "processo_recurso": unique_join(
                     item.get("processo_recurso") for item in itens
                 ),
-                "tratativa_pendente": tratativa_pendente,
+                "tratativa_pendente": False,
                 "remessas": unique_join(item.get("cd_remessa") for item in itens),
                 "atendimentos": unique_join(
                     item.get("cd_atendimento") for item in itens
@@ -933,7 +1077,7 @@ def build_kanban_columns(cards):
 def build_acompanhamento_resumo(rows):
     cards = build_acompanhamento_cards(rows)
     rows_recebidas = [
-        row for row in rows if is_recebimento_integral_registro(row)
+        row for row in rows if possui_recebimento_registro(row)
     ]
     rows_com_recebimento = [
         row for row in rows if possui_recebimento_registro(row)
@@ -1167,14 +1311,28 @@ def prepare_follow_up_glosas_cards(cards):
             ordem_atendimentos = []
             for item_data in paciente.get("itens") or []:
                 item = dict(item_data)
+                registro_original = item.get("registro_glosa") or {}
+                status_original = canonical_glosa_status(
+                    registro_original
+                )
                 registro = _prepare_registro_glosa(
-                    item.get("registro_glosa") or {}
+                    registro_original
+                )
+                registro_recusa = _prepare_registro_glosa(
+                    item.get("registro_recusa")
+                    or (registro_original if status_original == "true" else {})
+                )
+                registro_acato = _prepare_registro_glosa(
+                    item.get("registro_acato")
+                    or (registro_original if status_original == "not" else {})
                 )
                 registro["dt_pagamento_oculto"] = (
                     registro.get("dt_pagamento_input")
                     or registro.get("data_glosa_input")
                 )
                 item["registro_glosa"] = registro
+                item["registro_recusa"] = registro_recusa
+                item["registro_acato"] = registro_acato
                 item["registro_glosa_id"] = registro.get("id")
                 item["registro_glosa_status"] = canonical_glosa_status(registro)
                 item["dt_alta_formatada"] = format_api_date(
@@ -1256,7 +1414,13 @@ def is_recurso_registro(registro):
 
 
 def has_internal_treatment(registro):
-    return bool(registro.get("processo_recurso") and registro.get("dt_recurso"))
+    return bool(
+        registro.get("dt_recurso")
+        and (
+            is_acato_registro(registro)
+            or registro.get("processo_recurso")
+        )
+    )
 
 
 def is_pending_conciliation_registro(registro):
@@ -3287,9 +3451,13 @@ def _conciliacao_remessas_cache_context(request):
     except ValueError:
         page = 1
     page_size = 25
-    filtro_q = (request.GET.get("q") or "").strip()
+    filtros = {
+        "numero_nfse": (request.GET.get("numero_nfse") or "").strip(),
+        "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
+        "convenio": (request.GET.get("convenio") or "").strip(),
+    }
     params = {
-        "q": filtro_q or None,
+        **{key: value or None for key, value in filtros.items()},
         "limit": page_size,
         "offset": (page - 1) * page_size,
     }
@@ -3301,7 +3469,7 @@ def _conciliacao_remessas_cache_context(request):
     return (
         page,
         page_size,
-        filtro_q,
+        filtros,
         params,
         cache_key,
         f"{cache_key}:snapshot",
@@ -3349,6 +3517,15 @@ def _restore_conciliacao_remessas_cache(
         saldo_total = Decimal(
             str(cached_payload.get("valor_total_nao_conciliado") or 0)
         )
+        conciliado_anterior = Decimal(
+            str(remessas_anteriores[indice].get("valor_conciliado") or 0)
+        )
+        conciliado_atual = Decimal(
+            str(remessa_atualizada.get("valor_conciliado") or 0)
+        )
+        conciliado_total = Decimal(
+            str(cached_payload.get("valor_total_conciliado") or 0)
+        )
     except (InvalidOperation, TypeError, ValueError):
         return
 
@@ -3364,6 +3541,13 @@ def _restore_conciliacao_remessas_cache(
         remessas_atualizadas[indice] = remessa_atualizada
     payload_atualizado["valor_total_nao_conciliado"] = format(
         max(saldo_total - saldo_anterior + saldo_atual, Decimal("0.00")),
+        ".2f",
+    )
+    payload_atualizado["valor_total_conciliado"] = format(
+        max(
+            conciliado_total - conciliado_anterior + conciliado_atual,
+            Decimal("0.00"),
+        ),
         ".2f",
     )
     cache.set(
@@ -3596,7 +3780,11 @@ def follow_up_glosas(request):
                 status=400,
             )
 
-    filtros = {"q": (request.GET.get("q") or "").strip()}
+    filtros = {
+        "numero_nfse": (request.GET.get("numero_nfse") or "").strip(),
+        "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
+        "convenio": (request.GET.get("convenio") or "").strip(),
+    }
     detalhar_vinculo = as_int_or_zero(
         request.GET.get("detalhar_vinculo")
     )
@@ -3620,8 +3808,14 @@ def follow_up_glosas(request):
         }
         if detalhar_vinculo:
             api_params["conciliacao_remessa_id"] = detalhar_vinculo
-        elif filtros["q"]:
-            api_params["q"] = filtros["q"]
+        else:
+            api_params.update(
+                {
+                    key: value
+                    for key, value in filtros.items()
+                    if value
+                }
+            )
         response = api_get(FOLLOW_UP_GLOSAS_PATH, params=api_params)
         cards_api = response.get("cards") or []
         if not detalhar_vinculo:
@@ -4017,10 +4211,7 @@ def acompanhamento(request):
             registro
             for registro in registros
             if is_recurso_registro(registro)
-            and (
-                has_internal_treatment(registro)
-                or registro.get("conciliacao_remessa_id")
-            )
+            and has_internal_treatment(registro)
         ]
         convenios_desabilitados = disabled_convenio_ids(prazos_convenio)
         registros = [
@@ -4041,7 +4232,11 @@ def acompanhamento(request):
         rows_filtradas = [
             row
             for row in rows
-            if ("recebidas" if row.get("recebido") else row["idade_bucket"])
+            if (
+                "recebidas"
+                if row.get("possui_recebimento")
+                else row["idade_bucket"]
+            )
             == faixa
         ]
     else:
@@ -4149,7 +4344,7 @@ def build_conciliacao_faturamento_payload(data):
         if valor_liquido <= 0:
             raise ValueError(
                 "O valor glosado deve ser menor que o valor da remessa "
-                "vinculado à NFS-e."
+                "conciliado com a NFS-e."
             )
         nota["valor_alocado"] = f"{valor_liquido:.2f}"
     cd_remessa = as_int_or_none(data.get("cd_remessa"))
@@ -4173,7 +4368,7 @@ def build_recebimento_remessa_payload(data):
     if cd_remessa is None or cd_remessa <= 0:
         raise ValueError("Informe uma remessa válida para o recebimento.")
     if not numero_nfse:
-        raise ValueError("Informe a NFS-e vinculada ao recebimento.")
+        raise ValueError("Informe a NFS-e conciliada ao recebimento.")
     if not data_recebimento:
         raise ValueError("Informe a data do recebimento.")
     if valor_recebido is None or valor_recebido <= 0:
@@ -4335,7 +4530,7 @@ def build_alteracoes_auditoria_conciliacao(evento):
 
     recebimento_anterior = anteriores.get("recebimento") or {}
     recebimento_novo = novos.get("recebimento") or {}
-    if recebimento_novo:
+    if recebimento_anterior or recebimento_novo:
         adicionar(
             "Data do recebimento bancário",
             recebimento_anterior.get("data_recebimento"),
@@ -4348,6 +4543,26 @@ def build_alteracoes_auditoria_conciliacao(evento):
             recebimento_novo.get("valor_recebido"),
             "moeda",
         )
+        adicionar(
+            "Conta bancária do recebimento",
+            recebimento_anterior.get("conta_bancaria_id"),
+            recebimento_novo.get("conta_bancaria_id"),
+        )
+        adicionar(
+            "Conta do plano de contas",
+            recebimento_anterior.get("conta_plano_contas"),
+            recebimento_novo.get("conta_plano_contas"),
+        )
+        adicionar(
+            "Conta do centro de custo",
+            recebimento_anterior.get("conta_centro_custo"),
+            recebimento_novo.get("conta_centro_custo"),
+        )
+        adicionar(
+            "Lançamento financeiro",
+            recebimento_anterior.get("lancamento_extrato_id"),
+            recebimento_novo.get("lancamento_extrato_id"),
+        )
     return alteracoes
 
 
@@ -4356,7 +4571,7 @@ def conciliacao_faturamento(request):
     (
         page,
         page_size,
-        filtro_q,
+        filtros,
         remessas_params,
         remessas_cache_key,
         remessas_snapshot_key,
@@ -4406,10 +4621,15 @@ def conciliacao_faturamento(request):
             "valor_total_nao_conciliado",
             0,
         )
+        valor_total_conciliado = remessas_payload.get(
+            "valor_total_conciliado",
+            0,
+        )
     except ApiError as exc:
         remessas = []
         total_remessas = 0
         valor_total_pendente = 0
+        valor_total_conciliado = 0
         messages.error(
             request,
             format_api_error(exc, "Conciliação Faturamento x Fiscal"),
@@ -4426,7 +4646,9 @@ def conciliacao_faturamento(request):
         messages.error(request, format_api_error(exc, "Contas bancárias"))
 
     total_pages = max(ceil(total_remessas / page_size), 1)
-    base_query = {"q": filtro_q} if filtro_q else {}
+    base_query = {
+        key: value for key, value in filtros.items() if value
+    }
     if page > total_pages:
         return redirect(
             f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
@@ -4463,8 +4685,9 @@ def conciliacao_faturamento(request):
         {
             "remessas": remessas,
             "contas_bancarias": contas_bancarias,
-            "filtro_q": filtro_q,
+            "filtros": filtros,
             "total_remessas": total_remessas,
+            "valor_total_conciliado": valor_total_conciliado,
             "valor_total_pendente": valor_total_pendente,
             "pagination": pagination,
         },
@@ -4476,6 +4699,39 @@ def conciliacoes_sem_recebimento(request):
     if request.method == "POST":
         form_action = request.POST.get("form_action") or "recebimento"
         try:
+            if form_action == "editar_recebimento":
+                recebimento_id = as_int_or_none(
+                    request.POST.get("recebimento_id")
+                )
+                if recebimento_id is None:
+                    raise ValueError("Informe um recebimento válido.")
+                api_patch(
+                    f"{CONCILIACAO_FATURAMENTO_PATH}/"
+                    f"recebimentos-remessas/{recebimento_id}",
+                    build_recebimento_remessa_payload(request.POST),
+                )
+                clear_filter_caches()
+                messages.success(
+                    request,
+                    "Recebimento financeiro atualizado com sucesso.",
+                )
+                return redirect(request.get_full_path())
+            if form_action == "excluir_recebimento":
+                recebimento_id = as_int_or_none(
+                    request.POST.get("recebimento_id")
+                )
+                if recebimento_id is None:
+                    raise ValueError("Informe um recebimento válido.")
+                api_delete(
+                    f"{CONCILIACAO_FATURAMENTO_PATH}/"
+                    f"recebimentos-remessas/{recebimento_id}"
+                )
+                clear_filter_caches()
+                messages.success(
+                    request,
+                    "Recebimento financeiro excluído com sucesso.",
+                )
+                return redirect(request.get_full_path())
             if form_action == "editar_conciliacao":
                 conciliacao_id = as_int_or_none(
                     request.POST.get("conciliacao_id")
@@ -4533,15 +4789,22 @@ def conciliacoes_sem_recebimento(request):
     except ValueError:
         page = 1
     page_size = 25
-    filtro_q = (request.GET.get("q") or "").strip()
+    filtros = {
+        "numero_nfse": (request.GET.get("numero_nfse") or "").strip(),
+        "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
+        "convenio": (request.GET.get("convenio") or "").strip(),
+        "processo_recebimento": (
+            request.GET.get("processo_recebimento") or ""
+        ).strip(),
+    }
     offset = (page - 1) * page_size
 
     try:
         payload = get_cached_api_payload(
-            "financeiro:conciliacoes-sem-recebimento",
+            "financeiro:conciliacoes-sem-recebimento:v3",
             CONCILIACOES_SEM_RECEBIMENTO_PATH,
             params={
-                "q": filtro_q or None,
+                **{key: value or None for key, value in filtros.items()},
                 "limit": page_size,
                 "offset": offset,
             },
@@ -4552,14 +4815,16 @@ def conciliacoes_sem_recebimento(request):
             payload.get("total_remessas_sem_recebimento", 0)
         )
         valor_total_pendente = payload.get("valor_total_pendente", 0)
+        valor_total_recebido = payload.get("valor_total_recebido", 0)
     except ApiError as exc:
         conciliacoes = []
         total_conciliacoes = 0
         total_remessas_sem_recebimento = 0
         valor_total_pendente = 0
+        valor_total_recebido = 0
         messages.error(
             request,
-            format_api_error(exc, "Conciliações sem recebimento"),
+            format_api_error(exc, "Conciliação Financeira"),
         )
 
     try:
@@ -4572,8 +4837,31 @@ def conciliacoes_sem_recebimento(request):
         contas_bancarias = []
         messages.error(request, format_api_error(exc, "Contas bancárias"))
 
+    contas_por_id = {
+        str(conta.get("id")): conta for conta in contas_bancarias
+    }
+    for remessa in conciliacoes:
+        for nota in remessa.get("notas", []):
+            for recebimento in nota.get("recebimentos", []):
+                conta_bancaria_id = recebimento.get("conta_bancaria_id")
+                recebimento["conta_bancaria_label"] = (
+                    format_conta_bancaria_label(
+                        contas_por_id.get(str(conta_bancaria_id)),
+                        conta_bancaria_id,
+                    )
+                )
+                (
+                    recebimento["conta_bancaria_banco"],
+                    separator,
+                    recebimento["conta_bancaria_dados"],
+                ) = recebimento["conta_bancaria_label"].partition(" · ")
+                if not separator:
+                    recebimento["conta_bancaria_dados"] = "-"
+
     total_pages = max(ceil(total_conciliacoes / page_size), 1)
-    base_query = {"q": filtro_q} if filtro_q else {}
+    base_query = {
+        key: value for key, value in filtros.items() if value
+    }
     if page > total_pages:
         return redirect(
             f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
@@ -4605,12 +4893,13 @@ def conciliacoes_sem_recebimento(request):
         "conciliacoes_sem_recebimento.html",
         {
             "conciliacoes": conciliacoes,
-            "filtro_q": filtro_q,
+            "filtros": filtros,
             "total_conciliacoes": total_conciliacoes,
             "total_remessas_sem_recebimento": (
                 total_remessas_sem_recebimento
             ),
             "valor_total_pendente": valor_total_pendente,
+            "valor_total_recebido": valor_total_recebido,
             "contas_bancarias": contas_bancarias,
             "pagination": pagination,
         },
@@ -4625,7 +4914,14 @@ def conciliacoes_financeiras(request):
         page = 1
     page_size = 25
     filtros = {
-        "q": (request.GET.get("q") or "").strip(),
+        "numero_nfse": (
+            request.GET.get("numero_nfse") or ""
+        ).strip(),
+        "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
+        "convenio": (request.GET.get("convenio") or "").strip(),
+        "processo_recebimento": (
+            request.GET.get("processo_recebimento") or ""
+        ).strip(),
         "situacao": (request.GET.get("situacao") or "").strip(),
         "incluir_inativas": (
             "true" if request.GET.get("incluir_inativas") else "false"
@@ -4636,7 +4932,12 @@ def conciliacoes_financeiras(request):
         payload = api_get(
             CONCILIACOES_GERENCIAMENTO_PATH,
             params={
-                "q": filtros["q"] or None,
+                "numero_nfse": filtros["numero_nfse"] or None,
+                "cd_remessa": filtros["cd_remessa"] or None,
+                "convenio": filtros["convenio"] or None,
+                "processo_recebimento": (
+                    filtros["processo_recebimento"] or None
+                ),
                 "situacao": filtros["situacao"] or None,
                 "incluir_inativas": filtros["incluir_inativas"],
                 "limit": page_size,
@@ -4691,6 +4992,23 @@ def conciliacoes_financeiras(request):
             evento["alteracoes"] = build_alteracoes_auditoria_conciliacao(
                 evento
             )
+            evento["numero_nfse"] = (
+                evento.get("numero_nfse")
+                or (evento.get("dados_novos") or {}).get("numero_nfse")
+                or (evento.get("dados_anteriores") or {}).get(
+                    "numero_nfse"
+                )
+                or "-"
+            )
+            evento["tipo_acao_label"] = {
+                "criacao": "INCLUSÃO",
+                "criacao_migrada": "INCLUSÃO",
+                "edicao": "MODIFICAÇÃO",
+                "inativacao": "EXCLUSÃO",
+                "recebimento": "RECEBIMENTO",
+                "edicao_recebimento": "MODIFICAÇÃO",
+                "exclusao_recebimento": "EXCLUSÃO",
+            }.get(evento.get("acao"), "EVENTO")
             evento["vinculo_anterior"] = (
                 evento.get("conciliacao_origem_id") is not None
                 and evento.get("conciliacao_origem_id")
@@ -4698,24 +5016,13 @@ def conciliacoes_financeiras(request):
             )
         for nota in remessa.get("notas", []):
             for recebimento in nota.get("recebimentos", []):
-                conta = contas_por_id.get(
-                    str(recebimento.get("conta_bancaria_id"))
+                conta_bancaria_id = recebimento.get("conta_bancaria_id")
+                recebimento["conta_bancaria_label"] = (
+                    format_conta_bancaria_label(
+                        contas_por_id.get(str(conta_bancaria_id)),
+                        conta_bancaria_id,
+                    )
                 )
-                if conta:
-                    agencia = str(conta.get("agencia") or "-")
-                    if conta.get("digito_agencia"):
-                        agencia += f"-{conta['digito_agencia']}"
-                    numero_conta = str(conta.get("conta") or "-")
-                    if conta.get("digito"):
-                        numero_conta += f"-{conta['digito']}"
-                    recebimento["conta_bancaria_label"] = (
-                        f"{conta.get('banco') or 'Banco'} · "
-                        f"Ag. {agencia} · C/C {numero_conta}"
-                    )
-                else:
-                    recebimento["conta_bancaria_label"] = (
-                        f"Conta #{recebimento.get('conta_bancaria_id')}"
-                    )
     base_query = {
         key: value
         for key, value in filtros.items()
@@ -4729,6 +5036,10 @@ def conciliacoes_financeiras(request):
     pagination = {
         "page": page,
         "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
         "has_previous": page > 1,
         "has_next": page < total_pages,
         "previous_url": (
@@ -4742,6 +5053,7 @@ def conciliacoes_financeiras(request):
             else ""
         ),
         "total": total,
+        "query": base_query,
     }
     return render(
         request,
@@ -4794,6 +5106,9 @@ def conciliacao_faturamento_lancamentos(request):
             params={
                 "conta_bancaria_id": request.GET.get("conta_bancaria_id"),
                 "data_recebimento": request.GET.get("data_recebimento"),
+                "incluir_lancamento_id": request.GET.get(
+                    "incluir_lancamento_id"
+                ),
             },
         )
         return JsonResponse(payload)

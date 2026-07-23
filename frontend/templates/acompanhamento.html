@@ -147,7 +147,6 @@
   {% if modo == "tabela" %}
     <div class="age-palette">
       <a class="{% if not faixa %}active{% endif %}" href="?{% querystring modo='tabela' faixa='' %}">Todos</a>
-      <a class="{% if faixa == 'aguardando_tratativa' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='aguardando_tratativa' %}">Aguardando tratativa</a>
       <a class="{% if faixa == 'ate_30' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='ate_30' %}">Até 30 dias</a>
       <a class="{% if faixa == 'ate_60' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='ate_60' %}">Até 60 dias</a>
       <a class="{% if faixa == 'ate_90' %}active{% endif %}" href="?{% querystring modo='tabela' faixa='ate_90' %}">Até 90 dias</a>
@@ -192,16 +191,13 @@
                 <td class="center-cell ref-cell">{{ row.cd_atendimento|default:"-" }}</td>
                 <td class="center-cell ref-cell ref-cell--strong">{{ row.conta|default:"-" }}</td>
                 <td class="center-cell value-cell">{{ row.valor_glosado_total_formatado|default:"-" }}</td>
-                <td class="center-cell value-cell">{% if row.tratativa_pendente %}-{% else %}{{ row.valor_recurso_formatado|default:"-" }}{% endif %}</td>
+                <td class="center-cell value-cell">{{ row.valor_recurso_formatado|default:"-" }}</td>
                 <td class="center-cell value-cell">{% if row.possui_recebimento %}{{ row.valor_recebido_formatado|default:"-" }}{% else %}R$ 0,00{% endif %}</td>
                 <td class="center-cell qtd-cell">{{ row.qtd_glosada|floatformat:0 }}</td>
-                <td class="center-cell qtd-cell">{% if row.tratativa_pendente %}-{% else %}{{ row.qtd_recurso|floatformat:0 }}{% endif %}</td>
+                <td class="center-cell qtd-cell">{{ row.qtd_recurso|floatformat:0 }}</td>
                 <td class="center-cell qtd-cell">{% if row.possui_recebimento %}{{ row.qtd_recebida|floatformat:0 }}{% else %}0{% endif %}</td>
                 <td class="receive-action-cell">
-	                  {% if row.tratativa_pendente %}
-	                    <a class="btn btn-sm btn-outline-primary" href="{% url 'conta_atendimento' %}?cd_remessa={{ row.cd_remessa }}">Tratar itens</a>
-	                  {% else %}
-	                  <button
+                  <button
 	                    type="button"
 	                    class="btn btn-sm {% if row.possui_recebimento %}btn-received-edit{% else %}btn-outline-primary{% endif %}"
 	                    @click="openRecebimento({
@@ -218,8 +214,7 @@
 	                      qtdRecebida: '{{ row.qtd_recebida_modal|default:'' }}',
 	                      observacao: '{{ row.observacao_recebimento_modal|default:''|escapejs }}'
 	                    })"
-	                  >{% if row.possui_recebimento %}Editar{% else %}Receber{% endif %}</button>
-	                  {% endif %}
+                  >{% if row.possui_recebimento %}Editar{% else %}Receber{% endif %}</button>
                 </td>
               </tr>
             {% empty %}
@@ -261,12 +256,12 @@
               <article
                 class="kanban-card"
                 data-reference-date="{{ card.reference_date }}"
-                draggable="{% if column.key != 'recebidas' and not card.tratativa_pendente %}true{% else %}false{% endif %}"
-	                {% if not card.tratativa_pendente %}@dragstart="draggedCard = { ids: '{{ card.ids }}', received: {% if card.possui_recebimento %}true{% else %}false{% endif %}, title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}', resourceQuantity: '{{ card.qtd_total|stringformat:"g" }}', dtRecebimento: '{{ card.dt_recebimento_modal|default:'' }}', valorRecebido: '{{ card.valor_recebido_modal|default:''|escapejs }}', qtdRecebida: '{{ card.qtd_recebida_modal|default:'' }}', observacao: '{{ card.observacao_recebimento_modal|default:''|escapejs }}' }"{% endif %}
+                draggable="{% if column.key != 'recebidas' %}true{% else %}false{% endif %}"
+	                @dragstart="draggedCard = { ids: '{{ card.ids }}', received: {% if card.possui_recebimento %}true{% else %}false{% endif %}, title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}', resourceQuantity: '{{ card.qtd_total|stringformat:"g" }}', dtRecebimento: '{{ card.dt_recebimento_modal|default:'' }}', valorRecebido: '{{ card.valor_recebido_modal|default:''|escapejs }}', qtdRecebida: '{{ card.qtd_recebida_modal|default:'' }}', observacao: '{{ card.observacao_recebimento_modal|default:''|escapejs }}' }"
               >
                 <div class="kanban-card-head">
                   <span><b>Proc. Original</b> {{ card.processos_originais }}</span>
-                  <strong><b>Proc. Recurso</b> {% if card.tratativa_pendente %}Aguardando tratativa{% else %}{{ card.processo_recurso }}{% endif %}</strong>
+                  <strong><b>Proc. Recurso</b> {{ card.processo_recurso }}</strong>
                 </div>
                 <dl class="kanban-card-facts">
                   <div><dt>Remessa</dt><dd>{{ card.remessas }}</dd></div>
@@ -298,8 +293,8 @@
                             <td>{{ item.cd_remessa|default:"-" }}</td>
                             <td>{{ item.cd_atendimento|default:"-" }}</td>
                             <td>{{ item.conta|default:"-" }}</td>
-                            <td>{% if card.tratativa_pendente %}{{ item.qtd_glosada|floatformat:0 }}{% else %}{{ item.qtd_recurso|floatformat:0 }}{% endif %}</td>
-                            <td>{% if card.tratativa_pendente %}{{ item.valor_item_formatado }}{% else %}{{ item.valor_recurso_formatado }}{% endif %}</td>
+                            <td>{{ item.qtd_recurso|floatformat:0 }}</td>
+                            <td>{{ item.valor_recurso_formatado }}</td>
                           </tr>
                         {% endfor %}
                       </tbody>
@@ -307,15 +302,11 @@
                   </div>
                 {% endif %}
                 {% if column.key != 'recebidas' %}
-	                {% if card.tratativa_pendente %}
-	                  <a class="btn btn-outline-primary btn-sm" href="{% url 'conta_atendimento' %}?cd_remessa={{ card.remessas }}">Tratar itens</a>
-	                {% else %}
 	                  <button
                     type="button"
                     class="btn {% if card.possui_recebimento %}btn-received-edit{% else %}btn-outline-primary{% endif %} btn-sm"
 	                    @click="openRecebimento({ ids: '{{ card.ids }}', received: {% if card.possui_recebimento %}true{% else %}false{% endif %}, title: '{{ card.processo_recurso|escapejs }}', patient: '{{ card.pacientes|escapejs }}', remittance: '{{ card.remessas|escapejs }}', attendance: '{{ card.atendimentos|escapejs }}', resourceValue: '{{ card.valor_recebimento_maximo|stringformat:"g" }}', resourceQuantity: '{{ card.qtd_total|stringformat:"g" }}', dtRecebimento: '{{ card.dt_recebimento_modal|default:'' }}', valorRecebido: '{{ card.valor_recebido_modal|default:''|escapejs }}', qtdRecebida: '{{ card.qtd_recebida_modal|default:'' }}', observacao: '{{ card.observacao_recebimento_modal|default:''|escapejs }}' })"
 	                  >{% if card.possui_recebimento %}Editar{% else %}Receber{% endif %}</button>
-	                {% endif %}
                 {% endif %}
               </article>
             {% empty %}

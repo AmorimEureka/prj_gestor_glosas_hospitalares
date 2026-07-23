@@ -6,8 +6,20 @@
 <section class="finance-reconciliation-page finance-history-page">
   <form method="get" class="panel filter-panel finance-history-filters">
     <label class="filter-group finance-history-search">
-      <span>Pesquisar conciliação</span>
-      <input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="NFS-e, remessa, convênio, CNPJ ou processo">
+      <span>NFS-e</span>
+      <input class="form-control" type="search" name="numero_nfse" value="{{ filtros.numero_nfse }}" placeholder="Número da NFS-e">
+    </label>
+    <label class="filter-group">
+      <span>Remessa</span>
+      <input class="form-control" type="search" inputmode="numeric" name="cd_remessa" value="{{ filtros.cd_remessa }}" placeholder="Código da remessa">
+    </label>
+    <label class="filter-group">
+      <span>Convênio</span>
+      <input class="form-control" type="search" name="convenio" value="{{ filtros.convenio }}" placeholder="Nome do convênio">
+    </label>
+    <label class="filter-group">
+      <span>Processo</span>
+      <input class="form-control" type="search" name="processo_recebimento" value="{{ filtros.processo_recebimento }}" placeholder="Processo de recebimento">
     </label>
     <label class="filter-group">
       <span>Situação do recebimento</span>
@@ -23,7 +35,7 @@
     </label>
     <div class="filter-actions">
       <button class="btn btn-primary" type="submit">Pesquisar</button>
-      {% if filtros.q or filtros.situacao or filtros.incluir_inativas == "true" %}<a class="btn btn-outline-secondary" href="{% url 'conciliacoes_financeiras' %}">Limpar</a>{% endif %}
+      {% if filtros.numero_nfse or filtros.cd_remessa or filtros.convenio or filtros.processo_recebimento or filtros.situacao or filtros.incluir_inativas == "true" %}<a class="btn btn-outline-secondary" href="{% url 'conciliacoes_financeiras' %}">Limpar</a>{% endif %}
     </div>
   </form>
 
@@ -32,8 +44,22 @@
       <div class="results-heading finance-list-heading">
         <div>
           <span class="panel-title">Histórico de conciliações e recebimentos</span>
-          <span class="results-subtitle">Consulte os vínculos entre faturamento e notas fiscais, os recebimentos e quem realizou cada operação.</span>
+          <span class="results-subtitle">Consulte as conciliações entre faturamento e notas fiscais, os recebimentos e quem realizou cada operação.</span>
         </div>
+        {% if conciliacoes %}
+        <div class="collapse-actions">
+          <button
+            type="button"
+            class="collapse-action"
+            onclick="window.dispatchEvent(new CustomEvent('expand-all-finance-history'))"
+          >Expandir</button>
+          <button
+            type="button"
+            class="collapse-action"
+            onclick="window.dispatchEvent(new CustomEvent('collapse-all-finance-history'))"
+          >Colapsar todos</button>
+        </div>
+        {% endif %}
       </div>
       <div class="results-toolbar finance-results-toolbar">
         <div class="results-totals finance-history-totals">
@@ -42,19 +68,45 @@
           <span class="result-total"><span>RECEBIDAS</span><strong>{{ resumo.recebidas }}</strong></span>
           <span class="result-total result-total--value"><span>SEM RECEBIMENTO</span><strong>{{ resumo.sem_recebimento }}</strong></span>
         </div>
+        {% if pagination.total %}
+        <div class="pagination-control">
+          {% if pagination.has_previous %}
+          <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+          {% else %}
+          <span class="page-step page-step--disabled">Anterior</span>
+          {% endif %}
+          <form method="get" class="page-select-form">
+            {% for key, value in pagination.query.items %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+            <label for="finance-history-page-select">Pagina</label>
+            <select id="finance-history-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+              {% for option in pagination.page_options %}
+              <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+              {% endfor %}
+            </select>
+            <span>de {{ pagination.total_pages }}</span>
+          </form>
+          {% if pagination.has_next %}
+          <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+          {% else %}
+          <span class="page-step page-step--disabled">Proxima</span>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
     </div>
 
     <div class="finance-history-list">
       {% for remessa in conciliacoes %}
-      <article class="finance-history-card {% if not remessa.ativo %}is-inactive{% endif %}" x-data="{ open: false }" :class="{ 'is-open': open }">
+      <article class="finance-history-card {% if not remessa.ativo %}is-inactive{% endif %}" x-data="{ open: false }" :class="{ 'is-open': open }" @expand-all-finance-history.window="open = true" @collapse-all-finance-history.window="open = false">
         <button type="button" class="finance-history-summary" @click="open = !open" :aria-expanded="open">
           <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
           <span><small>Remessa</small><strong>{{ remessa.cd_remessa }}</strong></span>
           <span><small>Convênio</small><strong>{{ remessa.convenio }}</strong></span>
           <span><small>Processo</small><strong>{{ remessa.processo_recebimento }}</strong></span>
           <span><small>Valor da remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
-          <span><small>NFS-e vinculadas</small><strong>{{ remessa.notas|length }}</strong></span>
+          <span><small>NFS-e conciliadas</small><strong>{{ remessa.notas|length }}</strong></span>
           <span class="finance-history-statuses">
             {% if remessa.ativo %}<b class="finance-history-status is-active">ATIVA</b>{% else %}<b class="finance-history-status is-inactive">INATIVA</b>{% endif %}
             {% if remessa.situacao_recebimento == "recebido" %}<b class="finance-history-status is-received">RECEBIDA</b>{% else %}<b class="finance-history-status is-pending">SEM RECEBIMENTO</b>{% endif %}
@@ -76,30 +128,29 @@
 
           <section class="finance-history-section">
             <div class="finance-history-section-title">
-              <div><strong>Notas fiscais vinculadas</strong><span>Conciliações, valores e recebimentos agrupados por NFS-e da remessa.</span></div>
+              <div><strong>Notas fiscais conciliadas</strong><span>Conciliações, valores e recebimentos agrupados por NFS-e da remessa.</span></div>
             </div>
             <div class="finance-history-note-list">
               {% for nota in remessa.notas %}
               <article class="finance-history-note {% if not nota.ativo %}is-inactive{% endif %}">
-                <div class="finance-history-data-grid">
+                <div class="finance-history-data-grid finance-history-note-grid">
                   <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
-                  <span><small>TIPO</small><strong>{% if nota.tipo_conciliacao == "recurso" %}Recurso{% else %}Faturamento{% endif %}</strong></span>
-                  <span><small>VALOR DA NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
-                  <span><small>VALOR VINCULADO</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
+                  <span><small>VALOR NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
+                  <span><small>VALOR CONCILIADO</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
                   <span><small>VALOR ALOCADO NA NFS-e</small><strong>R$ {{ nota.valor_alocado_nfse|br_currency }}</strong></span>
                   <span><small>VALOR GLOSADO</small><strong>R$ {{ nota.valor_glosado|br_currency }}</strong></span>
                   <span><small>PREVISÃO</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
                   <span><small>SITUAÇÃO</small><strong>{% if nota.ativo %}Ativa{% else %}Inativa{% endif %} · {% if nota.situacao_recebimento == "recebido" %}Recebida{% else %}Sem recebimento{% endif %}</strong></span>
                   <span><small>CRIADA EM</small><strong>{{ nota.data_criacao|api_datetime }}</strong></span>
                   <span><small>CRIADA POR</small><strong>{{ nota.usuario_criacao.nome }}</strong><em>{{ nota.usuario_criacao.email }}</em></span>
-                  {% if nota.usuario_atualizacao %}<span><small>ÚLTIMA ALTERAÇÃO</small><strong>{{ nota.data_atualizacao|api_datetime }}</strong><em>{{ nota.usuario_atualizacao.nome }}</em></span>{% endif %}
-                  {% if nota.usuario_inativacao %}<span><small>INATIVADA EM</small><strong>{{ nota.data_inativacao|api_datetime }}</strong><em>{{ nota.usuario_inativacao.nome }}</em></span>{% endif %}
+                  <span><small>ÚLTIMA ALTERAÇÃO</small>{% if nota.usuario_atualizacao %}<strong>{{ nota.data_atualizacao|api_datetime }}</strong><em>{{ nota.usuario_atualizacao.nome }}</em>{% else %}<strong>-</strong>{% endif %}</span>
                 </div>
+                {% if nota.usuario_inativacao %}<div class="finance-history-note-inactivation"><small>INATIVADA EM</small><strong>{{ nota.data_inativacao|api_datetime }}</strong><em>{{ nota.usuario_inativacao.nome }}</em></div>{% endif %}
                 <div class="finance-history-note-receipts">
                   <strong>Recebimento da NFS-e</strong>
                   <div class="finance-history-receipts">
                     {% for recebimento in nota.recebimentos %}
-                    <div class="finance-history-data-grid">
+                    <div class="finance-history-data-grid finance-history-receipt-grid">
                       <span><small>DATA</small><strong>{{ recebimento.data_recebimento|api_date }}</strong></span>
                       <span><small>VALOR RECEBIDO</small><strong>R$ {{ recebimento.valor_recebido|br_currency }}</strong></span>
                       <span><small>CONTA BANCÁRIA</small><strong>{{ recebimento.conta_bancaria_label }}</strong></span>
@@ -112,7 +163,7 @@
                   </div>
                 </div>
               </article>
-              {% empty %}<div class="finance-history-empty">Nenhuma NFS-e vinculada à remessa.</div>{% endfor %}
+              {% empty %}<div class="finance-history-empty">Nenhuma NFS-e conciliada com a remessa.</div>{% endfor %}
             </div>
           </section>
 
@@ -124,20 +175,28 @@
               {% for evento in remessa.auditoria %}
               <li class="finance-history-event {% if evento.acao == 'criacao' or evento.acao == 'criacao_migrada' %}is-created{% elif evento.acao == 'edicao' %}is-updated{% elif evento.acao == 'inativacao' %}is-deleted{% elif evento.acao == 'recebimento' %}is-received{% else %}is-neutral{% endif %}">
                 <span class="finance-history-event-rail" aria-hidden="true">
-                  <span class="finance-history-event-node">{% if evento.acao == "criacao" or evento.acao == "criacao_migrada" %}+{% elif evento.acao == "edicao" %}~{% elif evento.acao == "inativacao" %}×{% elif evento.acao == "recebimento" %}${% else %}•{% endif %}</span>
+                  <span class="finance-history-event-node">{% if evento.acao == "criacao" or evento.acao == "criacao_migrada" %}+{% elif evento.acao == "edicao" or evento.acao == "edicao_recebimento" %}~{% elif evento.acao == "inativacao" or evento.acao == "exclusao_recebimento" %}×{% elif evento.acao == "recebimento" %}${% else %}•{% endif %}</span>
                 </span>
                 <div class="finance-history-event-card">
                   <div class="finance-history-event-header">
-                    <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}{% if evento.vinculo_anterior %}<small class="finance-history-lineage">VÍNCULO ANTERIOR</small>{% endif %}</strong>
-                    <small class="finance-history-event-kind">{% if evento.acao == "criacao" or evento.acao == "criacao_migrada" %}INCLUSÃO{% elif evento.acao == "edicao" %}MODIFICAÇÃO{% elif evento.acao == "inativacao" %}EXCLUSÃO{% elif evento.acao == "recebimento" %}RECEBIMENTO{% else %}EVENTO{% endif %}</small>
+                    <strong>{% if evento.acao == "criacao" %}Conciliação criada{% elif evento.acao == "criacao_migrada" %}Conciliação existente incorporada ao histórico{% elif evento.acao == "edicao" %}Conciliação editada{% elif evento.acao == "recebimento" %}Recebimento registrado{% elif evento.acao == "edicao_recebimento" %}Recebimento financeiro editado{% elif evento.acao == "exclusao_recebimento" %}Recebimento financeiro excluído{% elif evento.acao == "inativacao" %}Conciliação inativada{% else %}{{ evento.acao }}{% endif %}{% if evento.vinculo_anterior %}<small class="finance-history-lineage">CONCILIAÇÃO ANTERIOR</small>{% endif %}</strong>
+                    <small class="finance-history-event-kind">{{ evento.tipo_acao_label }}</small>
                   </div>
-                  <span class="finance-history-event-meta">{{ evento.data_operacao|api_datetime }} · {{ evento.usuario.nome }} ({{ evento.usuario.email }})</span>
+                  <div class="finance-history-event-context">
+                    <span><small>NFS-e</small><strong>{{ evento.numero_nfse }}</strong></span>
+                    <span><small>USUÁRIO</small><strong>{{ evento.usuario.nome }}</strong><em>{{ evento.usuario.email }}</em></span>
+                    <span><small>TIPO DE AÇÃO</small><strong>{{ evento.tipo_acao_label }}</strong></span>
+                    <span><small>DATA E HORA</small><strong>{{ evento.data_operacao|api_datetime }}</strong></span>
+                  </div>
                   {% if evento.alteracoes %}
+                  <strong class="finance-history-changes-title">{% if evento.acao == "edicao" %}Campos alterados{% else %}Detalhes da ação{% endif %}</strong>
                   <dl class="finance-history-changes">
                     {% for alteracao in evento.alteracoes %}
                     <div><dt>{{ alteracao.campo }}</dt><dd><del>{{ alteracao.anterior }}</del><span aria-hidden="true">→</span><ins>{{ alteracao.novo }}</ins></dd></div>
                     {% endfor %}
                   </dl>
+                  {% elif evento.acao == "edicao" %}
+                  <span class="finance-history-changes-empty">Nenhuma diferença de valor foi identificada neste registro de edição.</span>
                   {% endif %}
                 </div>
               </li>
@@ -151,13 +210,6 @@
       {% endfor %}
     </div>
 
-    {% if pagination.total_pages > 1 %}
-    <div class="pagination-footer">
-      {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
-      <span>Pagina {{ pagination.page }} de {{ pagination.total_pages }}</span>
-      {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Proxima</a>{% endif %}
-    </div>
-    {% endif %}
   </section>
 </section>
 {% endblock %}

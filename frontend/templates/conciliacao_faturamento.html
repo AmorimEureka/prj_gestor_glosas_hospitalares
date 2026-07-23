@@ -6,12 +6,20 @@
 <section class="finance-reconciliation-page">
   <form method="get" class="panel filter-panel finance-search-bar">
     <label class="filter-group">
-      <span>Pesquisar remessa pendente</span>
-      <input class="form-control" type="search" name="q" value="{{ filtro_q }}" placeholder="Número da remessa, convênio ou CNPJ">
+      <span>NFS-e</span>
+      <input class="form-control" type="search" name="numero_nfse" value="{{ filtros.numero_nfse }}" placeholder="Número da NFS-e">
+    </label>
+    <label class="filter-group">
+      <span>Remessa</span>
+      <input class="form-control" type="search" name="cd_remessa" value="{{ filtros.cd_remessa }}" placeholder="Código da remessa">
+    </label>
+    <label class="filter-group">
+      <span>Convênio</span>
+      <input class="form-control" type="search" name="convenio" value="{{ filtros.convenio }}" placeholder="Nome ou CNPJ do convênio">
     </label>
     <div class="filter-actions">
       <button class="btn btn-primary" type="submit">Pesquisar</button>
-      {% if filtro_q %}<a class="btn btn-outline-secondary" href="{% url 'conciliacao_faturamento' %}">Limpar</a>{% endif %}
+      {% if filtros.numero_nfse or filtros.cd_remessa or filtros.convenio %}<a class="btn btn-outline-secondary" href="{% url 'conciliacao_faturamento' %}">Limpar</a>{% endif %}
     </div>
   </form>
 
@@ -22,10 +30,17 @@
           <span class="panel-title">Remessas pendentes de conciliação fiscal</span>
           <span class="results-subtitle">Expanda uma remessa para consultar o histórico e vincular uma ou mais NFS-e do convênio.</span>
         </div>
+        {% if remessas %}
+        <div class="collapse-actions">
+          <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-fiscal-reconciliations'))">Expandir</button>
+          <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-fiscal-reconciliations'))">Colapsar todos</button>
+        </div>
+        {% endif %}
       </div>
       <div class="results-toolbar finance-results-toolbar">
         <div class="results-totals">
           <span class="result-total"><span>TOTAL REMESSAS</span><strong>{{ total_remessas }}</strong></span>
+          <span class="result-total result-total--treated"><span>TOTAL CONCILIADO</span><strong>R$ {{ valor_total_conciliado|br_currency }}</strong></span>
           <span class="result-total result-total--value"><span>SALDO NÃO CONCILIADO</span><strong>R$ {{ valor_total_pendente|br_currency }}</strong></span>
         </div>
         {% if pagination.total %}
@@ -51,6 +66,8 @@
         class="finance-note-card finance-remittance-card"
         x-data="conciliacaoRemessaCard('{{ remessa.cd_remessa }}', '{{ remessa.valor_disponivel_conciliacao|escapejs }}', '{{ remessa.processo_recebimento|default:''|escapejs }}')"
         :class="{ 'is-open': open }"
+        @expand-all-fiscal-reconciliations.window="open = true"
+        @collapse-all-fiscal-reconciliations.window="open = false"
       >
         <button type="button" class="finance-note-summary finance-remittance-summary" @click="open = !open" :aria-expanded="open">
           <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
@@ -387,7 +404,7 @@
           const valorGlosado = this.valorGlosadoNota(nota);
           const valorLiquido = this.valorLiquidoNota(nota);
           if (valorBruto <= 0) {
-            this.showValidationError(`O valor da remessa vinculado à NFS-e ${nota.numero_nfse} deve ser maior que zero.`);
+            this.showValidationError(`O valor da remessa conciliado com a NFS-e ${nota.numero_nfse} deve ser maior que zero.`);
             return false;
           }
           if (!nota.data_previsao_recebimento) {
@@ -399,7 +416,7 @@
             return false;
           }
           if (nota.sn_glosado && valorGlosado >= valorBruto) {
-            this.showValidationError(`O valor glosado da NFS-e ${nota.numero_nfse} deve ser menor que o valor da remessa vinculado à nota.`);
+            this.showValidationError(`O valor glosado da NFS-e ${nota.numero_nfse} deve ser menor que o valor da remessa conciliado com a nota.`);
             return false;
           }
           if (valorLiquido > Number(nota.saldo_nfse)) {
@@ -412,7 +429,7 @@
           }
         }
         if (this.totalComprometido > this.valorDisponivel + 0.005) {
-          this.showValidationError('A soma das parcelas vinculadas excede o saldo disponível da remessa.');
+          this.showValidationError('A soma das parcelas conciliadas excede o saldo disponível da remessa.');
           return false;
         }
         return form.checkValidity();
