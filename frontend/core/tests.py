@@ -1085,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260723-cadastrar-nota-20',
+            '?v=20260723-workflow-nfse-22',
             base_template.read_text(),
         )
 
@@ -2840,25 +2840,56 @@ class CadastrarNotaTests(TestCase):
             'offset': offset,
         }
 
+    def workflow_payload(self, status='PENDENTE_VALIDACAO'):
+        return {
+            **self.atendimento_payload(),
+            'id': 7,
+            'local': 'Clinica 1',
+            'procedimento': 'Consulta cardiológica',
+            'usuario_id': 4,
+            'data_criacao': '2026-07-23T14:30:00',
+            'workflow_id': 9,
+            'status': status,
+            'validacao': None,
+            'motivo_recusa': None,
+            'validado_por_id': None,
+            'validado_por': None,
+            'validado_em': None,
+            'workflow_atualizado_em': '2026-07-23T14:30:00',
+        }
+
     @patch('core.views.api_get')
     def test_renderiza_novo_menu_e_formulario(self, api_get):
-        api_get.return_value = self.lista_payload()
-
-        response = self.client.get('/requisicao/cadastrar-nota/')
+        response = self.client.get('/requisicao/solicitacao-nota/')
 
         self.assertEqual(response.status_code, 200)
-        api_get.assert_called_once_with(
-            '/app_glosas/requisicoes/solicitacoes-nota',
-            {'limit': 10, 'offset': 0},
-        )
+        api_get.assert_not_called()
         self.assertContains(
             response,
             '<span class="nav-label">Requisição</span>',
         )
         self.assertContains(
             response,
-            '<span class="nav-label">Cadastrar Nota</span>',
+            '<span class="nav-label">Solicitação Nota</span>',
         )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Solicitações cadastradas</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Workflow Solicitações</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Solicitações Recusas</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Emissão NFS-e</span>',
+        )
+        self.assertContains(response, '<h1>Solicitação Nota</h1>')
+        self.assertNotContains(response, '<span class="panel-title">Solicitações cadastradas</span>')
         self.assertContains(response, 'Código atendimento *')
         self.assertContains(response, 'Nome do paciente')
         self.assertContains(response, 'Convênio')
@@ -2878,7 +2909,7 @@ class CadastrarNotaTests(TestCase):
         api_get.return_value = self.atendimento_payload()
 
         response = self.client.get(
-            '/requisicao/cadastrar-nota/atendimentos/123456/'
+            '/requisicao/solicitacao-nota/atendimentos/123456/'
         )
 
         self.assertEqual(response.status_code, 200)
@@ -2895,10 +2926,10 @@ class CadastrarNotaTests(TestCase):
         api_get.return_value = self.atendimento_payload()
 
         primeira = self.client.get(
-            '/requisicao/cadastrar-nota/atendimentos/123456/'
+            '/requisicao/solicitacao-nota/atendimentos/123456/'
         )
         segunda = self.client.get(
-            '/requisicao/cadastrar-nota/atendimentos/123456/'
+            '/requisicao/solicitacao-nota/atendimentos/123456/'
         )
 
         self.assertEqual(primeira.status_code, 200)
@@ -2913,35 +2944,25 @@ class CadastrarNotaTests(TestCase):
         self,
         api_get,
     ):
-        api_get.side_effect = [
-            self.atendimento_payload(),
-            self.lista_payload(),
-        ]
+        api_get.return_value = self.atendimento_payload()
 
         ajax = self.client.get(
-            '/requisicao/cadastrar-nota/atendimentos/123456/'
+            '/requisicao/solicitacao-nota/atendimentos/123456/'
         )
         pagina = self.client.get(
-            '/requisicao/cadastrar-nota/?codigo_atendimento=123456'
+            '/requisicao/solicitacao-nota/?codigo_atendimento=123456'
         )
 
         self.assertEqual(ajax.status_code, 200)
         self.assertEqual(pagina.status_code, 200)
         self.assertContains(pagina, 'MARIA DA SILVA')
         self.assertContains(pagina, 'CONVÊNIO TESTE')
-        self.assertEqual(api_get.call_count, 2)
-        api_get.assert_any_call(
+        api_get.assert_called_once_with(
             '/app_glosas/requisicoes/atendimentos/123456'
         )
-        api_get.assert_any_call(
-            '/app_glosas/requisicoes/solicitacoes-nota',
-            {'limit': 10, 'offset': 0},
-        )
 
-    @patch('core.views.api_get')
     @patch('core.views.api_post')
-    def test_cadastra_solicitacao_e_redireciona(self, api_post, api_get):
-        api_get.return_value = self.lista_payload()
+    def test_cadastra_solicitacao_e_redireciona(self, api_post):
         api_post.return_value = {
             **self.atendimento_payload(),
             'id': 1,
@@ -2950,7 +2971,7 @@ class CadastrarNotaTests(TestCase):
         }
 
         response = self.client.post(
-            '/requisicao/cadastrar-nota/',
+            '/requisicao/solicitacao-nota/',
             {
                 'codigo_atendimento': '123456',
                 'local': 'Clinica 1',
@@ -2992,7 +3013,9 @@ class CadastrarNotaTests(TestCase):
             offset=10,
         )
 
-        response = self.client.get('/requisicao/cadastrar-nota/?page=2')
+        response = self.client.get(
+            '/requisicao/solicitacoes-cadastradas/?page=2'
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '>Expandir</button>')
@@ -3005,4 +3028,131 @@ class CadastrarNotaTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {'limit': 10, 'offset': 10},
+        )
+
+    @patch('core.views.api_get')
+    def test_workflow_lista_pendentes_com_acoes_de_validacao(
+        self,
+        api_get,
+    ):
+        api_get.return_value = self.lista_payload(
+            [self.workflow_payload()],
+            total=1,
+        )
+
+        response = self.client.get(
+            '/requisicao/workflow-solicitacoes/'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Confirmar validação')
+        self.assertContains(response, 'Recusar dados')
+        self.assertContains(response, 'Consulta cardiológica')
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/workflow',
+            {
+                'status': 'PENDENTE_VALIDACAO',
+                'limit': 10,
+                'offset': 0,
+            },
+        )
+
+    @patch('core.views.api_post')
+    def test_workflow_confirma_validacao(self, api_post):
+        api_post.return_value = {
+            **self.workflow_payload('VALIDADA'),
+            'validacao': 'VALIDADA',
+        }
+
+        response = self.client.post(
+            '/requisicao/workflow-solicitacoes/',
+            {
+                'solicitacao_id': '7',
+                'decisao': 'VALIDADA',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_post.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/7/validacao',
+            {
+                'decisao': 'VALIDADA',
+                'motivo_recusa': None,
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_solicitacoes_recusas_exibe_motivo(self, api_get):
+        recusada = {
+            **self.workflow_payload('RECUSADA'),
+            'validacao': 'RECUSADA',
+            'motivo_recusa': 'CPF divergente.',
+            'validado_por_id': 4,
+            'validado_por': 'Amoras',
+            'validado_em': '2026-07-23T15:00:00',
+        }
+        api_get.return_value = self.lista_payload([recusada], total=1)
+
+        response = self.client.get(
+            '/requisicao/solicitacoes-recusas/'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'CPF divergente.')
+        self.assertContains(response, 'Amoras')
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/workflow',
+            {
+                'status': 'RECUSADA',
+                'limit': 10,
+                'offset': 0,
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_emissao_filtra_aprovadas_e_exibe_lote(self, api_get):
+        api_get.return_value = self.lista_payload(
+            [self.workflow_payload('VALIDADA')],
+            total=1,
+        )
+
+        response = self.client.get(
+            '/requisicao/emissao-nfse/'
+            '?nome_paciente=Maria&cpf=123&'
+            'tipo_atendimento=Ambulat%C3%B3rio&local=Clinica+1'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Emitir selecionadas')
+        self.assertContains(response, 'Emitir esta NFS-e')
+        self.assertContains(response, 'form="batch-emission-form"')
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/workflow',
+            {
+                'status': 'VALIDADA',
+                'limit': 10,
+                'offset': 0,
+                'nome_paciente': 'Maria',
+                'cpf': '123',
+                'tipo_atendimento': 'Ambulatório',
+                'local': 'Clinica 1',
+            },
+        )
+
+    @patch('core.views.api_post')
+    def test_emissao_em_lote_encaminha_ids_ao_airflow(self, api_post):
+        api_post.return_value = {
+            'lote_id': 12,
+            'message': 'DAG acionada.',
+        }
+
+        response = self.client.post(
+            '/requisicao/emissao-nfse/',
+            {'solicitacao_ids': ['7', '8']},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_post.assert_called_once_with(
+            '/app_glosas/requisicoes/emissoes-nfse',
+            {'solicitacao_ids': [7, 8]},
         )

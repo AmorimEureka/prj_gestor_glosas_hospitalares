@@ -8482,7 +8482,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 }
 
-/* Requisição · Cadastrar Nota */
+/* Requisição · Solicitação Nota */
 .note-request-page {
   padding-bottom: 1.5rem;
 }
@@ -8887,6 +8887,267 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow-wrap: anywhere;
 }
 
+/* Requisição · workflow e emissão de NFS-e */
+.workflow-request-panel {
+  overflow: hidden;
+}
+
+.workflow-request-toolbar {
+  justify-content: space-between;
+}
+
+.workflow-request-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.workflow-request-card {
+  min-width: 72rem;
+  overflow: hidden;
+  border: 1px solid #c7dce5;
+  border-radius: 0.62rem;
+  background: #fff;
+  box-shadow: 0 0.2rem 0.6rem rgb(22 88 108 / 6%);
+}
+
+.workflow-request-header {
+  display: grid;
+  grid-template-columns:
+    1.1rem minmax(6rem, 0.65fr) minmax(13rem, 1.5fr)
+    minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
+    minmax(6.5rem, 0.7fr) minmax(9rem, 0.9fr) minmax(8rem, auto);
+  gap: 0.72rem;
+  align-items: center;
+  padding: 0.78rem 0.88rem;
+  background: #2b7184;
+  color: #fff;
+  cursor: pointer;
+}
+
+.workflow-request-card--emissao .workflow-request-header {
+  grid-template-columns:
+    1.4rem 1.1rem minmax(6rem, 0.65fr) minmax(12rem, 1.5fr)
+    minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
+    minmax(6.5rem, 0.7fr) minmax(9rem, 0.9fr) minmax(6.5rem, auto);
+}
+
+.workflow-request-header > span:not(.workflow-request-chevron, .workflow-request-status) {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.workflow-request-header small,
+.workflow-request-details small,
+.workflow-refusal-summary small,
+.workflow-refusal-form label > span {
+  color: #607985;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.workflow-request-header small {
+  color: rgb(255 255 255 / 72%);
+}
+
+.workflow-request-header strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-request-chevron {
+  color: #d8edf3;
+  font-size: 0.65rem;
+  transition: transform 0.16s ease;
+}
+
+.workflow-request-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.workflow-request-selector {
+  display: grid;
+  margin: 0;
+  place-items: center;
+}
+
+.workflow-request-selector input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+.workflow-request-status {
+  justify-self: end;
+  padding: 0.28rem 0.48rem;
+  border: 1px solid rgb(255 255 255 / 50%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 13%);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.workflow-request-status--recusa {
+  border-color: #ffb9b0;
+  background: #fff1ef;
+  color: #a33127;
+}
+
+.workflow-request-status--emissao {
+  border-color: #a9e0c6;
+  background: #eaf9f1;
+  color: #176c4b;
+}
+
+.workflow-request-body {
+  display: grid;
+  gap: 0.72rem;
+  padding: 0.78rem;
+  background: #f5fafc;
+}
+
+.workflow-request-details {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.62rem;
+}
+
+.workflow-request-details > span,
+.workflow-refusal-summary > span {
+  display: grid;
+  gap: 0.18rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid #d4e3e9;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.workflow-request-details > span.is-wide {
+  grid-column: span 3;
+}
+
+.workflow-request-details strong,
+.workflow-refusal-summary strong {
+  color: #14394a;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.workflow-refusal-summary {
+  display: grid;
+  grid-template-columns: minmax(18rem, 2fr) repeat(2, minmax(10rem, 1fr));
+  gap: 0.62rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #d9e6eb;
+}
+
+.workflow-refusal-summary > span:first-child {
+  border-color: #edc0bb;
+  background: #fff7f6;
+}
+
+.workflow-validation-actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-top: 0.72rem;
+  border-top: 1px solid #d9e6eb;
+}
+
+.workflow-validation-actions form {
+  margin: 0;
+}
+
+.workflow-action {
+  min-height: 2.25rem;
+  padding: 0.5rem 0.78rem;
+  border-radius: 0.42rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.workflow-action--approve,
+.workflow-action--issue {
+  border: 1px solid #187c5a;
+  background: #187c5a;
+  color: #fff;
+}
+
+.workflow-action--reject {
+  border: 1px solid #cf5d53;
+  background: #fff;
+  color: #a33127;
+}
+
+.workflow-action:disabled {
+  border-color: #bdcbd1;
+  background: #dfe7ea;
+  color: #7b8d95;
+  cursor: not-allowed;
+}
+
+.workflow-refusal-form {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) auto;
+  gap: 0.55rem;
+  align-items: end;
+  width: min(42rem, 100%);
+}
+
+.workflow-refusal-form label {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+}
+
+.workflow-refusal-form textarea {
+  width: 100%;
+  padding: 0.52rem 0.62rem;
+  border: 1px solid #d2a19c;
+  border-radius: 0.42rem;
+  color: #14394a;
+  font: inherit;
+  font-size: 0.7rem;
+  resize: vertical;
+}
+
+.note-request-results-total--refused {
+  border-left-color: #cf5d53;
+}
+
+.note-emission-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(13rem, 1.4fr) minmax(10rem, 0.8fr)
+    minmax(11rem, 0.9fr) minmax(10rem, 0.8fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.note-emission-filters .filter-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.workflow-batch-form {
+  margin-right: auto;
+}
+
 @media (max-width: 1100px) {
   .note-request-patient-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8898,6 +9159,18 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .note-request-record-details {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .workflow-request-details {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .note-emission-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .note-emission-filters .filter-actions {
+    grid-column: 1 / -1;
   }
 }
 
@@ -8938,5 +9211,32 @@ body:not(.sidebar-collapsed) .indicator-grid {
     padding: 0.65rem 0 0;
     border-top: 1px solid #dbe4ea;
     border-left: 0;
+  }
+
+  .workflow-request-toolbar,
+  .workflow-validation-actions,
+  .workflow-refusal-summary {
+    align-items: stretch;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-request-toolbar .pagination-control {
+    padding: 0.65rem 0 0;
+    border-top: 1px solid #dbe4ea;
+    border-left: 0;
+  }
+
+  .workflow-refusal-form,
+  .note-emission-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-request-details {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-request-details > span.is-wide {
+    grid-column: auto;
   }
 }

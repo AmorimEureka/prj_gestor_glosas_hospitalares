@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Requisição{% endblock %}
+{% block page_title %}Solicitações Recusas{% endblock %}
+{% block content %}
+<section class="panel results-summary-panel workflow-request-panel">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Solicitações recusadas</span>
+        {% if pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
+        {% else %}
+        <span class="results-subtitle">Nenhuma solicitação recusada.</span>
+        {% endif %}
+      </div>
+      {% if solicitacoes %}
+      <div class="collapse-actions">
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-workflow-requests'))">Expandir</button>
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-workflow-requests'))">Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+    <div class="results-toolbar workflow-request-toolbar">
+      <span class="note-request-results-total note-request-results-total--refused">
+        <span>Recusadas</span>
+        <strong>{{ pagination.total }}</strong>
+      </span>
+      {% include "_workflow_pagination.html" with pagination_id="refused-page-select" %}
+    </div>
+  </div>
+  {% include "_workflow_solicitacao_cards.html" with workflow_mode="recusa" %}
+</section>
+{% endblock %}
