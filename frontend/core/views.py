@@ -59,6 +59,14 @@ LOCAIS_SOLICITACAO_NOTA = {
     "Clinica 2": "Clínica 2",
     "Emergencia": "Emergência",
 }
+STATUS_SOLICITACAO_NOTA = {
+    "PENDENTE_VALIDACAO": ("Pendente de validação", "pendente"),
+    "VALIDADA": ("Validada", "validada"),
+    "RECUSADA": ("Recusada", "recusada"),
+    "EMISSAO_SOLICITADA": ("Emissão solicitada", "emissao"),
+    "EMITIDA": ("NFS-e emitida", "emitida"),
+    "ERRO_EMISSAO": ("Erro na emissão", "erro"),
+}
 
 
 def get_cached_atendimento_nota(codigo_atendimento):
@@ -343,6 +351,16 @@ def solicitacoes_nota(request):
         solicitacao["valor_nota_formatado"] = format_brl_input(
             solicitacao.get("valor_nota")
         )
+        solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
+            solicitacao.get("local"),
+            solicitacao.get("local") or "Não informado",
+        )
+        status_label, status_classe = STATUS_SOLICITACAO_NOTA.get(
+            solicitacao.get("status"),
+            ("Status não informado", "pendente"),
+        )
+        solicitacao["status_label"] = status_label
+        solicitacao["status_classe"] = status_classe
 
     total_pages = max(ceil(total_solicitacoes / limit), 1)
     if page > total_pages:

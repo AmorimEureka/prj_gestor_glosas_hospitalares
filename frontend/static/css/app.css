@@ -8707,10 +8707,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-data-grid {
   display: grid;
-  grid-template-columns:
-    minmax(13rem, 0.65fr) minmax(13rem, 0.65fr) minmax(22rem, 2fr);
+  grid-template-columns: repeat(2, minmax(13rem, 1fr));
   gap: 0.72rem;
   align-items: start;
+}
+
+.note-request-data-grid .is-wide {
+  grid-column: 1 / -1;
 }
 
 .note-request-data-grid textarea {
@@ -8723,8 +8726,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
   gap: 0.6rem;
   align-items: center;
   justify-content: flex-end;
-  padding: 0.9rem 1.3rem;
-  background: #f7fafb;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #dce8ed;
 }
 
 .note-request-actions a,
@@ -8820,7 +8824,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   cursor: pointer;
 }
 
-.note-request-record-header > span:not(.note-request-record-chevron),
+.note-request-record-header > span:not(
+  .note-request-record-chevron,
+  .note-request-record-status
+),
 .note-request-record-details > span {
   display: grid;
   gap: 0.16rem;
@@ -8841,6 +8848,46 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-size: 0.69rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.note-request-record-status {
+  justify-self: end;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.note-request-record-status--pendente {
+  border-color: #f3d692;
+  background: #fff7df;
+  color: #78530a;
+}
+
+.note-request-record-status--validada,
+.note-request-record-status--emitida {
+  border-color: #a9e0c6;
+  background: #eaf9f1;
+  color: #176c4b;
+}
+
+.note-request-record-status--emissao {
+  border-color: #b9d9ef;
+  background: #edf7fd;
+  color: #185f83;
+}
+
+.note-request-record-status--recusada,
+.note-request-record-status--erro {
+  border-color: #ffb9b0;
+  background: #fff1ef;
+  color: #a33127;
 }
 
 .note-request-record-chevron {
@@ -9160,7 +9207,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .note-request-data-grid {
-    grid-template-columns: 1fr 1fr 2fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .note-request-record-details {
@@ -9198,7 +9245,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .note-request-patient-grid .is-wide,
-  .note-request-patient-grid .is-address {
+  .note-request-patient-grid .is-address,
+  .note-request-data-grid .is-wide {
     grid-column: auto;
   }
 
