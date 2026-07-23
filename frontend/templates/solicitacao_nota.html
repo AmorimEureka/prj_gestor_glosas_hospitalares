@@ -27,13 +27,12 @@
           <label>
             <span>Código atendimento *</span>
             <input
-              type="number"
+              type="text"
               id="codigo-atendimento"
               name="codigo_atendimento"
               value="{{ codigo_atendimento }}"
-              min="1"
-              step="1"
               inputmode="numeric"
+              pattern="[0-9]+"
               autocomplete="off"
               required
             >
@@ -57,7 +56,6 @@
           <span>2</span>
           <div>
             <strong>Paciente</strong>
-            <small>Informações recuperadas da view HPC_V_PACIENTES.</small>
           </div>
         </div>
         <div class="note-request-patient-grid">
@@ -144,16 +142,15 @@
             <textarea name="procedimento" rows="3" maxlength="500" required placeholder="Descreva o procedimento">{{ procedimento }}</textarea>
           </label>
         </div>
+        <div class="note-request-actions">
+          <a href="{% url 'solicitacao_nota' %}">Limpar</a>
+          <button
+            type="submit"
+            id="cadastrar-solicitacao"
+            {% if not atendimento %}disabled{% endif %}
+          >Cadastrar nota</button>
+        </div>
       </section>
-
-      <footer class="note-request-actions">
-        <a href="{% url 'solicitacao_nota' %}">Limpar</a>
-        <button
-          type="submit"
-          id="cadastrar-solicitacao"
-          {% if not atendimento %}disabled{% endif %}
-        >Cadastrar nota</button>
-      </footer>
     </form>
   </article>
 </section>

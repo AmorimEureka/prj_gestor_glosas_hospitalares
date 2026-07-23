@@ -6,7 +6,6 @@
   <div class="panel-header">
     <div class="results-heading">
       <div>
-        <span class="panel-title">Solicitações cadastradas</span>
         {% if pagination.total %}
         <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
         {% else %}
@@ -94,33 +93,35 @@
           <strong>{{ solicitacao.convenio }}</strong>
         </span>
         <span>
+          <small>Tipo atendimento</small>
+          <strong>{{ solicitacao.tipo_atendimento }}</strong>
+        </span>
+        <span>
           <small>Local</small>
-          <strong>{{ solicitacao.local }}</strong>
+          <strong>{{ solicitacao.local_label }}</strong>
         </span>
         <span>
           <small>Valor da nota</small>
           <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
         </span>
-        <span>
-          <small>Tipo atendimento</small>
-          <strong>{{ solicitacao.tipo_atendimento }}</strong>
-        </span>
-        <span>
-          <small>Cadastrada em</small>
-          <strong>{{ solicitacao.data_criacao_formatada }}</strong>
+        <span class="note-request-record-status note-request-record-status--{{ solicitacao.status_classe }}">
+          {{ solicitacao.status_label }}
         </span>
       </button>
       <div class="note-request-record-body" x-show="open" x-cloak>
         <div class="note-request-record-details">
-          <span><small>Código paciente</small><strong>{{ solicitacao.codigo_paciente }}</strong></span>
-          <span><small>Código convênio</small><strong>{{ solicitacao.codigo_convenio }}</strong></span>
           <span><small>CPF</small><strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong></span>
-          <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
           <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
           <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+          <span><small>Cadastrada em</small><strong>{{ solicitacao.data_criacao_formatada }}</strong></span>
+          <span>
+            <small>Solicitada por</small>
+            <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
+          </span>
           <span class="is-wide">
             <small>Endereço</small>
             <strong>
+              {% if solicitacao.nr_cep %}CEP {{ solicitacao.nr_cep }} — {% endif %}
               {{ solicitacao.ds_endereco|default:"Não informado" }}
               {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
               {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
@@ -128,10 +129,6 @@
             </strong>
           </span>
           <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
-          <span>
-            <small>Solicitada por</small>
-            <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
-          </span>
         </div>
       </div>
     </article>

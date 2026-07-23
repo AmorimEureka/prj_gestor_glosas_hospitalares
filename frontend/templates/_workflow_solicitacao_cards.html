@@ -63,9 +63,13 @@
 
     <div class="workflow-request-body" x-show="open" x-cloak>
       <div class="workflow-request-details">
+        {% if workflow_mode != "validacao" %}
         <span><small>Código paciente</small><strong>{{ solicitacao.codigo_paciente }}</strong></span>
+        {% endif %}
         <span><small>Convênio</small><strong>{{ solicitacao.convenio }}</strong></span>
+        {% if workflow_mode != "validacao" %}
         <span><small>Código convênio</small><strong>{{ solicitacao.codigo_convenio }}</strong></span>
+        {% endif %}
         <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
         <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
         <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>

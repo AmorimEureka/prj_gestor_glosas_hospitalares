@@ -1085,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260723-solicitacao-valores-23',
+            '?v=20260723-solicitacao-status-23',
             base_template.read_text(),
         )
 
@@ -2969,6 +2969,27 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(pagina, 'MARIA DA SILVA')
         self.assertContains(pagina, 'CONVÊNIO TESTE')
         self.assertContains(pagina, 'name="valor_nota"')
+        self.assertNotContains(
+            pagina,
+            'Informações recuperadas da view HPC_V_PACIENTES.',
+        )
+        html = pagina.content.decode()
+        codigo_posicao = html.index('id="codigo-atendimento"')
+        codigo_input = html[codigo_posicao - 100 : codigo_posicao + 300]
+        self.assertIn('type="text"', codigo_input)
+        self.assertNotIn('type="number"', codigo_input)
+        self.assertLess(
+            html.index('name="local"'),
+            html.index('name="valor_nota"'),
+        )
+        self.assertLess(
+            html.index('name="valor_nota"'),
+            html.index('name="procedimento"'),
+        )
+        self.assertLess(
+            html.index('name="procedimento"'),
+            html.index('class="note-request-actions"'),
+        )
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/atendimentos/123456'
         )
@@ -3050,6 +3071,7 @@ class CadastrarNotaTests(TestCase):
             'valor_nota': '60.75',
             'usuario_id': 4,
             'cadastrado_por': 'Amoras',
+            'status': 'EMITIDA',
             'data_criacao': '2026-07-23T14:30:00',
         }
         api_get.return_value = self.lista_payload(
@@ -3072,6 +3094,13 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Consulta cardiológica')
         self.assertContains(response, 'R$ 60,75')
         self.assertContains(response, 'Amoras')
+        self.assertContains(response, 'NFS-e emitida')
+        self.assertNotContains(response, '<small>Código paciente</small>')
+        self.assertNotContains(response, '<small>Código convênio</small>')
+        self.assertNotContains(
+            response,
+            '<span class="panel-title">Solicitações cadastradas</span>',
+        )
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {'limit': 10, 'offset': 10},
@@ -3097,6 +3126,9 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Consulta cardiológica')
         self.assertContains(response, 'R$ 60,75')
         self.assertContains(response, 'Amoras')
+        self.assertNotContains(response, '<small>Código paciente</small>')
+        self.assertNotContains(response, '<small>Código convênio</small>')
+        self.assertContains(response, '<small>Convênio</small>')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
             {
