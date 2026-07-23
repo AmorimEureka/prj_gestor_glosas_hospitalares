@@ -1085,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260723-solicitacao-status-23',
+            '?v=20260723-solicitacao-acoes-23',
             base_template.read_text(),
         )
 
@@ -2911,6 +2911,15 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Emergência')
         self.assertContains(response, 'Procedimento *')
         self.assertContains(response, 'loadAttendance')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.note-request-actions {\n  position: fixed;',
+            css,
+        )
+        self.assertIn(
+            'right: 1.25rem;\n  bottom: 1rem;',
+            css,
+        )
 
     @patch('core.views.api_get')
     def test_consulta_atendimento_para_preenchimento_automatico(

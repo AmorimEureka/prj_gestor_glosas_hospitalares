@@ -8484,7 +8484,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 /* Requisição · Solicitação Nota */
 .note-request-page {
-  padding-bottom: 1.5rem;
+  padding-bottom: 5.5rem;
 }
 
 .note-request-card {
@@ -8722,13 +8722,21 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .note-request-actions {
+  position: fixed;
+  z-index: 80;
+  right: 1.25rem;
+  bottom: 1rem;
   display: flex;
   gap: 0.6rem;
   align-items: center;
   justify-content: flex-end;
-  margin-top: 0.9rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid #dce8ed;
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px solid #c9dde6;
+  border-radius: 0.6rem;
+  background: rgb(247 250 251 / 96%);
+  box-shadow: 0 0.45rem 1.2rem rgb(18 68 86 / 18%);
+  backdrop-filter: blur(0.35rem);
 }
 
 .note-request-actions a,
@@ -9228,8 +9236,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 @media (max-width: 700px) {
-  .note-request-head,
-  .note-request-actions {
+  .note-request-head {
     align-items: stretch;
     flex-direction: column;
   }
@@ -9252,7 +9259,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .note-request-actions a,
   .note-request-actions button {
+    flex: 1;
     text-align: center;
+  }
+
+  .note-request-actions {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
   }
 
   .note-request-results-toolbar {
