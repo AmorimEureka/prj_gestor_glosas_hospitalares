@@ -406,6 +406,35 @@ body.is-login-entry .app-light-reveal span {
   font-size: 13px;
 }
 
+.nav-subgroup {
+  display: grid;
+  gap: 3px;
+}
+
+.sidebar .nav-subgroup-toggle {
+  width: calc(100% - 10px);
+}
+
+.nav-nested-chevron {
+  margin-left: auto;
+  color: #71818d;
+  font-size: 0.58rem;
+  transition: transform 0.16s ease;
+}
+
+.nav-subgroup-toggle[aria-expanded="true"] .nav-nested-chevron {
+  transform: rotate(90deg);
+}
+
+.sidebar .nav-submenu--nested {
+  margin-left: 18px;
+}
+
+.sidebar .nav-subitem--nested {
+  min-height: 30px;
+  font-size: 12px;
+}
+
 .sidebar-footer {
   margin: auto -14px 0;
   padding: 14px;
