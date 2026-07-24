@@ -8757,6 +8757,27 @@ body:not(.sidebar-collapsed) .indicator-grid {
   align-items: start;
 }
 
+.note-request-attendance-items {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.note-request-attendance-count {
+  justify-self: end;
+  padding: 0.26rem 0.48rem;
+  border: 1px solid #bad8e3;
+  border-radius: 999px;
+  background: #eef8fb;
+  color: #176b81;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.note-request-attendance-count[hidden] {
+  display: none;
+}
+
 .note-request-data-grid .is-wide {
   grid-column: 1 / -1;
 }
