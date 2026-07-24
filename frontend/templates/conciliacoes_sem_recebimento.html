@@ -15,7 +15,12 @@
     </label>
     <label class="filter-group">
       <span>Convênio</span>
-      <input class="form-control" type="search" name="convenio" value="{{ filtros.convenio }}" placeholder="Nome do convênio">
+      <select class="form-select" name="convenio">
+        <option value="">Todos</option>
+        {% for convenio in convenios %}
+        <option value="{{ convenio }}" {% if filtros.convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label class="filter-group">
       <span>Processo</span>

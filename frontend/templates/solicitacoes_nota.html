@@ -8,12 +8,12 @@
       <div class="filter-group filter-group--attendance">
         <label>Atendimento</label>
         <input
-          type="number"
+          type="search"
           name="codigo_atendimento"
           value="{{ filtros.codigo_atendimento }}"
           class="form-control"
           inputmode="numeric"
-          min="1"
+          pattern="[0-9]*"
           placeholder="Código"
         >
       </div>
@@ -23,7 +23,12 @@
       </div>
       <div class="filter-group">
         <label>Convênio</label>
-        <input name="convenio" value="{{ filtros.convenio }}" class="form-control" placeholder="Nome do convênio">
+        <select name="convenio" class="form-select">
+          <option value="">Todos</option>
+          {% for convenio in convenios %}
+          <option value="{{ convenio }}" {% if filtros.convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="filter-group">
         <label>Local</label>
