@@ -208,7 +208,15 @@
           </label>
           <label>
             <span>Valor da nota *</span>
-            <input name="valor_nota" value="{{ solicitacao.valor_nota_formatado }}" inputmode="decimal" required>
+            <input
+              name="valor_nota"
+              value="{{ solicitacao.valor_nota_formatado }}"
+              inputmode="numeric"
+              data-money-input
+              autocomplete="off"
+              placeholder="R$ 0,00"
+              required
+            >
           </label>
           <label class="is-wide">
             <span>Procedimento *</span>

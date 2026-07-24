@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260724-solicitacoes-dashboard-31',
+            '?v=20260724-campos-monetarios-32',
             base_template.read_text(),
         )
 
@@ -3027,6 +3027,8 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Telefone / Celular')
         self.assertContains(response, 'Tipo atendimento')
         self.assertContains(response, 'Valor da nota')
+        self.assertContains(response, 'data-money-input')
+        self.assertContains(response, 'inputmode="numeric"')
         self.assertContains(response, 'Clínica 1')
         self.assertContains(response, 'Clínica 2')
         self.assertContains(response, 'Emergência')
@@ -3070,6 +3072,52 @@ class CadastrarNotaTests(TestCase):
         self.assertIn(
             'grid-template-columns: minmax(14rem, 0.42fr) max-content;',
             css,
+        )
+        self.assertIn(
+            'grid-template-columns: minmax(14rem, 26rem) '
+            'minmax(16rem, 1fr);',
+            css,
+        )
+
+    def test_campos_monetarios_livres_usam_mascara_compartilhada(self):
+        templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+        fields = (
+            ('solicitacao_nota.html', 'name="valor_nota"'),
+            ('solicitacoes_nota.html', 'name="valor_nota"'),
+            ('recebimentos.html', 'name="valor_recebido"'),
+            ('remessas.html', 'name="valor_total"'),
+            ('recursos.html', 'name="valor_recursado"'),
+            ('recursos.html', 'name="valor_acatado"'),
+            (
+                'conciliacoes_sem_recebimento.html',
+                'name="valor_glosado_{{ remessa.cd_remessa }}"',
+            ),
+            (
+                'conciliacoes_sem_recebimento.html',
+                'name="valor_recebido_{{ remessa.cd_remessa }}"',
+            ),
+        )
+
+        for template_name, field_name in fields:
+            with self.subTest(
+                template=template_name,
+                field=field_name,
+            ):
+                template = (templates_dir / template_name).read_text()
+                field_position = template.index(field_name)
+                input_start = template.rfind('<input', 0, field_position)
+                input_end = template.index('>', field_position)
+                input_html = template[input_start : input_end + 1]
+
+                self.assertIn('data-money-input', input_html)
+                self.assertIn('inputmode="numeric"', input_html)
+
+        base_template = (templates_dir / 'base.html').read_text()
+        self.assertIn("const selector = '[data-money-input]';", base_template)
+        self.assertIn(".replace(/\\D/g, '')", base_template)
+        self.assertIn(
+            "document.addEventListener('formdata'",
+            base_template,
         )
 
     @patch('core.views.api_get')
@@ -3705,6 +3753,15 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Gestor Operação')
         self.assertContains(response, 'Inativado em')
         self.assertContains(response, '23/07/2026 16:30')
+        self.assertNotContains(
+            response,
+            '<small>Código paciente</small>',
+        )
+        self.assertNotContains(
+            response,
+            '<small>Código convênio</small>',
+        )
+        self.assertContains(response, '<small>Convênio</small>')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
             {

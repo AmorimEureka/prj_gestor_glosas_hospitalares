@@ -7,8 +7,8 @@
     <input name="glosa_id" class="form-control" placeholder="ID da glosa">
     <input name="numero_processo_recurso" class="form-control" placeholder="Processo recurso">
     <input name="data_envio" type="date" class="form-control">
-    <input name="valor_recursado" class="form-control" placeholder="Valor recursado">
-    <input name="valor_acatado" class="form-control" placeholder="Valor acatado">
+    <input name="valor_recursado" class="form-control" inputmode="numeric" data-money-input autocomplete="off" placeholder="R$ 0,00">
+    <input name="valor_acatado" class="form-control" inputmode="numeric" data-money-input autocomplete="off" placeholder="R$ 0,00">
     <button class="btn btn-primary">Cadastrar</button>
   </form>
 </section>
@@ -33,4 +33,3 @@
   </table>
 </section>
 {% endblock %}
-
