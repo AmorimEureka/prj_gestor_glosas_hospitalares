@@ -1,6 +1,6 @@
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
@@ -3225,7 +3225,7 @@ class CadastrarNotaTests(TestCase):
         )
 
     @patch('core.views.api_get')
-    def test_emissao_filtra_aprovadas_e_exibe_lote(self, api_get):
+    def test_emissao_filtra_solicitacoes_e_exibe_acoes(self, api_get):
         api_get.return_value = self.lista_payload(
             [self.workflow_payload('VALIDADA')],
             total=1,
@@ -3245,9 +3245,8 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Amoras')
         self.assertContains(response, 'form="batch-emission-form"')
         api_get.assert_called_once_with(
-            '/app_glosas/requisicoes/solicitacoes-nota/workflow',
+            '/app_glosas/requisicoes/emissoes-nfse',
             {
-                'status': 'VALIDADA',
                 'limit': 10,
                 'offset': 0,
                 'nome_paciente': 'Maria',
@@ -3256,6 +3255,89 @@ class CadastrarNotaTests(TestCase):
                 'local': 'Clinica 1',
             },
         )
+
+    @patch('core.views.api_get')
+    def test_emissao_mantem_cards_e_exibe_resultado_real(self, api_get):
+        validada = {
+            **self.workflow_payload('VALIDADA'),
+            'emissao_id': None,
+            'lote_id': None,
+            'status_emissao': None,
+            'numero_nfse': None,
+            'protocolo': None,
+            'erro_emissao': None,
+            'emissao_criada_em': None,
+            'emissao_atualizada_em': None,
+            'arquivo_disponivel': False,
+        }
+        processando = {
+            **self.workflow_payload('EMISSAO_SOLICITADA'),
+            'id': 8,
+            'validacao': 'VALIDADA',
+            'emissao_id': 41,
+            'lote_id': 12,
+            'status_emissao': 'PROCESSANDO',
+            'numero_nfse': None,
+            'protocolo': None,
+            'erro_emissao': None,
+            'emissao_criada_em': '2026-07-23T16:00:00',
+            'emissao_atualizada_em': '2026-07-23T16:01:00',
+            'arquivo_disponivel': False,
+        }
+        emitida = {
+            **self.workflow_payload('EMITIDA'),
+            'id': 9,
+            'validacao': 'VALIDADA',
+            'emissao_id': 42,
+            'lote_id': 13,
+            'status_emissao': 'EMITIDA',
+            'numero_nfse': '5333',
+            'protocolo': 'PROTO-5333',
+            'erro_emissao': None,
+            'emissao_criada_em': '2026-07-23T16:02:00',
+            'emissao_atualizada_em': '2026-07-23T16:04:00',
+            'arquivo_disponivel': True,
+        }
+        erro = {
+            **self.workflow_payload('ERRO_EMISSAO'),
+            'id': 10,
+            'validacao': 'VALIDADA',
+            'emissao_id': 43,
+            'lote_id': 14,
+            'status_emissao': 'ERRO',
+            'numero_nfse': None,
+            'protocolo': None,
+            'erro_emissao': 'Falha de comunicação com o portal.',
+            'emissao_criada_em': '2026-07-23T16:05:00',
+            'emissao_atualizada_em': '2026-07-23T16:06:00',
+            'arquivo_disponivel': False,
+        }
+        api_get.return_value = self.lista_payload(
+            [validada, processando, emitida, erro],
+            total=4,
+        )
+
+        response = self.client.get('/requisicao/emissao-nfse/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="solicitacao_ids"', count=1)
+        self.assertContains(response, 'Emitir esta NFS-e', count=1)
+        self.assertContains(response, 'Emissão solicitada')
+        self.assertContains(response, 'Em processamento')
+        self.assertContains(response, 'NFS-e emitida')
+        self.assertContains(response, '5333')
+        self.assertContains(response, 'PROTO-5333')
+        self.assertContains(response, 'Falha de comunicação com o portal.')
+        self.assertContains(
+            response,
+            '/requisicao/emissao-nfse/itens/42/pdf/?download=false',
+        )
+        self.assertContains(
+            response,
+            '/requisicao/emissao-nfse/itens/42/pdf/?download=true',
+        )
+        self.assertContains(response, 'Visualizar NFS-e')
+        self.assertContains(response, 'Baixar PDF')
 
     @patch('core.views.api_post')
     def test_emissao_em_lote_encaminha_ids_ao_airflow(self, api_post):
@@ -3273,4 +3355,71 @@ class CadastrarNotaTests(TestCase):
         api_post.assert_called_once_with(
             '/app_glosas/requisicoes/emissoes-nfse',
             {'solicitacao_ids': [7, 8]},
+        )
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_pdf_encaminha_modo_e_entrega_stream(
+        self,
+        api_get_stream,
+    ):
+        for download, disposition in (
+            ('false', 'inline; filename="nfse-42.pdf"'),
+            ('true', 'attachment; filename="nfse-42.pdf"'),
+        ):
+            with self.subTest(download=download):
+                upstream = Mock()
+                upstream.headers = {
+                    'Content-Type': 'application/pdf',
+                    'Content-Disposition': disposition,
+                    'Content-Length': '17',
+                }
+                upstream.iter_content.return_value = [
+                    b'%PDF-1.4',
+                    b' conteudo',
+                ]
+                api_get_stream.return_value = upstream
+
+                response = self.client.get(
+                    '/requisicao/emissao-nfse/itens/42/pdf/'
+                    f'?download={download}'
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.streaming)
+                self.assertEqual(
+                    response['Content-Type'],
+                    'application/pdf',
+                )
+                self.assertEqual(
+                    response['Content-Disposition'],
+                    disposition,
+                )
+                self.assertEqual(
+                    b''.join(response.streaming_content),
+                    b'%PDF-1.4 conteudo',
+                )
+                api_get_stream.assert_called_once_with(
+                    '/app_glosas/requisicoes/'
+                    'emissoes-nfse/itens/42/pdf',
+                    {'download': download},
+                )
+                upstream.close.assert_called_once_with()
+                api_get_stream.reset_mock()
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_pdf_preserva_erro_da_api(self, api_get_stream):
+        api_get_stream.side_effect = ApiError(
+            '{"detail":"PDF da NFS-e não encontrado."}',
+            404,
+        )
+
+        response = self.client.get(
+            '/requisicao/emissao-nfse/itens/42/pdf/'
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(
+            response,
+            'PDF da NFS-e não encontrado.',
+            status_code=404,
         )

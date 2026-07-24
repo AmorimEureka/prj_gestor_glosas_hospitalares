@@ -16,7 +16,7 @@
       @keydown.enter.prevent="open = !open"
       @keydown.space.prevent="open = !open"
     >
-      {% if workflow_mode == "emissao" %}
+      {% if workflow_mode == "emissao" and solicitacao.pode_emitir %}
       <label class="workflow-request-selector" @click.stop>
         <input
           type="checkbox"
@@ -26,6 +26,8 @@
           aria-label="Selecionar solicitação {{ solicitacao.id }}"
         >
       </label>
+      {% elif workflow_mode == "emissao" %}
+      <span class="workflow-request-selector-placeholder" aria-hidden="true"></span>
       {% endif %}
       <span class="workflow-request-chevron" :class="{ 'is-open': open }">&#9654;</span>
       <span>
@@ -56,8 +58,8 @@
         <small>Solicitada em</small>
         <strong>{{ solicitacao.data_criacao_formatada }}</strong>
       </span>
-      <span class="workflow-request-status workflow-request-status--{{ workflow_mode }}">
-        {% if workflow_mode == "validacao" %}Aguardando validação{% elif workflow_mode == "recusa" %}Recusada{% else %}Aprovada{% endif %}
+      <span class="workflow-request-status {% if workflow_mode == 'emissao' %}workflow-request-status--{{ solicitacao.status_classe }}{% else %}workflow-request-status--{{ workflow_mode }}{% endif %}">
+        {% if workflow_mode == "validacao" %}Aguardando validação{% elif workflow_mode == "recusa" %}Recusada{% elif workflow_mode == "emissao" %}{{ solicitacao.status_label }}{% else %}Aprovada{% endif %}
       </span>
     </div>
 
@@ -85,6 +87,36 @@
         <span>
           <small>Validada em</small>
           <strong>{{ solicitacao.validado_em_formatada }}</strong>
+        </span>
+        {% endif %}
+        {% if workflow_mode == "emissao" and solicitacao.status_emissao %}
+        <span>
+          <small>Status da emissão</small>
+          <strong>{{ solicitacao.status_emissao_label }}</strong>
+        </span>
+        <span>
+          <small>Lote de emissão</small>
+          <strong>{% if solicitacao.lote_id %}#{{ solicitacao.lote_id }}{% else %}Não informado{% endif %}</strong>
+        </span>
+        <span>
+          <small>Atualizada em</small>
+          <strong>{{ solicitacao.emissao_atualizada_em_formatada }}</strong>
+        </span>
+        {% endif %}
+        {% if workflow_mode == "emissao" and solicitacao.status == "EMITIDA" %}
+        <span>
+          <small>Número da NFS-e</small>
+          <strong>{{ solicitacao.numero_nfse|default:"Não informado" }}</strong>
+        </span>
+        <span>
+          <small>Protocolo</small>
+          <strong>{{ solicitacao.protocolo|default:"Não informado" }}</strong>
+        </span>
+        {% endif %}
+        {% if workflow_mode == "emissao" and solicitacao.erro_emissao %}
+        <span class="is-wide workflow-emission-error">
+          <small>Erro da emissão</small>
+          <strong>{{ solicitacao.erro_emissao }}</strong>
         </span>
         {% endif %}
         <span class="is-wide">
@@ -140,13 +172,30 @@
           <button type="submit" class="workflow-action workflow-action--reject">Confirmar recusa</button>
         </form>
       </div>
-      {% elif workflow_mode == "emissao" %}
+      {% elif workflow_mode == "emissao" and solicitacao.pode_emitir %}
       <div class="workflow-validation-actions">
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
           <button type="submit" class="workflow-action workflow-action--issue">Emitir esta NFS-e</button>
         </form>
+      </div>
+      {% elif workflow_mode == "emissao" and solicitacao.status == "EMITIDA" %}
+      <div class="workflow-validation-actions workflow-emission-actions">
+        {% if solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+        <a
+          class="workflow-action workflow-action--view"
+          href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
+          target="_blank"
+          rel="noopener"
+        >Visualizar NFS-e</a>
+        <a
+          class="workflow-action workflow-action--download"
+          href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=true"
+        >Baixar PDF</a>
+        {% else %}
+        <span class="workflow-emission-file-unavailable">PDF ainda não disponível.</span>
+        {% endif %}
       </div>
       {% endif %}
     </div>
