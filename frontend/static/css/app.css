@@ -9096,9 +9096,22 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .workflow-request-status--emissao {
+  border-color: #b9d9ef;
+  background: #edf7fd;
+  color: #185f83;
+}
+
+.workflow-request-status--validada,
+.workflow-request-status--emitida {
   border-color: #a9e0c6;
   background: #eaf9f1;
   color: #176c4b;
+}
+
+.workflow-request-status--erro {
+  border-color: #ffb9b0;
+  background: #fff1ef;
+  color: #a33127;
 }
 
 .workflow-request-body {
@@ -9163,11 +9176,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .workflow-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 2.25rem;
   padding: 0.5rem 0.78rem;
   border-radius: 0.42rem;
   font-size: 0.68rem;
   font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -9182,6 +9200,43 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border: 1px solid #cf5d53;
   background: #fff;
   color: #a33127;
+}
+
+.workflow-action--view {
+  border: 1px solid #1d7189;
+  background: #fff;
+  color: #185f83;
+}
+
+.workflow-action--download {
+  border: 1px solid #1d7189;
+  background: #1d7189;
+  color: #fff;
+}
+
+.workflow-action--view:hover {
+  color: #185f83;
+  text-decoration: none;
+}
+
+.workflow-action--download:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+.workflow-emission-error {
+  border-color: #efc2bc !important;
+  background: #fff7f6 !important;
+}
+
+.workflow-emission-error strong {
+  color: #8f3028;
+}
+
+.workflow-emission-file-unavailable {
+  color: #647b87;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .workflow-action:disabled {

@@ -50,6 +50,11 @@ urlpatterns = [
         name="emissao_nfse",
     ),
     path(
+        "requisicao/emissao-nfse/itens/<int:emissao_id>/pdf/",
+        views.emissao_nfse_pdf,
+        name="emissao_nfse_pdf",
+    ),
+    path(
         "requisicao/cadastrar-nota/",
         views.solicitacao_nota,
         name="cadastrar_nota",

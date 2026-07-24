@@ -10,7 +10,7 @@ from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 from django.contrib import messages
 from django.conf import settings
 from django.core.cache import cache
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
@@ -20,6 +20,7 @@ from .services import (
     api_authenticate,
     api_delete,
     api_get,
+    api_get_stream,
     api_patch,
     api_post,
     api_put,
@@ -66,6 +67,12 @@ STATUS_SOLICITACAO_NOTA = {
     "EMISSAO_SOLICITADA": ("Emissão solicitada", "emissao"),
     "EMITIDA": ("NFS-e emitida", "emitida"),
     "ERRO_EMISSAO": ("Erro na emissão", "erro"),
+}
+STATUS_EMISSAO_NFSE = {
+    "PENDENTE": "Aguardando processamento",
+    "PROCESSANDO": "Em processamento",
+    "EMITIDA": "NFS-e emitida",
+    "ERRO": "Erro na emissão",
 }
 
 
@@ -479,6 +486,118 @@ def _carregar_fila_solicitacoes(request, status, filtros=None):
     }
 
 
+def _carregar_emissoes_nfse(request, filtros=None):
+    filtros = filtros or {}
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    api_params = {
+        "limit": limit,
+        "offset": offset,
+        **{
+            key: value
+            for key, value in filtros.items()
+            if value
+        },
+    }
+    solicitacoes = []
+    total = 0
+    try:
+        response = api_get(EMISSOES_NFSE_PATH, api_params)
+        solicitacoes = response.get("solicitacoes") or []
+        total = as_int_or_zero(response.get("total"))
+        limit = as_positive_int(response.get("limit"), limit)
+        offset = as_int_or_zero(response.get("offset"))
+    except ApiError as exc:
+        messages.error(
+            request,
+            f"Consulta das emissões: {extract_api_error_message(exc)}",
+        )
+
+    for solicitacao in solicitacoes:
+        solicitacao["data_criacao_formatada"] = format_api_datetime(
+            solicitacao.get("data_criacao")
+        )
+        solicitacao["valor_nota_formatado"] = format_brl_input(
+            solicitacao.get("valor_nota")
+        )
+        solicitacao["validado_em_formatada"] = format_api_datetime(
+            solicitacao.get("validado_em")
+        )
+        solicitacao["emissao_criada_em_formatada"] = format_api_datetime(
+            solicitacao.get("emissao_criada_em")
+        )
+        solicitacao["emissao_atualizada_em_formatada"] = (
+            format_api_datetime(
+                solicitacao.get("emissao_atualizada_em")
+            )
+        )
+        solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
+            solicitacao.get("local"),
+            solicitacao.get("local") or "Não informado",
+        )
+        status = str(solicitacao.get("status") or "").strip()
+        status_label, status_classe = STATUS_SOLICITACAO_NOTA.get(
+            status,
+            ("Status não informado", "pendente"),
+        )
+        solicitacao["status_label"] = status_label
+        solicitacao["status_classe"] = status_classe
+        solicitacao["pode_emitir"] = status == "VALIDADA"
+        status_emissao = str(
+            solicitacao.get("status_emissao") or ""
+        ).strip()
+        solicitacao["status_emissao_label"] = (
+            STATUS_EMISSAO_NFSE.get(
+                status_emissao,
+                status_emissao or "Não iniciada",
+            )
+        )
+
+    base_query = {
+        key: value for key, value in filtros.items() if value
+    }
+    total_pages = max(ceil(total / limit), 1)
+    if page > total_pages:
+        return {
+            "redirect_url": (
+                f"{request.path}?"
+                f"{urlencode({**base_query, 'page': total_pages})}"
+            )
+        }
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "start": offset + 1 if solicitacoes and total else 0,
+        "end": min(offset + len(solicitacoes), total),
+        "total": total,
+        "query": base_query,
+    }
+    return {
+        "solicitacoes": solicitacoes,
+        "pagination": pagination,
+        "filtros": filtros,
+        "locais": LOCAIS_SOLICITACAO_NOTA.items(),
+        "tipos_atendimento": TIPOS_ATENDIMENTO,
+    }
+
+
 @require_http_methods(["GET", "POST"])
 def workflow_solicitacoes(request):
     if request.method == "POST":
@@ -580,14 +699,61 @@ def emissao_nfse(request):
         ).strip(),
         "local": (request.GET.get("local") or "").strip(),
     }
-    context = _carregar_fila_solicitacoes(
-        request,
-        "VALIDADA",
-        filtros,
-    )
+    context = _carregar_emissoes_nfse(request, filtros)
     if redirect_url := context.get("redirect_url"):
         return redirect(redirect_url)
     return render(request, "emissao_nfse.html", context)
+
+
+@require_http_methods(["GET"])
+def emissao_nfse_pdf(request, emissao_id):
+    download = (
+        "true"
+        if (request.GET.get("download") or "").strip().lower()
+        in {"1", "true", "yes", "on"}
+        else "false"
+    )
+    try:
+        upstream = api_get_stream(
+            f"{EMISSOES_NFSE_PATH}/itens/{emissao_id}/pdf",
+            {"download": download},
+        )
+    except ApiError as exc:
+        status_code = exc.status_code or 502
+        if not 400 <= status_code <= 599:
+            status_code = 502
+        return HttpResponse(
+            f"Download da NFS-e: {extract_api_error_message(exc)}",
+            status=status_code,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    def iter_pdf():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = StreamingHttpResponse(
+        iter_pdf(),
+        content_type=(
+            upstream.headers.get("Content-Type")
+            or "application/pdf"
+        ),
+    )
+    response["Content-Disposition"] = (
+        upstream.headers.get("Content-Disposition")
+        or (
+            f'{"attachment" if download == "true" else "inline"}; '
+            f'filename="nfse-{emissao_id}.pdf"'
+        )
+    )
+    if content_length := upstream.headers.get("Content-Length"):
+        response["Content-Length"] = content_length
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @require_http_methods(["GET"])
