@@ -6,11 +6,11 @@
   <div class="panel-header">
     <div class="results-heading">
       <div>
-        <span class="panel-title">Solicitações recusadas</span>
+        <span class="panel-title">Solicitações recusadas ou inativadas</span>
         {% if pagination.total %}
         <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
         {% else %}
-        <span class="results-subtitle">Nenhuma solicitação recusada.</span>
+        <span class="results-subtitle">Nenhuma solicitação recusada ou inativada.</span>
         {% endif %}
       </div>
       {% if solicitacoes %}
@@ -22,7 +22,7 @@
     </div>
     <div class="results-toolbar workflow-request-toolbar">
       <span class="note-request-results-total note-request-results-total--refused">
-        <span>Recusadas</span>
+        <span>Recusas / inativos</span>
         <strong>{{ pagination.total }}</strong>
       </span>
       {% include "_workflow_pagination.html" with pagination_id="refused-page-select" %}

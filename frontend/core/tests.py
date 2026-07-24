@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260724-solicitacoes-dashboard-25',
+            '?v=20260724-solicitacoes-dashboard-28',
             base_template.read_text(),
         )
 
@@ -2931,6 +2931,8 @@ class CadastrarNotaTests(TestCase):
                 else None
             ),
             'workflow_atualizado_em': '2026-07-23T14:30:00',
+            'procedimentos_atendimento': [],
+            'procedimentos_atendimento_disponiveis': True,
         }
 
     @patch('core.views.api_get')
@@ -3018,11 +3020,11 @@ class CadastrarNotaTests(TestCase):
         self.assertIn('private', cache_control)
         css = Path(finders.find('css/app.css')).read_text()
         self.assertIn(
-            '.note-request-actions {\n  position: fixed;',
+            '.note-request-actions {\n  position: static;',
             css,
         )
         self.assertIn(
-            'right: 1.25rem;\n  bottom: 1rem;',
+            'width: max-content;\n  margin: 1rem 0 0 auto;',
             css,
         )
         self.assertIn(
@@ -3287,6 +3289,10 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '>Expandir</button>')
         self.assertContains(response, '>Colapsar todos</button>')
+        self.assertContains(
+            response,
+            'class="note-request-records note-request-records-scroll"',
+        )
         self.assertContains(response, 'Pagina</label>')
         self.assertContains(response, 'de 2</span>')
         self.assertContains(response, 'Atendimento')
@@ -3493,8 +3499,27 @@ class CadastrarNotaTests(TestCase):
         self,
         api_get,
     ):
+        workflow = self.workflow_payload()
+        workflow['procedimentos_atendimento'] = [
+            {
+                'codigo': '40304361',
+                'descricao': 'ECOCARDIOGRAMA TRANSTORÁCICO',
+                'grupo': 'EXAMES CARDIOLÓGICOS',
+                'quantidade': '1',
+                'realizado_em': '2026-07-23T10:30:00',
+                'prestador': 'DR. TESTE',
+            },
+            {
+                'codigo': '10101012',
+                'descricao': 'CONSULTA EM CARDIOLOGIA',
+                'grupo': 'PROCEDIMENTOS',
+                'quantidade': '1',
+                'realizado_em': '2026-07-23T09:45:00',
+                'prestador': None,
+            },
+        ]
         api_get.return_value = self.lista_payload(
-            [self.workflow_payload()],
+            [workflow],
             total=1,
         )
 
@@ -3503,11 +3528,21 @@ class CadastrarNotaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="workflow-request-list workflow-request-list-scroll"',
+        )
         self.assertContains(response, 'Confirmar validação')
         self.assertContains(response, 'Recusar dados')
         self.assertContains(response, 'Consulta cardiológica')
         self.assertContains(response, 'R$ 60,75')
         self.assertContains(response, 'Amoras')
+        self.assertContains(response, 'Procedimentos e exames realizados')
+        self.assertContains(response, 'ECOCARDIOGRAMA TRANSTORÁCICO')
+        self.assertContains(response, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(response, '23/07/2026 10:30:00')
+        self.assertContains(response, 'DR. TESTE')
+        self.assertContains(response, '2 itens')
         self.assertNotContains(response, '<small>Código paciente</small>')
         self.assertNotContains(response, '<small>Código convênio</small>')
         self.assertContains(response, '<small>Convênio</small>')
@@ -3545,7 +3580,7 @@ class CadastrarNotaTests(TestCase):
         )
 
     @patch('core.views.api_get')
-    def test_solicitacoes_recusas_exibe_motivo(self, api_get):
+    def test_solicitacoes_recusas_exibe_recusa_e_inativacao(self, api_get):
         recusada = {
             **self.workflow_payload('RECUSADA'),
             'validacao': 'RECUSADA',
@@ -3554,21 +3589,51 @@ class CadastrarNotaTests(TestCase):
             'validado_por': 'Amoras',
             'validado_em': '2026-07-23T15:00:00',
         }
-        api_get.return_value = self.lista_payload([recusada], total=1)
+        inativada = {
+            **self.workflow_payload('PENDENTE_VALIDACAO'),
+            'id': 8,
+            'ativo': False,
+            'procedimento': 'Solicitação cancelada',
+            'inativado_por_id': 5,
+            'inativado_por': 'Gestor Operação',
+            'inativado_em': '2026-07-23T16:30:00',
+        }
+        api_get.return_value = self.lista_payload(
+            [recusada, inativada],
+            total=2,
+        )
 
         response = self.client.get(
             '/requisicao/solicitacoes-recusas/'
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Solicitações recusadas ou inativadas',
+        )
         self.assertContains(response, 'CPF divergente.')
         self.assertContains(response, 'Amoras')
+        self.assertContains(
+            response,
+            'workflow-request-status--recusa',
+        )
+        self.assertContains(
+            response,
+            'workflow-request-status--inativo',
+        )
+        self.assertContains(response, 'Solicitação cancelada')
+        self.assertContains(response, 'Inativado por')
+        self.assertContains(response, 'Gestor Operação')
+        self.assertContains(response, 'Inativado em')
+        self.assertContains(response, '23/07/2026 16:30')
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
             {
                 'status': 'RECUSADA',
                 'limit': 10,
                 'offset': 0,
+                'incluir_inativas': 'true',
             },
         )
 
@@ -3586,8 +3651,19 @@ class CadastrarNotaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="workflow-emission-page"')
+        self.assertContains(
+            response,
+            'class="workflow-request-list workflow-request-list-scroll"',
+        )
         self.assertContains(response, 'Emitir selecionadas')
         self.assertContains(response, 'Emitir esta NFS-e')
+        self.assertContains(response, 'Reverter para recusa')
+        self.assertContains(response, 'Confirmar reversão')
+        self.assertContains(
+            response,
+            'name="form_action" value="recusar"',
+        )
         self.assertContains(response, 'R$ 60,75')
         self.assertContains(response, 'Validada por')
         self.assertContains(response, 'Amoras')
@@ -3703,6 +3779,35 @@ class CadastrarNotaTests(TestCase):
         api_post.assert_called_once_with(
             '/app_glosas/requisicoes/emissoes-nfse',
             {'solicitacao_ids': [7, 8]},
+        )
+
+    @patch('core.views.api_post')
+    def test_emissao_reverte_validada_para_recusa(self, api_post):
+        api_post.return_value = {
+            **self.workflow_payload('RECUSADA'),
+            'motivo_recusa': 'Convênio divergente.',
+        }
+
+        response = self.client.post(
+            '/requisicao/emissao-nfse/?nome_paciente=Maria',
+            {
+                'form_action': 'recusar',
+                'solicitacao_id': '7',
+                'motivo_recusa': 'Convênio divergente.',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/emissao-nfse/?nome_paciente=Maria',
+            fetch_redirect_response=False,
+        )
+        api_post.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/7/validacao',
+            {
+                'decisao': 'RECUSADA',
+                'motivo_recusa': 'Convênio divergente.',
+            },
         )
 
     @patch('core.views.api_get_stream')

@@ -529,7 +529,12 @@ def solicitacoes_nota(request):
     )
 
 
-def _carregar_fila_solicitacoes(request, status, filtros=None):
+def _carregar_fila_solicitacoes(
+    request,
+    status,
+    filtros=None,
+    incluir_inativas=False,
+):
     filtros = filtros or {}
     page = as_positive_int(request.GET.get("page"), 1)
     limit = 10
@@ -544,6 +549,8 @@ def _carregar_fila_solicitacoes(request, status, filtros=None):
             if value
         },
     }
+    if incluir_inativas:
+        api_params["incluir_inativas"] = "true"
     solicitacoes = []
     total = 0
     try:
@@ -559,6 +566,7 @@ def _carregar_fila_solicitacoes(request, status, filtros=None):
         )
 
     for solicitacao in solicitacoes:
+        solicitacao["ativo"] = solicitacao.get("ativo") is not False
         solicitacao["data_criacao_formatada"] = format_api_datetime(
             solicitacao.get("data_criacao")
         )
@@ -568,9 +576,29 @@ def _carregar_fila_solicitacoes(request, status, filtros=None):
         solicitacao["validado_em_formatada"] = format_api_datetime(
             solicitacao.get("validado_em")
         )
+        solicitacao["inativado_em_formatada"] = format_api_datetime(
+            solicitacao.get("inativado_em")
+        )
+        for procedimento in (
+            solicitacao.get("procedimentos_atendimento") or []
+        ):
+            procedimento["realizado_em_formatado"] = (
+                format_api_datetime(procedimento.get("realizado_em"))
+            )
         solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
             solicitacao.get("local"),
             solicitacao.get("local") or "Não informado",
+        )
+        status_label, _status_classe = STATUS_SOLICITACAO_NOTA.get(
+            solicitacao.get("status"),
+            ("Status não informado", "pendente"),
+        )
+        solicitacao["status_label"] = status_label
+        solicitacao["situacao_recusa_label"] = (
+            "Recusa" if solicitacao.get("ativo", True) else "Inativo"
+        )
+        solicitacao["situacao_recusa_classe"] = (
+            "recusa" if solicitacao.get("ativo", True) else "inativo"
         )
 
     base_query = {
@@ -781,7 +809,11 @@ def workflow_solicitacoes(request):
 
 @require_http_methods(["GET"])
 def solicitacoes_recusas(request):
-    context = _carregar_fila_solicitacoes(request, "RECUSADA")
+    context = _carregar_fila_solicitacoes(
+        request,
+        "RECUSADA",
+        incluir_inativas=True,
+    )
     if redirect_url := context.get("redirect_url"):
         return redirect(redirect_url)
     return render(request, "solicitacoes_recusas.html", context)
@@ -790,35 +822,73 @@ def solicitacoes_recusas(request):
 @require_http_methods(["GET", "POST"])
 def emissao_nfse(request):
     if request.method == "POST":
-        ids_raw = request.POST.getlist("solicitacao_ids")
-        if not ids_raw and request.POST.get("solicitacao_id"):
-            ids_raw = [request.POST.get("solicitacao_id")]
-        try:
-            solicitacao_ids = [
-                int(value) for value in ids_raw if int(value) > 0
-            ]
-            if not solicitacao_ids:
-                raise ValueError
-            response = api_post(
-                EMISSOES_NFSE_PATH,
-                {"solicitacao_ids": solicitacao_ids},
+        form_action = (
+            request.POST.get("form_action") or "emitir"
+        ).strip()
+        if form_action == "recusar":
+            solicitacao_id = as_int_or_zero(
+                request.POST.get("solicitacao_id")
             )
-            messages.success(
-                request,
-                response.get("message")
-                or "Emissão encaminhada ao Airflow.",
-            )
-            return redirect("emissao_nfse")
-        except (TypeError, ValueError):
-            messages.error(
-                request,
-                "Selecione pelo menos uma solicitação para emissão.",
-            )
-        except ApiError as exc:
-            messages.error(
-                request,
-                f"Emissão de NFS-e: {extract_api_error_message(exc)}",
-            )
+            motivo_recusa = (
+                request.POST.get("motivo_recusa") or ""
+            ).strip()
+            try:
+                if solicitacao_id <= 0 or not motivo_recusa:
+                    raise ValueError
+                api_post(
+                    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                    f"{solicitacao_id}/validacao",
+                    {
+                        "decisao": "RECUSADA",
+                        "motivo_recusa": motivo_recusa,
+                    },
+                )
+                messages.success(
+                    request,
+                    "Solicitação revertida para recusa com sucesso.",
+                )
+                return redirect(request.get_full_path())
+            except ValueError:
+                messages.error(
+                    request,
+                    "Informe o motivo para reverter a solicitação.",
+                )
+            except ApiError as exc:
+                messages.error(
+                    request,
+                    f"Reversão da solicitação: "
+                    f"{extract_api_error_message(exc)}",
+                )
+        else:
+            ids_raw = request.POST.getlist("solicitacao_ids")
+            if not ids_raw and request.POST.get("solicitacao_id"):
+                ids_raw = [request.POST.get("solicitacao_id")]
+            try:
+                solicitacao_ids = [
+                    int(value) for value in ids_raw if int(value) > 0
+                ]
+                if not solicitacao_ids:
+                    raise ValueError
+                response = api_post(
+                    EMISSOES_NFSE_PATH,
+                    {"solicitacao_ids": solicitacao_ids},
+                )
+                messages.success(
+                    request,
+                    response.get("message")
+                    or "Emissão encaminhada ao Airflow.",
+                )
+                return redirect("emissao_nfse")
+            except (TypeError, ValueError):
+                messages.error(
+                    request,
+                    "Selecione pelo menos uma solicitação para emissão.",
+                )
+            except ApiError as exc:
+                messages.error(
+                    request,
+                    f"Emissão de NFS-e: {extract_api_error_message(exc)}",
+                )
 
     filtros = {
         "nome_paciente": (
