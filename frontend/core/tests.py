@@ -1546,7 +1546,11 @@ class ConciliacaoFaturamentoTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertContains(response, 'Conciliação (Faturamento X Fiscal)')
+        self.assertContains(response, 'Conciliação Manual')
+        self.assertNotContains(
+            response,
+            'Conciliação (Faturamento X Fiscal)',
+        )
         self.assertContains(response, '987')
         self.assertContains(response, '12345')
         self.assertContains(response, 'Convênio Teste')

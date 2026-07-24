@@ -5264,7 +5264,7 @@ def conciliacao_faturamento(request):
         valor_total_conciliado = 0
         messages.error(
             request,
-            format_api_error(exc, "Conciliação Faturamento x Fiscal"),
+            format_api_error(exc, "Conciliação Manual"),
         )
 
     try:
