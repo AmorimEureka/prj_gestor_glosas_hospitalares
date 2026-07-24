@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260724-solicitacoes-dashboard-29',
+            '?v=20260724-solicitacoes-dashboard-30',
             base_template.read_text(),
         )
 
@@ -3020,11 +3020,27 @@ class CadastrarNotaTests(TestCase):
         self.assertIn('private', cache_control)
         css = Path(finders.find('css/app.css')).read_text()
         self.assertIn(
-            '.note-request-actions {\n  position: static;',
+            '.note-request-page {\n'
+            '  flex: 1 1 auto;\n'
+            '  min-height: 0;\n'
+            '  overflow: hidden;',
             css,
         )
         self.assertIn(
-            'width: max-content;\n  margin: 1rem 0 0 auto;',
+            '.note-request-form-scroll {\n'
+            '  min-height: 0;\n'
+            '  overflow-y: auto;',
+            css,
+        )
+        self.assertIn(
+            '.note-request-actions {\n'
+            '  position: static;',
+            css,
+        )
+        self.assertIn(
+            'width: 100%;\n'
+            '  margin: 0;\n'
+            '  padding: 0.65rem 1.3rem;',
             css,
         )
         self.assertIn(

@@ -15,6 +15,7 @@
 
     <form method="post" id="note-request-form" class="note-request-form" novalidate>
       {% csrf_token %}
+      <div class="note-request-form-scroll">
       <section class="note-request-section">
         <div class="note-request-section-title">
           <span>1</span>
@@ -142,15 +143,16 @@
             <textarea name="procedimento" rows="3" maxlength="500" required placeholder="Descreva o procedimento">{{ procedimento }}</textarea>
           </label>
         </div>
-        <div class="note-request-actions">
-          <a href="{% url 'solicitacao_nota' %}">Limpar</a>
-          <button
-            type="submit"
-            id="cadastrar-solicitacao"
-            {% if not atendimento %}disabled{% endif %}
-          >Cadastrar nota</button>
-        </div>
       </section>
+      </div>
+      <div class="note-request-actions">
+        <a href="{% url 'solicitacao_nota' %}">Limpar</a>
+        <button
+          type="submit"
+          id="cadastrar-solicitacao"
+          {% if not atendimento %}disabled{% endif %}
+        >Cadastrar nota</button>
+      </div>
     </form>
   </article>
 </section>

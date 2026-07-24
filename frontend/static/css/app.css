@@ -8513,10 +8513,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 /* Requisição · Solicitar Nota */
 .note-request-page {
-  padding-bottom: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .note-request-card {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid #c9dde6;
   border-radius: 0.75rem;
@@ -8574,6 +8580,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-form {
   display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.note-request-form-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .note-request-section {
@@ -8756,13 +8772,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
   gap: 0.6rem;
   align-items: center;
   justify-content: flex-end;
-  width: max-content;
-  margin: 1rem 0 0 auto;
-  padding: 0.65rem;
-  border: 1px solid #c9dde6;
-  border-radius: 0.6rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 1.3rem;
+  border: 0;
+  border-top: 1px solid #c9dde6;
+  border-radius: 0;
   background: rgb(247 250 251 / 96%);
-  box-shadow: 0 0.45rem 1.2rem rgb(18 68 86 / 18%);
+  box-shadow: 0 -0.3rem 0.9rem rgb(18 68 86 / 10%);
   backdrop-filter: blur(0.35rem);
 }
 
