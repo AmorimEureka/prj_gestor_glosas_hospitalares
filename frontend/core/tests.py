@@ -2952,6 +2952,14 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         api_get.assert_not_called()
+        self.assertContains(
+            response,
+            '<strong>Receita Certa</strong>',
+        )
+        self.assertNotContains(
+            response,
+            '<strong>Glosas MV</strong>',
+        )
         self.assertNotContains(
             response,
             '<span class="nav-label">Requisição</span>',
