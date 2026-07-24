@@ -195,7 +195,8 @@
               id="valor-nota"
               name="valor_nota"
               value="{{ valor_nota }}"
-              inputmode="decimal"
+              inputmode="numeric"
+              data-money-input
               autocomplete="off"
               placeholder="R$ 0,00"
               required
@@ -226,7 +227,6 @@
     const codeInput = document.getElementById('codigo-atendimento');
     const searchButton = document.getElementById('buscar-atendimento');
     const submitButton = document.getElementById('cadastrar-solicitacao');
-    const valueInput = document.getElementById('valor-nota');
     const status = document.getElementById('atendimento-status');
     const fields = [...document.querySelectorAll('[data-patient-field]')];
     const attendanceItemsContent = document.getElementById('attendance-items-content');
@@ -391,19 +391,6 @@
     });
     codeInput.addEventListener('change', loadAttendance);
     searchButton.addEventListener('click', loadAttendance);
-    valueInput.addEventListener('blur', () => {
-      const cleaned = valueInput.value.replace(/[^\d,.-]/g, '');
-      const normalized = cleaned.includes(',')
-        ? cleaned.replace(/\./g, '').replace(',', '.')
-        : cleaned;
-      const value = Number(normalized);
-      if (Number.isFinite(value) && value > 0) {
-        valueInput.value = value.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        });
-      }
-    });
     form.addEventListener('submit', (event) => {
       if (!loadedCode || loadedCode !== codeInput.value.trim()) {
         event.preventDefault();

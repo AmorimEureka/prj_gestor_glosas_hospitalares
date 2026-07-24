@@ -8752,7 +8752,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-data-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(13rem, 1fr));
+  grid-template-columns: minmax(14rem, 26rem) minmax(16rem, 1fr);
   gap: 0.72rem;
   align-items: start;
 }

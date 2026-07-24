@@ -65,11 +65,11 @@
 
     <div class="workflow-request-body" x-show="open" x-cloak>
       <div class="workflow-request-details">
-        {% if workflow_mode != "validacao" %}
+        {% if workflow_mode == "emissao" %}
         <span><small>Código paciente</small><strong>{{ solicitacao.codigo_paciente }}</strong></span>
         {% endif %}
         <span><small>Convênio</small><strong>{{ solicitacao.convenio }}</strong></span>
-        {% if workflow_mode != "validacao" %}
+        {% if workflow_mode == "emissao" %}
         <span><small>Código convênio</small><strong>{{ solicitacao.codigo_convenio }}</strong></span>
         {% endif %}
         <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>

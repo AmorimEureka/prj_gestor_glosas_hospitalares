@@ -255,11 +255,11 @@
                       <span class="finance-conciliation-edit-code"><small>REMESSA</small><strong>{{ remessa.cd_remessa }}</strong></span>
                       <label>
                         <span>Valor glosa *</span>
-                        <input class="form-control finance-money-input" type="text" name="valor_glosado_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_glosado|br_currency }}" inputmode="numeric" required>
+                        <input class="form-control finance-money-input" type="text" name="valor_glosado_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_glosado|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
                       </label>
                       <label>
                         <span>Valor recebido *</span>
-                        <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_pendente|br_currency }}" inputmode="numeric" required>
+                        <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_pendente|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
                       </label>
                     </div>
                   </div>
