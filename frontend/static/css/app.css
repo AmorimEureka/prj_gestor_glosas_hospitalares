@@ -8513,7 +8513,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 /* Requisição · Solicitar Nota */
 .note-request-page {
-  padding-bottom: 5.5rem;
+  padding-bottom: 0;
 }
 
 .note-request-card {
@@ -8751,15 +8751,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .note-request-actions {
-  position: fixed;
-  z-index: 80;
-  right: 1.25rem;
-  bottom: 1rem;
+  position: static;
   display: flex;
   gap: 0.6rem;
   align-items: center;
   justify-content: flex-end;
-  margin: 0;
+  width: max-content;
+  margin: 1rem 0 0 auto;
   padding: 0.65rem;
   border: 1px solid #c9dde6;
   border-radius: 0.6rem;
@@ -8802,7 +8800,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .note-request-list-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0.7rem;
 }
 
@@ -8919,9 +8921,18 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-records {
   display: grid;
+  align-content: start;
   gap: 0.62rem;
   padding: 0.72rem;
   overflow-x: auto;
+}
+
+.note-request-records-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .note-request-record {
@@ -9165,15 +9176,37 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow: hidden;
 }
 
+.workflow-emission-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
+.workflow-emission-page > .panel {
+  margin-bottom: 0;
+}
+
 .workflow-request-toolbar {
   justify-content: space-between;
 }
 
 .workflow-request-list {
   display: grid;
+  align-content: start;
   gap: 0.65rem;
   padding: 0.75rem;
   overflow-x: auto;
+}
+
+.workflow-request-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .workflow-request-card {
@@ -9280,6 +9313,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #a33127;
 }
 
+.workflow-request-status--inativo {
+  border-color: #c8d0d5;
+  background: #f0f3f5;
+  color: #52636c;
+}
+
 .workflow-request-status--emissao {
   border-color: #b9d9ef;
   background: #edf7fd;
@@ -9334,6 +9373,96 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow-wrap: anywhere;
 }
 
+.workflow-attendance-items {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.72rem;
+  border: 1px solid #c9dde6;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.workflow-attendance-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.workflow-attendance-items-heading h3 {
+  margin: 0;
+  color: #12394a;
+  font-size: 0.76rem;
+}
+
+.workflow-attendance-items-heading p {
+  margin: 0.16rem 0 0;
+  color: #617985;
+  font-size: 0.62rem;
+}
+
+.workflow-attendance-items-heading > span {
+  flex-shrink: 0;
+  padding: 0.26rem 0.48rem;
+  border: 1px solid #bad8e3;
+  border-radius: 999px;
+  background: #eef8fb;
+  color: #176b81;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.workflow-attendance-items-table {
+  overflow-x: auto;
+  border: 1px solid #d5e4ea;
+  border-radius: 0.42rem;
+}
+
+.workflow-attendance-items-table table {
+  width: 100%;
+  min-width: 65rem;
+  border-collapse: collapse;
+}
+
+.workflow-attendance-items-table th,
+.workflow-attendance-items-table td {
+  padding: 0.52rem 0.58rem;
+  border-bottom: 1px solid #dce8ed;
+  color: #294b59;
+  font-size: 0.63rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.workflow-attendance-items-table th {
+  background: #edf6f9;
+  color: #55717d;
+  font-size: 0.55rem;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.workflow-attendance-items-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.workflow-attendance-items-table td strong {
+  color: #14394a;
+  font-size: inherit;
+}
+
+.workflow-attendance-items-empty {
+  margin: 0;
+  padding: 0.62rem;
+  border: 1px dashed #cadde5;
+  border-radius: 0.4rem;
+  background: #f7fbfc;
+  color: #617985;
+  font-size: 0.65rem;
+}
+
 .workflow-refusal-summary {
   display: grid;
   grid-template-columns: minmax(18rem, 2fr) repeat(2, minmax(10rem, 1fr));
@@ -9345,6 +9474,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .workflow-refusal-summary > span:first-child {
   border-color: #edc0bb;
   background: #fff7f6;
+}
+
+.workflow-inactivation-summary > span:first-child {
+  border-color: #c8d0d5;
+  background: #f0f3f5;
 }
 
 .workflow-validation-actions {
@@ -9552,9 +9686,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .note-request-actions {
-    right: 0.75rem;
-    bottom: 0.75rem;
-    left: 0.75rem;
+    width: 100%;
   }
 
   .note-request-results-toolbar {
