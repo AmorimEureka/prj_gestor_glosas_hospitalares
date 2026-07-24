@@ -1085,7 +1085,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260723-menu-solicitacoes-23',
+            '?v=20260724-solicitacoes-dashboard-25',
             base_template.read_text(),
         )
 
@@ -2832,9 +2832,16 @@ class CadastrarNotaTests(TestCase):
             'tipo_atendimento': 'Ambulatório',
         }
 
-    def lista_payload(self, solicitacoes=None, total=0, offset=0):
+    def lista_payload(
+        self,
+        solicitacoes=None,
+        total=0,
+        offset=0,
+        resumo_status=None,
+    ):
         return {
             'solicitacoes': solicitacoes or [],
+            'resumo_status': resumo_status or [],
             'total': total,
             'limit': 10,
             'offset': offset,
@@ -2884,11 +2891,15 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertContains(
             response,
-            '<span class="nav-label">Solicitação Notas</span>',
+            '<span class="nav-label">Solicitações Notas</span>',
         )
         self.assertContains(
             response,
-            '<span class="nav-label">Solicitação Nota</span>',
+            '<span class="nav-label">Solicitação</span>',
+        )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Solicitar Nota</span>',
         )
         self.assertContains(
             response,
@@ -2909,21 +2920,27 @@ class CadastrarNotaTests(TestCase):
         html = response.content.decode()
         self.assertLess(
             html.index('<span class="nav-label">Financeiro</span>'),
-            html.index('<span class="nav-label">Solicitação Notas</span>'),
+            html.index('<span class="nav-label">Solicitações Notas</span>'),
         )
         self.assertLess(
-            html.index('<span class="nav-label">Solicitação Notas</span>'),
+            html.index('<span class="nav-label">Solicitações Notas</span>'),
             html.index(
                 '<span class="nav-label">Workflow Solicitações</span>'
             ),
         )
         self.assertLess(
-            html.index('<span class="nav-label">Solicitação Notas</span>'),
-            html.index(
-                '<span class="nav-label">Solicitações Recusas</span>'
-            ),
+            html.index('<span class="nav-label">Emissão NFS-e</span>'),
+            html.index('<span class="nav-label">Solicitação</span>'),
         )
-        self.assertContains(response, '<h1>Solicitação Nota</h1>')
+        self.assertLess(
+            html.index('<span class="nav-label">Solicitação</span>'),
+            html.index('<span class="nav-label">Solicitar Nota</span>'),
+        )
+        self.assertLess(
+            html.index('<span class="nav-label">Solicitação</span>'),
+            html.index('<span class="nav-label">Solicitações Recusas</span>'),
+        )
+        self.assertContains(response, '<h1>Solicitar Nota</h1>')
         self.assertNotContains(response, '<span class="panel-title">Solicitações cadastradas</span>')
         self.assertContains(response, 'Código atendimento *')
         self.assertContains(response, 'Nome do paciente')
@@ -2936,6 +2953,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Emergência')
         self.assertContains(response, 'Procedimento *')
         self.assertContains(response, 'loadAttendance')
+        cache_control = response.headers['Cache-Control']
+        self.assertIn('no-cache', cache_control)
+        self.assertIn('no-store', cache_control)
+        self.assertIn('must-revalidate', cache_control)
+        self.assertIn('private', cache_control)
         css = Path(finders.find('css/app.css')).read_text()
         self.assertIn(
             '.note-request-actions {\n  position: fixed;',
@@ -2945,6 +2967,76 @@ class CadastrarNotaTests(TestCase):
             'right: 1.25rem;\n  bottom: 1rem;',
             css,
         )
+        self.assertIn(
+            'grid-template-columns: minmax(14rem, 0.42fr) max-content;',
+            css,
+        )
+
+    @patch('core.views.api_get')
+    def test_workflow_e_emissao_usam_a_mesma_nova_navbar(self, api_get):
+        api_get.return_value = self.lista_payload()
+
+        for path in (
+            '/requisicao/workflow-solicitacoes/',
+            '/requisicao/emissao-nfse/',
+        ):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+
+                self.assertEqual(response.status_code, 200)
+                html = response.content.decode()
+                financeiro_inicio = html.index(
+                    '<span class="nav-label">Financeiro</span>'
+                )
+                solicitacao_inicio = html.index(
+                    '<span class="nav-label">Solicitação</span>'
+                )
+                administrativo_inicio = html.index(
+                    '<span class="nav-label">Administrativo</span>'
+                )
+                menu_financeiro = html[
+                    financeiro_inicio:solicitacao_inicio
+                ]
+                menu_solicitacao = html[
+                    solicitacao_inicio:administrativo_inicio
+                ]
+
+                self.assertIn(
+                    '<span class="nav-label">Solicitações Notas</span>',
+                    menu_financeiro,
+                )
+                self.assertIn(
+                    '<span class="nav-label">Workflow Solicitações</span>',
+                    menu_financeiro,
+                )
+                self.assertIn(
+                    '<span class="nav-label">Emissão NFS-e</span>',
+                    menu_financeiro,
+                )
+                self.assertNotIn(
+                    '<span class="nav-label">Solicitar Nota</span>',
+                    menu_financeiro,
+                )
+                self.assertNotIn(
+                    '<span class="nav-label">Solicitações cadastradas</span>',
+                    menu_financeiro,
+                )
+                self.assertNotIn(
+                    '<span class="nav-label">Solicitações Recusas</span>',
+                    menu_financeiro,
+                )
+                self.assertIn(
+                    '<span class="nav-label">Solicitar Nota</span>',
+                    menu_solicitacao,
+                )
+                self.assertIn(
+                    '<span class="nav-label">Solicitações cadastradas</span>',
+                    menu_solicitacao,
+                )
+                self.assertIn(
+                    '<span class="nav-label">Solicitações Recusas</span>',
+                    menu_solicitacao,
+                )
 
     @patch('core.views.api_get')
     def test_consulta_atendimento_para_preenchimento_automatico(
@@ -3107,11 +3199,27 @@ class CadastrarNotaTests(TestCase):
             'cadastrado_por': 'Amoras',
             'status': 'EMITIDA',
             'data_criacao': '2026-07-23T14:30:00',
+            'emissao_id': 42,
+            'numero_nfse': '5333',
+            'protocolo': 'PROTO-5333',
+            'arquivo_disponivel': True,
         }
         api_get.return_value = self.lista_payload(
             [solicitacao],
             total=12,
             offset=10,
+            resumo_status=[
+                {
+                    'status': 'PENDENTE_VALIDACAO',
+                    'quantidade': 4,
+                    'valor_total': '240.00',
+                },
+                {
+                    'status': 'EMITIDA',
+                    'quantidade': 8,
+                    'valor_total': '486.00',
+                },
+            ],
         )
 
         response = self.client.get(
@@ -3129,6 +3237,21 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'R$ 60,75')
         self.assertContains(response, 'Amoras')
         self.assertContains(response, 'NFS-e emitida')
+        self.assertContains(response, 'Resumo das solicitações por status')
+        self.assertContains(response, 'R$ 240,00')
+        self.assertContains(response, 'R$ 486,00')
+        self.assertContains(response, 'Paciente e atendimento')
+        self.assertContains(response, 'Dados da solicitação')
+        self.assertContains(response, '5333')
+        self.assertContains(response, 'PROTO-5333')
+        self.assertContains(response, 'Visualizar NFS-e')
+        self.assertContains(response, 'Baixar PDF')
+        self.assertContains(
+            response,
+            '/requisicao/emissao-nfse/itens/42/pdf/?download=false',
+        )
+        self.assertNotContains(response, '>Editar solicitação</button>')
+        self.assertNotContains(response, '>Inativar solicitação</button>')
         self.assertNotContains(response, '<small>Código paciente</small>')
         self.assertNotContains(response, '<small>Código convênio</small>')
         self.assertNotContains(
@@ -3138,6 +3261,162 @@ class CadastrarNotaTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {'limit': 10, 'offset': 10},
+        )
+
+    @patch('core.views.api_get')
+    def test_lista_filtra_e_preserva_criterios_na_paginacao(
+        self,
+        api_get,
+    ):
+        solicitacao = {
+            **self.atendimento_payload(),
+            'id': 7,
+            'local': 'Clinica 2',
+            'procedimento': 'Consulta cardiológica',
+            'valor_nota': '60.75',
+            'usuario_id': 4,
+            'cadastrado_por': 'Amoras',
+            'status': 'PENDENTE_VALIDACAO',
+            'data_criacao': '2026-07-23T14:30:00',
+        }
+        api_get.return_value = self.lista_payload(
+            [solicitacao],
+            total=11,
+            resumo_status=[
+                {
+                    'status': 'PENDENTE_VALIDACAO',
+                    'quantidade': 11,
+                    'valor_total': '668.25',
+                },
+            ],
+        )
+
+        response = self.client.get(
+            '/requisicao/solicitacoes-cadastradas/',
+            {
+                'codigo_atendimento': '123456',
+                'nome_paciente': 'Maria',
+                'convenio': 'Teste',
+                'local': 'Clinica 2',
+                'status': 'PENDENTE_VALIDACAO',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="codigo_atendimento"')
+        self.assertContains(response, 'value="123456"')
+        self.assertContains(response, 'name="nome_paciente"')
+        self.assertContains(response, 'value="Maria"')
+        self.assertContains(response, 'name="convenio"')
+        self.assertContains(response, 'value="Teste"')
+        self.assertContains(response, 'R$ 668,25')
+        self.assertContains(response, '>Editar solicitação</button>')
+        self.assertContains(response, '>Inativar solicitação</button>')
+        self.assertContains(response, 'name="action" value="editar"')
+        self.assertContains(response, 'name="action" value="inativar"')
+        self.assertContains(
+            response,
+            'name="status" value="PENDENTE_VALIDACAO"',
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota',
+            {
+                'codigo_atendimento': '123456',
+                'nome_paciente': 'Maria',
+                'convenio': 'Teste',
+                'local': 'Clinica 2',
+                'status': 'PENDENTE_VALIDACAO',
+                'limit': 10,
+                'offset': 0,
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_lista_bloqueia_edicao_e_inativacao_de_validada(
+        self,
+        api_get,
+    ):
+        solicitacao = {
+            **self.atendimento_payload(),
+            'id': 7,
+            'local': 'Clinica 1',
+            'procedimento': 'Consulta cardiológica',
+            'valor_nota': '60.75',
+            'usuario_id': 4,
+            'cadastrado_por': 'Amoras',
+            'status': 'VALIDADA',
+            'data_criacao': '2026-07-23T14:30:00',
+        }
+        api_get.return_value = self.lista_payload(
+            [solicitacao],
+            total=1,
+        )
+
+        response = self.client.get(
+            '/requisicao/solicitacoes-cadastradas/'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '>Editar solicitação</button>')
+        self.assertNotContains(response, '>Inativar solicitação</button>')
+        self.assertContains(
+            response,
+            'Edição e inativação indisponíveis após a validação.',
+        )
+
+    @patch('core.views.api_patch')
+    def test_lista_edita_solicitacao_e_preserva_filtros(
+        self,
+        api_patch,
+    ):
+        response = self.client.post(
+            (
+                '/requisicao/solicitacoes-cadastradas/'
+                '?status=RECUSADA&page=2'
+            ),
+            {
+                'action': 'editar',
+                'solicitacao_id': '7',
+                'local': 'Emergencia',
+                'valor_nota': 'R$ 99,90',
+                'procedimento': 'Procedimento corrigido',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            (
+                '/requisicao/solicitacoes-cadastradas/'
+                '?status=RECUSADA&page=2'
+            ),
+            fetch_redirect_response=False,
+        )
+        api_patch.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/7',
+            {
+                'local': 'Emergencia',
+                'procedimento': 'Procedimento corrigido',
+                'valor_nota': '99.90',
+            },
+        )
+
+    @patch('core.views.api_delete')
+    def test_lista_inativa_solicitacao(self, api_delete):
+        response = self.client.post(
+            '/requisicao/solicitacoes-cadastradas/',
+            {
+                'action': 'inativar',
+                'solicitacao_id': '7',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/solicitacoes-cadastradas/',
+            fetch_redirect_response=False,
+        )
+        api_delete.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/7'
         )
 
     @patch('core.views.api_get')

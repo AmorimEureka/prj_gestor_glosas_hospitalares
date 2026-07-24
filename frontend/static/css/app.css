@@ -8511,7 +8511,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 }
 
-/* Requisição · Solicitação Nota */
+/* Requisição · Solicitar Nota */
 .note-request-page {
   padding-bottom: 5.5rem;
 }
@@ -8617,7 +8617,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .note-request-lookup {
   display: grid;
-  grid-template-columns: minmax(14rem, 0.42fr) auto;
+  grid-template-columns: minmax(14rem, 0.42fr) max-content;
   gap: 0.65rem;
   align-items: end;
 }
@@ -8801,6 +8801,95 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow: hidden;
 }
 
+.note-request-list-page {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.note-request-list-page > .panel {
+  margin-bottom: 0;
+}
+
+.note-request-list-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(8rem, 0.65fr) minmax(13rem, 1.35fr)
+    minmax(12rem, 1.15fr) minmax(10rem, 0.85fr)
+    minmax(11rem, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.note-request-list-filters .filter-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.note-request-status-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.note-request-status-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.16rem 0.65rem;
+  padding: 0.72rem 0.78rem;
+  border: 1px solid #cbdde5;
+  border-top: 0.24rem solid #65a9ba;
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 0.18rem 0.55rem rgb(22 88 108 / 6%);
+}
+
+.note-request-status-card > span {
+  align-self: center;
+  color: #4f6976;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.note-request-status-card > strong {
+  grid-row: span 2;
+  align-self: center;
+  color: #163b4c;
+  font-size: 1.35rem;
+}
+
+.note-request-status-card > small {
+  color: #718691;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.note-request-status-card > b {
+  grid-column: 1 / -1;
+  color: #153c4e;
+  font-size: 0.78rem;
+}
+
+.note-request-status-card--pendente {
+  border-top-color: #d6a536;
+}
+
+.note-request-status-card--validada,
+.note-request-status-card--emitida {
+  border-top-color: #2d9a6d;
+}
+
+.note-request-status-card--emissao {
+  border-top-color: #3d88b3;
+}
+
+.note-request-status-card--recusada,
+.note-request-status-card--erro {
+  border-top-color: #c95a50;
+}
+
 .note-request-results-toolbar {
   justify-content: space-between;
 }
@@ -8939,29 +9028,70 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .note-request-record-body {
+  display: grid;
+  gap: 0.72rem;
   padding: 0.78rem;
   background: #f5fafc;
 }
 
 .note-request-record-details {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
   gap: 0.62rem;
 }
 
-.note-request-record-details > span {
-  min-height: 3.3rem;
-  padding: 0.55rem 0.62rem;
+.note-request-detail-group {
+  overflow: hidden;
   border: 1px solid #d4e3e9;
-  border-radius: 0.42rem;
+  border-radius: 0.5rem;
   background: #fff;
 }
 
-.note-request-record-details > span.is-wide {
-  grid-column: span 3;
+.note-request-detail-group--nfse {
+  border-color: #a9d9c2;
+  background: #f5fcf8;
 }
 
-.note-request-record-details small {
+.note-request-detail-group h3 {
+  padding: 0.52rem 0.65rem;
+  margin: 0;
+  border-bottom: 1px solid #dce8ed;
+  background: #edf5f8;
+  color: #1a5367;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.note-request-detail-group--nfse h3 {
+  border-bottom-color: #cbe7d8;
+  background: #e8f7ef;
+  color: #176c4b;
+}
+
+.note-request-detail-group > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.62rem;
+}
+
+.note-request-detail-group > div > span {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+  min-height: 3.15rem;
+  padding: 0.5rem 0.58rem;
+  border: 1px solid #e0eaee;
+  border-radius: 0.38rem;
+  background: #fff;
+}
+
+.note-request-detail-group > div > span.is-wide {
+  grid-column: 1 / -1;
+}
+
+.note-request-detail-group small,
+.note-request-edit-form label > span {
   color: #647b87;
   font-size: 0.55rem;
   font-weight: 800;
@@ -8969,10 +9099,65 @@ body:not(.sidebar-collapsed) .indicator-grid {
   text-transform: uppercase;
 }
 
-.note-request-record-details strong {
+.note-request-detail-group strong {
   color: #14394a;
   font-size: 0.68rem;
   overflow-wrap: anywhere;
+}
+
+.note-request-edit-form {
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.8fr) minmax(11rem, 0.8fr);
+  gap: 0.65rem;
+  padding: 0.72rem;
+  border: 1px solid #b9d8e2;
+  border-radius: 0.5rem;
+  background: #eef8fb;
+}
+
+.note-request-edit-form label {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+}
+
+.note-request-edit-form label.is-wide,
+.note-request-edit-actions {
+  grid-column: 1 / -1;
+}
+
+.note-request-edit-form select,
+.note-request-edit-form input,
+.note-request-edit-form textarea {
+  width: 100%;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid #c6dce5;
+  border-radius: 0.42rem;
+  background: #fff;
+  color: #14394a;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.note-request-edit-form textarea {
+  resize: vertical;
+}
+
+.note-request-edit-actions,
+.note-request-record-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.note-request-record-actions {
+  padding-top: 0.68rem;
+  border-top: 1px solid #d7e5ea;
+}
+
+.note-request-record-actions form {
+  margin: 0;
 }
 
 /* Requisição · workflow e emissão de NFS-e */
@@ -9294,16 +9479,20 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 @media (max-width: 1100px) {
+  .note-request-list-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .note-request-list-filters .filter-actions {
+    grid-column: 1 / -1;
+  }
+
   .note-request-patient-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .note-request-data-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .note-request-record-details {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .workflow-request-details {
@@ -9331,8 +9520,23 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .note-request-lookup,
   .note-request-patient-grid,
-  .note-request-data-grid {
+  .note-request-data-grid,
+  .note-request-list-filters,
+  .note-request-edit-form {
     grid-template-columns: 1fr;
+  }
+
+  .note-request-list-filters .filter-actions,
+  .note-request-edit-form label.is-wide,
+  .note-request-edit-actions {
+    grid-column: auto;
+  }
+
+  .note-request-list-filters .filter-actions,
+  .note-request-edit-actions,
+  .note-request-record-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .note-request-patient-grid .is-wide,

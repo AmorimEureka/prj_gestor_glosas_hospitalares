@@ -2,6 +2,65 @@
 {% block breadcrumb_label %}Financeiro{% endblock %}
 {% block page_title %}Solicitações cadastradas{% endblock %}
 {% block content %}
+<div class="note-request-list-page">
+  <section class="panel filter-panel">
+    <form method="get" class="note-request-list-filters">
+      <div class="filter-group filter-group--attendance">
+        <label>Atendimento</label>
+        <input
+          type="number"
+          name="codigo_atendimento"
+          value="{{ filtros.codigo_atendimento }}"
+          class="form-control"
+          inputmode="numeric"
+          min="1"
+          placeholder="Código"
+        >
+      </div>
+      <div class="filter-group">
+        <label>Paciente</label>
+        <input name="nome_paciente" value="{{ filtros.nome_paciente }}" class="form-control" placeholder="Nome parcial">
+      </div>
+      <div class="filter-group">
+        <label>Convênio</label>
+        <input name="convenio" value="{{ filtros.convenio }}" class="form-control" placeholder="Nome do convênio">
+      </div>
+      <div class="filter-group">
+        <label>Local</label>
+        <select name="local" class="form-select">
+          <option value="">Todos</option>
+          {% for value, label in locais %}
+          <option value="{{ value }}" {% if filtros.local == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select name="status" class="form-select">
+          <option value="">Todos</option>
+          {% for value, label in status_options %}
+          <option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary">Pesquisar</button>
+        <a href="{% url 'solicitacoes_nota' %}" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="note-request-status-summary" aria-label="Resumo das solicitações por status">
+    {% for resumo in resumo_status %}
+    <article class="note-request-status-card note-request-status-card--{{ resumo.status_classe }}">
+      <span>{{ resumo.label }}</span>
+      <strong>{{ resumo.quantidade }}</strong>
+      <small>Valor total</small>
+      <b>{{ resumo.valor_total_formatado }}</b>
+    </article>
+    {% endfor %}
+  </section>
+
 <section class="panel results-summary-panel note-request-results">
   <div class="panel-header">
     <div class="results-heading">
@@ -34,32 +93,7 @@
         <span>Registros</span>
         <strong>{{ pagination.total }}</strong>
       </span>
-      <div class="pagination-control">
-        {% if pagination.has_previous %}
-        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
-        {% else %}
-        <span class="page-step page-step--disabled">Anterior</span>
-        {% endif %}
-        <form method="get" class="page-select-form">
-          <label for="note-request-page-select">Pagina</label>
-          <select
-            id="note-request-page-select"
-            name="page"
-            class="form-select form-select-sm"
-            onchange="this.form.submit()"
-          >
-            {% for option in pagination.page_options %}
-            <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
-            {% endfor %}
-          </select>
-          <span>de {{ pagination.total_pages }}</span>
-        </form>
-        {% if pagination.has_next %}
-        <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
-        {% else %}
-        <span class="page-step page-step--disabled">Proxima</span>
-        {% endif %}
-      </div>
+      {% include "_workflow_pagination.html" with pagination_id="note-request-page-select" %}
     </div>
     {% endif %}
   </div>
@@ -69,9 +103,9 @@
     {% for solicitacao in solicitacoes %}
     <article
       class="note-request-record"
-      x-data="{ open: false }"
+      x-data="{ open: false, editing: false }"
       @expand-all-note-requests.window="open = true"
-      @collapse-all-note-requests.window="open = false"
+      @collapse-all-note-requests.window="open = false; editing = false"
     >
       <button
         type="button"
@@ -110,25 +144,105 @@
       </button>
       <div class="note-request-record-body" x-show="open" x-cloak>
         <div class="note-request-record-details">
-          <span><small>CPF</small><strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong></span>
-          <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
-          <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
-          <span><small>Cadastrada em</small><strong>{{ solicitacao.data_criacao_formatada }}</strong></span>
-          <span>
-            <small>Solicitada por</small>
-            <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
-          </span>
-          <span class="is-wide">
-            <small>Endereço</small>
-            <strong>
-              {% if solicitacao.nr_cep %}CEP {{ solicitacao.nr_cep }} — {% endif %}
-              {{ solicitacao.ds_endereco|default:"Não informado" }}
-              {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
-              {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
-              {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
-            </strong>
-          </span>
-          <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
+          <section class="note-request-detail-group">
+            <h3>Paciente e atendimento</h3>
+            <div>
+              <span><small>CPF</small><strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong></span>
+              <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
+              <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+              <span class="is-wide">
+                <small>Endereço</small>
+                <strong>
+                  {% if solicitacao.nr_cep %}CEP {{ solicitacao.nr_cep }} — {% endif %}
+                  {{ solicitacao.ds_endereco|default:"Não informado" }}
+                  {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
+                  {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
+                  {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
+                </strong>
+              </span>
+            </div>
+          </section>
+
+          <section class="note-request-detail-group">
+            <h3>Dados da solicitação</h3>
+            <div>
+              <span><small>Cadastrada em</small><strong>{{ solicitacao.data_criacao_formatada }}</strong></span>
+              <span>
+                <small>Solicitada por</small>
+                <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
+              </span>
+              <span><small>Local</small><strong>{{ solicitacao.local_label }}</strong></span>
+              <span><small>Valor da nota</small><strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong></span>
+              <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
+            </div>
+          </section>
+
+          {% if solicitacao.status == "EMITIDA" %}
+          <section class="note-request-detail-group note-request-detail-group--nfse">
+            <h3>NFS-e emitida</h3>
+            <div>
+              <span><small>Número da NFS-e</small><strong>{{ solicitacao.numero_nfse|default:"Não informado" }}</strong></span>
+              <span><small>Protocolo</small><strong>{{ solicitacao.protocolo|default:"Não informado" }}</strong></span>
+            </div>
+          </section>
+          {% endif %}
+        </div>
+
+        {% if solicitacao.pode_alterar %}
+        <form method="post" class="note-request-edit-form" x-show="editing" x-cloak>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="editar">
+          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+          <label>
+            <span>Local *</span>
+            <select name="local" required>
+              {% for value, label in locais %}
+              <option value="{{ value }}" {% if solicitacao.local == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Valor da nota *</span>
+            <input name="valor_nota" value="{{ solicitacao.valor_nota_formatado }}" inputmode="decimal" required>
+          </label>
+          <label class="is-wide">
+            <span>Procedimento *</span>
+            <textarea name="procedimento" rows="3" maxlength="500" required>{{ solicitacao.procedimento }}</textarea>
+          </label>
+          <div class="note-request-edit-actions">
+            <button type="button" class="btn btn-outline-secondary" @click="editing = false">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar alterações</button>
+          </div>
+        </form>
+        {% endif %}
+
+        <div class="note-request-record-actions">
+          {% if solicitacao.status == "EMITIDA" %}
+            {% if solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+            <a
+              class="workflow-action workflow-action--view"
+              href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
+              target="_blank"
+              rel="noopener"
+            >Visualizar NFS-e</a>
+            <a
+              class="workflow-action workflow-action--download"
+              href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=true"
+            >Baixar PDF</a>
+            {% else %}
+            <span class="workflow-emission-file-unavailable">PDF ainda não disponível.</span>
+            {% endif %}
+          {% elif solicitacao.pode_alterar %}
+          <button type="button" class="workflow-action workflow-action--view" @click="editing = !editing">Editar solicitação</button>
+          <form method="post" onsubmit="return window.confirm('Deseja realmente inativar esta solicitação?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="inativar">
+            <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+            <button type="submit" class="workflow-action workflow-action--reject">Inativar solicitação</button>
+          </form>
+          {% else %}
+          <span class="workflow-emission-file-unavailable">Edição e inativação indisponíveis após a validação.</span>
+          {% endif %}
         </div>
       </div>
     </article>
@@ -136,4 +250,5 @@
   </div>
   {% endif %}
 </section>
+</div>
 {% endblock %}

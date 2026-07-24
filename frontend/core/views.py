@@ -328,20 +328,103 @@ def solicitacao_nota(request):
     )
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def solicitacoes_nota(request):
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        solicitacao_id = as_int_or_zero(
+            request.POST.get("solicitacao_id")
+        )
+        try:
+            if solicitacao_id <= 0:
+                raise ValueError
+            if action == "editar":
+                local = (request.POST.get("local") or "").strip()
+                procedimento = (
+                    request.POST.get("procedimento") or ""
+                ).strip()
+                valor_nota = as_float_or_none(
+                    request.POST.get("valor_nota")
+                )
+                if local not in LOCAIS_SOLICITACAO_NOTA:
+                    raise ValueError("Selecione o local da emissão.")
+                if not procedimento:
+                    raise ValueError("Informe o procedimento.")
+                if valor_nota is None or valor_nota <= 0:
+                    raise ValueError(
+                        "Informe um valor da nota maior que zero."
+                    )
+                api_patch(
+                    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                    f"{solicitacao_id}",
+                    {
+                        "local": local,
+                        "procedimento": procedimento,
+                        "valor_nota": f"{valor_nota:.2f}",
+                    },
+                )
+                messages.success(
+                    request,
+                    "Solicitação atualizada e reenviada para validação.",
+                )
+            elif action == "inativar":
+                api_delete(
+                    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                    f"{solicitacao_id}"
+                )
+                messages.success(
+                    request,
+                    "Solicitação inativada com sucesso.",
+                )
+            else:
+                raise ValueError("Ação inválida.")
+        except ValueError as exc:
+            messages.error(request, str(exc) or "Solicitação inválida.")
+        except ApiError as exc:
+            messages.error(
+                request,
+                f"Alteração da solicitação: "
+                f"{extract_api_error_message(exc)}",
+            )
+        query_string = request.GET.urlencode()
+        redirect_url = request.path
+        if query_string:
+            redirect_url = f"{redirect_url}?{query_string}"
+        return redirect(redirect_url)
+
     page = as_positive_int(request.GET.get("page"), 1)
     limit = 10
     offset = (page - 1) * limit
+    filtros = {
+        "codigo_atendimento": (
+            request.GET.get("codigo_atendimento") or ""
+        ).strip(),
+        "nome_paciente": (
+            request.GET.get("nome_paciente") or ""
+        ).strip(),
+        "convenio": (request.GET.get("convenio") or "").strip(),
+        "local": (request.GET.get("local") or "").strip(),
+        "status": (request.GET.get("status") or "").strip(),
+    }
+    if filtros["local"] not in LOCAIS_SOLICITACAO_NOTA:
+        filtros["local"] = ""
+    if filtros["status"] not in STATUS_SOLICITACAO_NOTA:
+        filtros["status"] = ""
     solicitacoes = []
     total_solicitacoes = 0
+    resumo_api = []
+    api_params = {
+        key: value for key, value in filtros.items() if value
+    }
+    api_params.update({"limit": limit, "offset": offset})
 
     try:
         response = api_get(
             f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota",
-            {"limit": limit, "offset": offset},
+            api_params,
         )
         solicitacoes = response.get("solicitacoes") or []
+        resumo_api = response.get("resumo_status") or []
         total_solicitacoes = as_int_or_zero(response.get("total"))
         limit = as_positive_int(response.get("limit"), limit)
         offset = as_int_or_zero(response.get("offset"))
@@ -368,10 +451,39 @@ def solicitacoes_nota(request):
         )
         solicitacao["status_label"] = status_label
         solicitacao["status_classe"] = status_classe
+        solicitacao["pode_alterar"] = solicitacao.get("status") in {
+            "PENDENTE_VALIDACAO",
+            "RECUSADA",
+        }
 
+    resumo_por_status = {
+        str(item.get("status") or ""): item
+        for item in resumo_api
+    }
+    resumo_status = []
+    for status, (label, status_classe) in STATUS_SOLICITACAO_NOTA.items():
+        item = resumo_por_status.get(status) or {}
+        resumo_status.append(
+            {
+                "status": status,
+                "label": label,
+                "status_classe": status_classe,
+                "quantidade": as_int_or_zero(item.get("quantidade")),
+                "valor_total_formatado": (
+                    format_brl_input(item.get("valor_total")) or "R$ 0,00"
+                ),
+            }
+        )
+
+    base_query = {
+        key: value for key, value in filtros.items() if value
+    }
     total_pages = max(ceil(total_solicitacoes / limit), 1)
     if page > total_pages:
-        return redirect(f"{request.path}?page={total_pages}")
+        return redirect(
+            f"{request.path}?"
+            f"{urlencode({**base_query, 'page': total_pages})}"
+        )
     pagination = {
         "page": page,
         "total_pages": total_pages,
@@ -381,12 +493,20 @@ def solicitacoes_nota(request):
         ],
         "has_previous": page > 1,
         "has_next": page < total_pages,
-        "previous_url": f"?page={page - 1}" if page > 1 else "",
-        "next_url": f"?page={page + 1}" if page < total_pages else "",
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
         "start": offset + 1 if solicitacoes and total_solicitacoes else 0,
         "end": min(offset + len(solicitacoes), total_solicitacoes),
         "total": total_solicitacoes,
-        "query": {},
+        "query": base_query,
     }
     return render(
         request,
@@ -394,6 +514,14 @@ def solicitacoes_nota(request):
         {
             "solicitacoes": solicitacoes,
             "pagination": pagination,
+            "filtros": filtros,
+            "locais": LOCAIS_SOLICITACAO_NOTA.items(),
+            "status_options": [
+                (status, label)
+                for status, (label, _status_classe)
+                in STATUS_SOLICITACAO_NOTA.items()
+            ],
+            "resumo_status": resumo_status,
         },
     )
 
