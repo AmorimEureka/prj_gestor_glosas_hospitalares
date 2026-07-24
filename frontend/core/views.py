@@ -515,6 +515,9 @@ def solicitacoes_nota(request):
             "solicitacoes": solicitacoes,
             "pagination": pagination,
             "filtros": filtros,
+            "convenios": get_convenio_dropdown_options(
+                filtros["convenio"]
+            ),
             "locais": LOCAIS_SOLICITACAO_NOTA.items(),
             "status_options": [
                 (status, label)
@@ -3964,6 +3967,28 @@ def get_convenio_filter_options(force_refresh=False):
     )
 
 
+def get_convenio_dropdown_options(selected_value=""):
+    try:
+        options = get_convenio_filter_options()
+    except ApiError:
+        options = []
+
+    selected_value = str(selected_value or "").strip()
+    options_by_normalized_name = {
+        normalize_lookup_text(option): option
+        for option in options
+        if normalize_lookup_text(option)
+    }
+    if selected_value:
+        options_by_normalized_name[
+            normalize_lookup_text(selected_value)
+        ] = selected_value
+    return sorted(
+        options_by_normalized_name.values(),
+        key=normalize_lookup_text,
+    )
+
+
 def clear_dashboard_cache():
     cache.delete_many(
         [
@@ -4429,6 +4454,9 @@ def follow_up_glosas(request):
         {
             "cards": cards,
             "filtros": filtros,
+            "convenios": get_convenio_dropdown_options(
+                filtros["convenio"]
+            ),
             "resumo": resumo,
             "pagination": pagination,
             "consulta_indisponivel": consulta_indisponivel,
@@ -5220,6 +5248,9 @@ def conciliacao_faturamento(request):
             "remessas": remessas,
             "contas_bancarias": contas_bancarias,
             "filtros": filtros,
+            "convenios": get_convenio_dropdown_options(
+                filtros["convenio"]
+            ),
             "total_remessas": total_remessas,
             "valor_total_conciliado": valor_total_conciliado,
             "valor_total_pendente": valor_total_pendente,
@@ -5428,6 +5459,9 @@ def conciliacoes_sem_recebimento(request):
         {
             "conciliacoes": conciliacoes,
             "filtros": filtros,
+            "convenios": get_convenio_dropdown_options(
+                filtros["convenio"]
+            ),
             "total_conciliacoes": total_conciliacoes,
             "total_remessas_sem_recebimento": (
                 total_remessas_sem_recebimento
@@ -5595,6 +5629,9 @@ def conciliacoes_financeiras(request):
         {
             "conciliacoes": conciliacoes,
             "filtros": filtros,
+            "convenios": get_convenio_dropdown_options(
+                filtros["convenio"]
+            ),
             "resumo": resumo,
             "pagination": pagination,
         },

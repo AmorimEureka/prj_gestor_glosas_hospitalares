@@ -1016,6 +1016,12 @@ class FollowUpGlosasTests(TestCase):
     ):
         api_get.return_value = self._api_payload()
         get_cached_api_payload.return_value = {
+            'convenios': [
+                {
+                    'cd_convenio': 5,
+                    'nm_convenio': 'Convênio Teste',
+                },
+            ],
             'itens': [
                 {
                     'codigo_termo': '1016',
@@ -1034,7 +1040,15 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, '#987')
         self.assertContains(response, 'name="numero_nfse"')
         self.assertContains(response, 'name="cd_remessa"')
-        self.assertContains(response, 'name="convenio"')
+        self.assertContains(
+            response,
+            'id="follow-up-glosa-convenio" '
+            'name="convenio" class="form-select"',
+        )
+        self.assertContains(
+            response,
+            '<option value="Convênio Teste" >Convênio Teste</option>',
+        )
         self.assertNotContains(response, 'name="q"')
         self.assertContains(
             response,
@@ -1128,6 +1142,10 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(pagination['previous_url'], f'?{query}&page=1')
         self.assertEqual(pagination['next_url'], f'?{query}&page=3')
         self.assertContains(response, '<option value="2" selected>2</option>')
+        self.assertContains(
+            response,
+            '<option value="IPM" selected>IPM</option>',
+        )
         self.assertContains(response, 'Página 2 de 3')
         escaped_query = query.replace('&', '&amp;')
         self.assertContains(
@@ -1509,6 +1527,15 @@ class ConciliacaoFaturamentoTests(TestCase):
                     'limit': 25,
                     'offset': 0,
                 }
+            if path.endswith('/convenios'):
+                return {
+                    'convenios': [
+                        {
+                            'cd_convenio': 5,
+                            'nm_convenio': 'Convênio Teste',
+                        },
+                    ],
+                }
             return {'contas': []}
 
         api_get.side_effect = resposta
@@ -1558,8 +1585,14 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertContains(response, 'placeholder="Número da NFS-e"')
         self.assertContains(response, 'name="cd_remessa"')
         self.assertContains(response, 'placeholder="Código da remessa"')
-        self.assertContains(response, 'name="convenio"')
-        self.assertContains(response, 'placeholder="Nome ou CNPJ do convênio"')
+        self.assertContains(
+            response,
+            '<select class="form-select" name="convenio">',
+        )
+        self.assertContains(
+            response,
+            '<option value="Convênio Teste" >Convênio Teste</option>',
+        )
         self.assertNotContains(response, 'name="q"')
         self.assertContains(response, '>Expandir</button>')
         self.assertContains(response, '>Colapsar todos</button>')
@@ -1719,10 +1752,11 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.client.get('/financeiro/conciliacao-fiscal-faturamento/')
         self.client.get('/financeiro/conciliacao-fiscal-faturamento/')
 
-        self.assertEqual(api_get.call_count, 2)
+        self.assertEqual(api_get.call_count, 3)
         paths = [call.args[0] for call in api_get.call_args_list]
         self.assertEqual(paths.count(CONCILIACAO_FATURAMENTO_PATH + '/remessas'), 1)
         self.assertEqual(paths.count('/app_glosas/financeiro/contas-bancarias'), 1)
+        self.assertEqual(paths.count('/app_glosas/convenios'), 1)
 
     @patch('core.views.api_post')
     @patch('core.views.api_get')
@@ -1903,10 +1937,19 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             'limit': 25,
             'offset': 0,
         }
-        api_get.side_effect = lambda path, params=None: (
-            conciliacoes_payload
-            if path.endswith('/sem-recebimento')
-            else {
+        def resposta(path, params=None):
+            if path.endswith('/sem-recebimento'):
+                return conciliacoes_payload
+            if path.endswith('/convenios'):
+                return {
+                    'convenios': [
+                        {
+                            'cd_convenio': 5,
+                            'nm_convenio': 'Convênio Teste',
+                        },
+                    ],
+                }
+            return {
                 'contas': [
                     {
                         'id': 7,
@@ -1916,7 +1959,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                     }
                 ]
             }
-        )
+
+        api_get.side_effect = resposta
 
         response = self.client.get(
             '/financeiro/conciliacoes-sem-recebimento/'
@@ -1929,8 +1973,14 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertContains(response, 'placeholder="Número da NFS-e"')
         self.assertContains(response, 'name="cd_remessa"')
         self.assertContains(response, 'placeholder="Código da remessa"')
-        self.assertContains(response, 'name="convenio"')
-        self.assertContains(response, 'placeholder="Nome do convênio"')
+        self.assertContains(
+            response,
+            '<select class="form-select" name="convenio">',
+        )
+        self.assertContains(
+            response,
+            '<option value="Convênio Teste" >Convênio Teste</option>',
+        )
         self.assertContains(response, 'name="processo_recebimento"')
         self.assertContains(
             response,
@@ -2650,7 +2700,15 @@ class ConciliacoesFinanceirasTests(TestCase):
         self.assertContains(response, '<span class="nav-label">Auditória</span>')
         self.assertContains(response, 'name="numero_nfse"')
         self.assertContains(response, 'name="cd_remessa"')
-        self.assertContains(response, 'name="convenio"')
+        self.assertContains(
+            response,
+            '<select class="form-select" name="convenio">',
+        )
+        self.assertContains(
+            response,
+            '<option value="Convênio Teste" selected>'
+            'Convênio Teste</option>',
+        )
         self.assertContains(response, 'name="processo_recebimento"')
         self.assertContains(response, '>Expandir</button>')
         self.assertContains(response, '>Colapsar todos</button>')
@@ -3258,10 +3316,11 @@ class CadastrarNotaTests(TestCase):
             response,
             '<span class="panel-title">Solicitações cadastradas</span>',
         )
-        api_get.assert_called_once_with(
+        api_get.assert_any_call(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {'limit': 10, 'offset': 10},
         )
+        api_get.assert_any_call('/app_glosas/convenios', None)
 
     @patch('core.views.api_get')
     def test_lista_filtra_e_preserva_criterios_na_paginacao(
@@ -3304,11 +3363,20 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="codigo_atendimento"')
+        self.assertContains(response, 'type="search"')
+        self.assertContains(response, 'pattern="[0-9]*"')
+        self.assertNotContains(response, 'type="number"')
         self.assertContains(response, 'value="123456"')
         self.assertContains(response, 'name="nome_paciente"')
         self.assertContains(response, 'value="Maria"')
-        self.assertContains(response, 'name="convenio"')
-        self.assertContains(response, 'value="Teste"')
+        self.assertContains(
+            response,
+            '<select name="convenio" class="form-select">',
+        )
+        self.assertContains(
+            response,
+            '<option value="Teste" selected>Teste</option>',
+        )
         self.assertContains(response, 'R$ 668,25')
         self.assertContains(response, '>Editar solicitação</button>')
         self.assertContains(response, '>Inativar solicitação</button>')
@@ -3318,7 +3386,7 @@ class CadastrarNotaTests(TestCase):
             response,
             'name="status" value="PENDENTE_VALIDACAO"',
         )
-        api_get.assert_called_once_with(
+        api_get.assert_any_call(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {
                 'codigo_atendimento': '123456',
@@ -3330,6 +3398,7 @@ class CadastrarNotaTests(TestCase):
                 'offset': 0,
             },
         )
+        api_get.assert_any_call('/app_glosas/convenios', None)
 
     @patch('core.views.api_get')
     def test_lista_bloqueia_edicao_e_inativacao_de_validada(

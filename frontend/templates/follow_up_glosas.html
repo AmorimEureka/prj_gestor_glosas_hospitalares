@@ -129,7 +129,12 @@
       </div>
       <div class="filter-group">
         <label for="follow-up-glosa-convenio">Convênio</label>
-        <input id="follow-up-glosa-convenio" name="convenio" value="{{ filtros.convenio }}" class="form-control" placeholder="Nome do convênio">
+        <select id="follow-up-glosa-convenio" name="convenio" class="form-select">
+          <option value="">Todos</option>
+          {% for convenio in convenios %}
+          <option value="{{ convenio }}" {% if filtros.convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="filter-actions">
         <button class="btn btn-primary" :disabled="loading">
