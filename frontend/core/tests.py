@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260724-solicitacoes-dashboard-30',
+            '?v=20260724-solicitacoes-dashboard-31',
             base_template.read_text(),
         )
 
@@ -2888,6 +2888,17 @@ class CadastrarNotaTests(TestCase):
             'email': 'maria@example.com',
             'nr_fone': '85999999999',
             'tipo_atendimento': 'Ambulatório',
+            'procedimentos_atendimento': [
+                {
+                    'codigo': '40304361',
+                    'descricao': 'ECOCARDIOGRAMA TRANSTORÁCICO',
+                    'grupo': 'EXAMES CARDIOLÓGICOS',
+                    'quantidade': '1',
+                    'realizado_em': '2026-07-23T10:30:00',
+                    'prestador': 'DR. TESTE',
+                },
+            ],
+            'procedimentos_atendimento_disponiveis': True,
         }
 
     def lista_payload(
@@ -3012,6 +3023,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Clínica 2')
         self.assertContains(response, 'Emergência')
         self.assertContains(response, 'Procedimento *')
+        self.assertContains(response, 'Procedimentos e exames realizados')
+        self.assertContains(
+            response,
+            'Consulte um atendimento para visualizar os procedimentos',
+        )
         self.assertContains(response, 'loadAttendance')
         cache_control = response.headers['Cache-Control']
         self.assertIn('no-cache', cache_control)
@@ -3171,6 +3187,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(pagina, 'MARIA DA SILVA')
         self.assertContains(pagina, 'CONVÊNIO TESTE')
         self.assertContains(pagina, 'name="valor_nota"')
+        self.assertContains(pagina, 'Procedimentos e exames realizados')
+        self.assertContains(pagina, 'ECOCARDIOGRAMA TRANSTORÁCICO')
+        self.assertContains(pagina, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(pagina, '23/07/2026 10:30')
+        self.assertContains(pagina, 'DR. TESTE')
         self.assertNotContains(
             pagina,
             'Informações recuperadas da view HPC_V_PACIENTES.',

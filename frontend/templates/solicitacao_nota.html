@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_extras %}
 {% block breadcrumb_label %}Financeiro{% endblock %}
 {% block page_title %}Solicitar Nota{% endblock %}
 {% block content %}
@@ -111,6 +112,68 @@
         <div class="note-request-section-title">
           <span>3</span>
           <div>
+            <strong>Procedimentos e exames realizados</strong>
+            <small>Itens registrados na conta deste atendimento.</small>
+          </div>
+        </div>
+        <div class="note-request-attendance-items">
+          <span
+            id="attendance-items-count"
+            class="note-request-attendance-count"
+            {% if not atendimento.procedimentos_atendimento %}hidden{% endif %}
+          >
+            {{ atendimento.procedimentos_atendimento|length }}
+            {% if atendimento.procedimentos_atendimento|length == 1 %}item{% else %}itens{% endif %}
+          </span>
+          <div id="attendance-items-content">
+            {% if not atendimento %}
+            <p class="workflow-attendance-items-empty">
+              Consulte um atendimento para visualizar os procedimentos e exames realizados.
+            </p>
+            {% elif not atendimento.procedimentos_atendimento_disponiveis %}
+            <p class="workflow-attendance-items-empty">
+              Não foi possível consultar os procedimentos e exames no momento.
+            </p>
+            {% elif atendimento.procedimentos_atendimento %}
+            <div class="workflow-attendance-items-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Procedimento / exame</th>
+                    <th>Grupo</th>
+                    <th>Quantidade</th>
+                    <th>Realizado em</th>
+                    <th>Prestador</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in atendimento.procedimentos_atendimento %}
+                  <tr>
+                    <td>{{ item.codigo|default:"Não informado" }}</td>
+                    <td><strong>{{ item.descricao }}</strong></td>
+                    <td>{{ item.grupo|default:"Não informado" }}</td>
+                    <td>{{ item.quantidade|default_if_none:"Não informada" }}</td>
+                    <td>{{ item.realizado_em|api_datetime }}</td>
+                    <td>{{ item.prestador|default:"Não informado" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="workflow-attendance-items-empty">
+              Nenhum procedimento ou exame foi encontrado para este atendimento.
+            </p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>4</span>
+          <div>
             <strong>Nota fiscal</strong>
             <small>Preencha os dados que serão utilizados na emissão.</small>
           </div>
@@ -166,14 +229,112 @@
     const valueInput = document.getElementById('valor-nota');
     const status = document.getElementById('atendimento-status');
     const fields = [...document.querySelectorAll('[data-patient-field]')];
+    const attendanceItemsContent = document.getElementById('attendance-items-content');
+    const attendanceItemsCount = document.getElementById('attendance-items-count');
     const urlTemplate = "{% url 'consultar_atendimento_nota' 0 %}";
     let loadedCode = "{% if atendimento %}{{ atendimento.codigo_atendimento }}{% endif %}";
     let requestSequence = 0;
+
+    const valueOrFallback = (value, fallback = 'Não informado') => {
+      if (value === null || value === undefined || value === '') return fallback;
+      return String(value);
+    };
+
+    const formatAttendanceDate = (value) => {
+      if (!value) return 'Não informado';
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return String(value);
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(parsed);
+    };
+
+    const renderAttendanceItems = (payload = {}, hasAttendance = true) => {
+      const items = Array.isArray(payload.procedimentos_atendimento)
+        ? payload.procedimentos_atendimento
+        : [];
+      attendanceItemsCount.hidden = items.length === 0;
+      attendanceItemsCount.textContent = `${items.length} ${items.length === 1 ? 'item' : 'itens'}`;
+      attendanceItemsContent.replaceChildren();
+
+      const renderMessage = (message) => {
+        const paragraph = document.createElement('p');
+        paragraph.className = 'workflow-attendance-items-empty';
+        paragraph.textContent = message;
+        attendanceItemsContent.appendChild(paragraph);
+      };
+
+      if (!hasAttendance) {
+        renderMessage('Consulte um atendimento para visualizar os procedimentos e exames realizados.');
+        return;
+      }
+      if (payload.procedimentos_atendimento_disponiveis === false) {
+        renderMessage('Não foi possível consultar os procedimentos e exames no momento.');
+        return;
+      }
+      if (!items.length) {
+        renderMessage('Nenhum procedimento ou exame foi encontrado para este atendimento.');
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'workflow-attendance-items-table';
+      const table = document.createElement('table');
+      const header = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      [
+        'Código',
+        'Procedimento / exame',
+        'Grupo',
+        'Quantidade',
+        'Realizado em',
+        'Prestador'
+      ].forEach((label) => {
+        const cell = document.createElement('th');
+        cell.textContent = label;
+        headerRow.appendChild(cell);
+      });
+      header.appendChild(headerRow);
+      table.appendChild(header);
+
+      const body = document.createElement('tbody');
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        [
+          valueOrFallback(item.codigo),
+          valueOrFallback(item.descricao),
+          valueOrFallback(item.grupo),
+          valueOrFallback(item.quantidade, 'Não informada'),
+          formatAttendanceDate(item.realizado_em),
+          valueOrFallback(item.prestador)
+        ].forEach((value, index) => {
+          const cell = document.createElement('td');
+          if (index === 1) {
+            const strong = document.createElement('strong');
+            strong.textContent = value;
+            cell.appendChild(strong);
+          } else {
+            cell.textContent = value;
+          }
+          row.appendChild(cell);
+        });
+        body.appendChild(row);
+      });
+      table.appendChild(body);
+      wrapper.appendChild(table);
+      attendanceItemsContent.appendChild(wrapper);
+    };
 
     const clearPatient = () => {
       fields.forEach((field) => { field.value = ''; });
       loadedCode = '';
       submitButton.disabled = true;
+      renderAttendanceItems({}, false);
     };
 
     const setStatus = (message, state = '') => {
@@ -209,6 +370,7 @@
         fields.forEach((field) => {
           field.value = payload[field.dataset.patientField] || 'Não informado';
         });
+        renderAttendanceItems(payload);
         loadedCode = String(payload.codigo_atendimento);
         submitButton.disabled = false;
         setStatus('Atendimento encontrado. Confira os dados abaixo.', 'success');
