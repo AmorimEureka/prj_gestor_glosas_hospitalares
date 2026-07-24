@@ -8920,19 +8920,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .note-request-records {
-  display: grid;
-  align-content: start;
-  gap: 0.62rem;
+  display: block;
   padding: 0.72rem;
   overflow-x: auto;
 }
 
-.note-request-records-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  overscroll-behavior: contain;
+.note-request-record + .note-request-record {
+  margin-top: 0.62rem;
 }
 
 .note-request-record {
@@ -9194,19 +9188,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .workflow-request-list {
-  display: grid;
-  align-content: start;
-  gap: 0.65rem;
+  display: block;
   padding: 0.75rem;
   overflow-x: auto;
 }
 
-.workflow-request-list-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  overscroll-behavior: contain;
+.workflow-request-card + .workflow-request-card {
+  margin-top: 0.65rem;
 }
 
 .workflow-request-card {

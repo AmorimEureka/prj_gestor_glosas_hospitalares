@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260724-solicitacoes-dashboard-28',
+            '?v=20260724-solicitacoes-dashboard-29',
             base_template.read_text(),
         )
 
@@ -2967,7 +2967,7 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertContains(
             response,
-            '<span class="nav-label">Workflow Solicitações</span>',
+            '<span class="nav-label">Follow-Up Solicitações</span>',
         )
         self.assertContains(
             response,
@@ -2985,7 +2985,7 @@ class CadastrarNotaTests(TestCase):
         self.assertLess(
             html.index('<span class="nav-label">Solicitações Notas</span>'),
             html.index(
-                '<span class="nav-label">Workflow Solicitações</span>'
+                '<span class="nav-label">Follow-Up Solicitações</span>'
             ),
         )
         self.assertLess(
@@ -3066,7 +3066,7 @@ class CadastrarNotaTests(TestCase):
                     menu_financeiro,
                 )
                 self.assertIn(
-                    '<span class="nav-label">Workflow Solicitações</span>',
+                    '<span class="nav-label">Follow-Up Solicitações</span>',
                     menu_financeiro,
                 )
                 self.assertIn(
@@ -3291,7 +3291,7 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, '>Colapsar todos</button>')
         self.assertContains(
             response,
-            'class="note-request-records note-request-records-scroll"',
+            'class="results-list note-request-records"',
         )
         self.assertContains(response, 'Pagina</label>')
         self.assertContains(response, 'de 2</span>')
@@ -3528,9 +3528,11 @@ class CadastrarNotaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>Follow-Up Solicitações</h1>')
+        self.assertNotContains(response, 'Workflow Solicitações')
         self.assertContains(
             response,
-            'class="workflow-request-list workflow-request-list-scroll"',
+            'class="results-list workflow-request-list"',
         )
         self.assertContains(response, 'Confirmar validação')
         self.assertContains(response, 'Recusar dados')
@@ -3553,6 +3555,37 @@ class CadastrarNotaTests(TestCase):
                 'limit': 10,
                 'offset': 0,
             },
+        )
+
+    def test_cards_expansiveis_preservam_altura_natural_da_triagem(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.results-list {\n'
+            '  flex: 1 1 auto;\n'
+            '  min-height: 0;\n'
+            '  overflow-y: auto;',
+            css,
+        )
+        self.assertIn(
+            '.note-request-records {\n'
+            '  display: block;',
+            css,
+        )
+        self.assertIn(
+            '.note-request-record + .note-request-record {\n'
+            '  margin-top: 0.62rem;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-list {\n'
+            '  display: block;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-card + .workflow-request-card {\n'
+            '  margin-top: 0.65rem;',
+            css,
         )
 
     @patch('core.views.api_post')
@@ -3654,7 +3687,7 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'class="workflow-emission-page"')
         self.assertContains(
             response,
-            'class="workflow-request-list workflow-request-list-scroll"',
+            'class="results-list workflow-request-list"',
         )
         self.assertContains(response, 'Emitir selecionadas')
         self.assertContains(response, 'Emitir esta NFS-e')
