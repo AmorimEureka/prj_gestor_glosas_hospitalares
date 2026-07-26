@@ -183,6 +183,7 @@
               <span class="workflow-previous-request-status workflow-previous-request-status--{{ anterior.status_classe }}">{{ anterior.status_label }}</span>
             </div>
             <dl>
+              <div><dt>Solicitada por</dt><dd>{{ anterior.cadastrado_por|default:"Não informado" }}</dd></div>
               <div><dt>Solicitada em</dt><dd>{{ anterior.data_criacao_formatada }}</dd></div>
               <div><dt>Local</dt><dd>{{ anterior.local_label }}</dd></div>
               <div><dt>Valor</dt><dd>{{ anterior.valor_nota_formatado|default:"Não informado" }}</dd></div>
@@ -190,7 +191,11 @@
               <div><dt>NFS-e</dt><dd>{{ anterior.numero_nfse }}</dd></div>
               {% endif %}
             </dl>
+            {% if anterior.status == "RECUSADA" or not anterior.ativo %}
+            <p><strong>Motivo:</strong> {{ anterior.motivo|default:"Não informado" }}</p>
+            {% else %}
             <p>{{ anterior.procedimento }}</p>
+            {% endif %}
             {% if anterior.status == "EMITIDA" and anterior.arquivo_disponivel and anterior.emissao_id %}
             <a
               class="workflow-action workflow-action--view"
@@ -204,6 +209,42 @@
         </div>
       </section>
       {% endif %}
+
+      <div class="workflow-validation-actions">
+        <form method="post" class="workflow-approval-form">
+          {% csrf_token %}
+          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+          <input type="hidden" name="decisao" value="VALIDADA">
+          <label>
+            <span>CNPJ emissor *</span>
+            <select name="empresa_emissora_id" class="form-select" required>
+              <option value="">Selecione a empresa emissora</option>
+              {% for empresa in empresas_emissoras %}
+              <option value="{{ empresa.id }}" {% if solicitacao.empresa_emissora_id == empresa.id %}selected{% endif %}>
+                {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="workflow-action workflow-action--approve">Confirmar validação</button>
+        </form>
+        <button
+          type="button"
+          class="workflow-action workflow-action--reject"
+          x-show="!recusar"
+          @click="recusar = true"
+        >Recusar dados</button>
+        <form method="post" class="workflow-refusal-form" x-show="recusar" x-cloak>
+          {% csrf_token %}
+          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+          <input type="hidden" name="decisao" value="RECUSADA">
+          <label>
+            <span>Motivo da recusa *</span>
+            <textarea name="motivo_recusa" rows="2" maxlength="500" required placeholder="Descreva o dado que precisa ser corrigido"></textarea>
+          </label>
+          <button type="submit" class="workflow-action workflow-action--reject">Confirmar recusa</button>
+        </form>
+      </div>
 
       <section class="workflow-attendance-items">
         <div class="workflow-attendance-items-heading">
@@ -297,42 +338,7 @@
       {% endif %}
       {% endif %}
 
-      {% if workflow_mode == "validacao" %}
-      <div class="workflow-validation-actions">
-        <form method="post" class="workflow-approval-form">
-          {% csrf_token %}
-          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
-          <input type="hidden" name="decisao" value="VALIDADA">
-          <label>
-            <span>CNPJ emissor *</span>
-            <select name="empresa_emissora_id" class="form-select" required>
-              <option value="">Selecione a empresa emissora</option>
-              {% for empresa in empresas_emissoras %}
-              <option value="{{ empresa.id }}" {% if solicitacao.empresa_emissora_id == empresa.id %}selected{% endif %}>
-                {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}
-              </option>
-              {% endfor %}
-            </select>
-          </label>
-          <button type="submit" class="workflow-action workflow-action--approve">Confirmar validação</button>
-        </form>
-        <button
-          type="button"
-          class="workflow-action workflow-action--reject"
-          @click="recusar = !recusar"
-        >Recusar dados</button>
-        <form method="post" class="workflow-refusal-form" x-show="recusar" x-cloak>
-          {% csrf_token %}
-          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
-          <input type="hidden" name="decisao" value="RECUSADA">
-          <label>
-            <span>Motivo da recusa *</span>
-            <textarea name="motivo_recusa" rows="2" maxlength="500" required placeholder="Descreva o dado que precisa ser corrigido"></textarea>
-          </label>
-          <button type="submit" class="workflow-action workflow-action--reject">Confirmar recusa</button>
-        </form>
-      </div>
-      {% elif workflow_mode == "emissao" and solicitacao.pode_emitir %}
+      {% if workflow_mode == "emissao" and solicitacao.pode_emitir %}
       <div class="workflow-validation-actions">
         <form method="post" @submit="processing = true">
           {% csrf_token %}
@@ -342,7 +348,8 @@
         <button
           type="button"
           class="workflow-action workflow-action--reject"
-          @click="recusar = !recusar"
+          x-show="!recusar"
+          @click="recusar = true"
         >Reverter para recusa</button>
         <form method="post" class="workflow-refusal-form" x-show="recusar" x-cloak>
           {% csrf_token %}

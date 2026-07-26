@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260726-empresas-emissoras-33',
+            '?v=20260726-follow-up-layout-34',
             base_template.read_text(),
         )
 
@@ -3305,10 +3305,9 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(pagina, 'EXAMES CARDIOLÓGICOS')
         self.assertContains(pagina, 'R$ 385,50')
         self.assertContains(pagina, 'Total geral')
-        self.assertContains(
-            pagina,
+        self.assertIn(
             'value="R$ 385,50"',
-            html=True,
+            pagina.content.decode(),
         )
         self.assertContains(
             pagina,
@@ -3368,6 +3367,7 @@ class CadastrarNotaTests(TestCase):
                         '40304361 - ECOCARDIOGRAMA TRANSTORÁCICO'
                     ),
                     'valor_nota': '385.50',
+                    'cadastrado_por': 'Beatriz Financeiro',
                     'status': 'EMITIDA',
                     'ativo': True,
                     'data_criacao': '2026-07-25T14:30:00',
@@ -3396,6 +3396,8 @@ class CadastrarNotaTests(TestCase):
             'Solicitações anteriores deste atendimento',
         )
         self.assertContains(response, 'Solicitação #17')
+        self.assertContains(response, 'Solicitada por')
+        self.assertContains(response, 'Beatriz Financeiro')
         self.assertContains(response, 'NFS-e emitida')
         self.assertContains(response, '98765')
         self.assertContains(response, 'Visualizar NFS-e')
@@ -3751,6 +3753,7 @@ class CadastrarNotaTests(TestCase):
                 'local': 'Clinica 2',
                 'procedimento': 'Consulta anterior',
                 'valor_nota': '210.00',
+                'cadastrado_por': 'Beatriz Financeiro',
                 'status': 'VALIDADA',
                 'ativo': True,
                 'data_criacao': '2026-07-22T08:30:00',
@@ -3759,7 +3762,42 @@ class CadastrarNotaTests(TestCase):
                 'status_emissao': None,
                 'numero_nfse': None,
                 'arquivo_disponivel': False,
-            }
+            },
+            {
+                'id': 2,
+                'local': 'Clinica 1',
+                'procedimento': 'PROCEDIMENTO RECUSADO OCULTO',
+                'valor_nota': '180.00',
+                'cadastrado_por': 'Carlos Auditoria',
+                'motivo': 'CPF divergente.',
+                'status': 'RECUSADA',
+                'ativo': True,
+                'data_criacao': '2026-07-21T08:30:00',
+                'validado_em': '2026-07-21T09:00:00',
+                'emissao_id': None,
+                'status_emissao': None,
+                'numero_nfse': None,
+                'arquivo_disponivel': False,
+            },
+            {
+                'id': 1,
+                'local': 'Clinica 1',
+                'procedimento': 'PROCEDIMENTO INATIVO OCULTO',
+                'valor_nota': '160.00',
+                'cadastrado_por': 'Daniela Financeiro',
+                'motivo': (
+                    'Solicitação inativada no status '
+                    'PENDENTE_VALIDACAO.'
+                ),
+                'status': 'PENDENTE_VALIDACAO',
+                'ativo': False,
+                'data_criacao': '2026-07-20T08:30:00',
+                'validado_em': None,
+                'emissao_id': None,
+                'status_emissao': None,
+                'numero_nfse': None,
+                'arquivo_disponivel': False,
+            },
         ]
         api_get.side_effect = lambda path, params=None: (
             self.empresas_payload()
@@ -3795,7 +3833,16 @@ class CadastrarNotaTests(TestCase):
             'Solicitações anteriores deste atendimento',
         )
         self.assertContains(response, 'Solicitação #3')
+        self.assertContains(response, 'Solicitada por')
+        self.assertContains(response, 'Beatriz Financeiro')
         self.assertContains(response, 'Consulta anterior')
+        self.assertContains(response, 'CPF divergente.')
+        self.assertContains(
+            response,
+            'Solicitação inativada no status PENDENTE_VALIDACAO.',
+        )
+        self.assertNotContains(response, 'PROCEDIMENTO RECUSADO OCULTO')
+        self.assertNotContains(response, 'PROCEDIMENTO INATIVO OCULTO')
         self.assertContains(response, 'Validada')
         self.assertContains(
             response,
@@ -3806,6 +3853,18 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, '2 itens')
         self.assertContains(response, 'CNPJ emissor *')
         self.assertContains(response, '05.613.278/0001-58')
+        html = response.content.decode()
+        self.assertLess(
+            html.index('CNPJ emissor *'),
+            html.index('Procedimentos e exames realizados'),
+        )
+        self.assertIn(
+            '<td colspan="4"><strong>Total geral</strong></td>',
+            html,
+        )
+        self.assertIn('x-show="!recusar"', html)
+        self.assertIn('@click="recusar = true"', html)
+        self.assertContains(response, 'Confirmar recusa')
         self.assertNotContains(response, '<small>Código paciente</small>')
         self.assertNotContains(response, '<small>Código convênio</small>')
         self.assertContains(response, '<small>Convênio</small>')
@@ -3816,6 +3875,11 @@ class CadastrarNotaTests(TestCase):
             '  gap: 0.55rem;\n'
             '  align-items: flex-end;\n'
             '  margin-right: auto !important;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-attendance-total-row td:first-child {\n'
+            '  text-align: left;',
             css,
         )
         api_get.assert_any_call(
@@ -3984,6 +4048,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Emitir esta NFS-e')
         self.assertContains(response, 'Reverter para recusa')
         self.assertContains(response, 'Confirmar reversão')
+        html = response.content.decode()
+        reverter_inicio = html.index('>Reverter para recusa</button>')
+        reverter_botao = html[reverter_inicio - 180 : reverter_inicio]
+        self.assertIn('x-show="!recusar"', reverter_botao)
+        self.assertIn('@click="recusar = true"', reverter_botao)
         self.assertContains(
             response,
             'name="form_action" value="recusar"',
@@ -4108,6 +4177,10 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, '05.613.278/0001-58')
         self.assertContains(response, '08.711.085/0001-28')
         self.assertContains(response, 'Ativa', count=2)
+        self.assertContains(
+            response,
+            'class="admin-table issuer-admin-table"',
+        )
         self.assertContains(response, '>Editar</a>', count=2)
         self.assertContains(
             response,
@@ -4115,6 +4188,22 @@ class CadastrarNotaTests(TestCase):
             count=2,
         )
         self.assertContains(response, 'Sistema')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.issuer-admin-table th:first-child,\n'
+            '.issuer-admin-table td:first-child {\n'
+            '  width: 190px;\n'
+            '  padding-right: 18px;\n'
+            '  text-align: left;',
+            css,
+        )
+        self.assertIn(
+            '.issuer-admin-table th:nth-child(2),\n'
+            '.issuer-admin-table td:nth-child(2) {\n'
+            '  padding-left: 18px;\n'
+            '  overflow-wrap: anywhere;',
+            css,
+        )
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/empresas-emissoras',
             {'incluir_inativas': 'true'},
