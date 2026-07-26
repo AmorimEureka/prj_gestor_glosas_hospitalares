@@ -4,7 +4,16 @@
 {% block content %}
 <div
   class="workflow-emission-page"
-  x-data="{ selectedCount: 0, updateSelection() { this.selectedCount = document.querySelectorAll('[form=batch-emission-form]:checked').length } }"
+  x-data="{
+    selectedCount: 0,
+    updateSelection() {
+      this.selectedCount = document.querySelectorAll('[form=batch-emission-form]:checked').length
+    },
+    markSelectedProcessing() {
+      const ids = Array.from(document.querySelectorAll('[form=batch-emission-form]:checked')).map((input) => Number(input.value))
+      window.dispatchEvent(new CustomEvent('mark-emission-processing', { detail: ids }))
+    }
+  }"
   @change="updateSelection()"
 >
   <section class="panel filter-panel">
@@ -16,6 +25,17 @@
       <div class="filter-group">
         <label>CPF</label>
         <input name="cpf" value="{{ filtros.cpf }}" class="form-control" placeholder="Número do CPF">
+      </div>
+      <div class="filter-group">
+        <label>CNPJ emissor</label>
+        <select name="cnpj_emissor" class="form-select">
+          <option value="">Todos</option>
+          {% for empresa in empresas_emissoras %}
+          <option value="{{ empresa.cnpj }}" {% if filtros.cnpj_emissor == empresa.cnpj %}selected{% endif %}>
+            {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}{% if not empresa.ativo %} (inativa){% endif %}
+          </option>
+          {% endfor %}
+        </select>
       </div>
       <div class="filter-group">
         <label>Tipo do atendimento</label>
@@ -61,7 +81,7 @@
         {% endif %}
       </div>
       <div class="results-toolbar workflow-request-toolbar">
-        <form method="post" id="batch-emission-form" class="workflow-batch-form">
+        <form method="post" id="batch-emission-form" class="workflow-batch-form" @submit="markSelectedProcessing()">
           {% csrf_token %}
           <button type="submit" class="workflow-action workflow-action--issue" :disabled="selectedCount === 0">
             Emitir selecionadas
@@ -74,4 +94,9 @@
     {% include "_workflow_solicitacao_cards.html" with workflow_mode="emissao" %}
   </section>
 </div>
+{% if ha_emissoes_processando %}
+<script>
+  window.setTimeout(() => window.location.reload(), 5000);
+</script>
+{% endif %}
 {% endblock %}

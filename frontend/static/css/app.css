@@ -9320,6 +9320,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .workflow-request-status {
+  display: inline-flex;
+  gap: 0.32rem;
+  align-items: center;
   justify-self: end;
   padding: 0.28rem 0.48rem;
   border: 1px solid rgb(255 255 255 / 50%);
@@ -9331,6 +9334,24 @@ body:not(.sidebar-collapsed) .indicator-grid {
   text-align: center;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.workflow-emission-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  animation: workflow-emission-spin 1.05s linear infinite;
+}
+
+@keyframes workflow-emission-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .workflow-request-status--recusa {
@@ -9369,6 +9390,34 @@ body:not(.sidebar-collapsed) .indicator-grid {
   gap: 0.72rem;
   padding: 0.78rem;
   background: #f5fafc;
+}
+
+.workflow-detail-sections {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.workflow-detail-section {
+  display: grid;
+  gap: 0.48rem;
+  padding: 0.65rem;
+  border: 1px solid #d4e3e9;
+  border-radius: 0.5rem;
+  background: #f8fbfc;
+}
+
+.workflow-detail-section h3 {
+  margin: 0;
+  color: #315764;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.workflow-detail-section--issuer {
+  border-color: #b8d8e3;
+  background: #edf8fb;
 }
 
 .workflow-request-details {
@@ -9520,6 +9569,28 @@ body:not(.sidebar-collapsed) .indicator-grid {
   margin: 0;
 }
 
+.workflow-approval-form {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-end;
+}
+
+.workflow-approval-form label {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+  min-width: 27rem;
+}
+
+.workflow-approval-form label > span,
+.issuer-form label > span {
+  color: #607985;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .workflow-action {
   display: inline-flex;
   align-items: center;
@@ -9623,8 +9694,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .note-emission-filters {
   display: grid;
   grid-template-columns:
-    minmax(13rem, 1.4fr) minmax(10rem, 0.8fr)
-    minmax(11rem, 0.9fr) minmax(10rem, 0.8fr) auto;
+    minmax(12rem, 1.15fr) minmax(9rem, 0.7fr)
+    minmax(15rem, 1.3fr) minmax(10rem, 0.85fr)
+    minmax(9rem, 0.75fr) auto;
   gap: 0.65rem;
   align-items: end;
 }
@@ -9636,6 +9708,39 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .workflow-batch-form {
   margin-right: auto;
+}
+
+.issuer-admin-page {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.issuer-form {
+  padding: 0.9rem;
+}
+
+.issuer-form-fields {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.6fr) minmax(20rem, 1.4fr) auto;
+  gap: 0.7rem;
+  align-items: end;
+}
+
+.issuer-form label {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.issuer-form-actions,
+.issuer-row-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.issuer-row-actions form {
+  margin: 0;
 }
 
 @media (max-width: 1100px) {
@@ -9661,6 +9766,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .note-emission-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .issuer-form-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .issuer-form-actions {
+    grid-column: 1 / -1;
   }
 
   .note-emission-filters .filter-actions {
@@ -9744,6 +9857,24 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .workflow-refusal-form,
   .note-emission-filters {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-approval-form,
+  .issuer-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workflow-approval-form label {
+    min-width: 0;
+  }
+
+  .issuer-form-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .issuer-form-actions {
+    grid-column: auto;
   }
 
   .workflow-request-details {

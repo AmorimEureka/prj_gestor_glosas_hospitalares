@@ -55,6 +55,7 @@ WORKFLOW_SOLICITACOES_PATH = (
     f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/workflow"
 )
 EMISSOES_NFSE_PATH = f"{REQUISICOES_NOTA_PATH}/emissoes-nfse"
+EMPRESAS_EMISSORAS_PATH = f"{REQUISICOES_NOTA_PATH}/empresas-emissoras"
 LOCAIS_SOLICITACAO_NOTA = {
     "Clinica 1": "Clínica 1",
     "Clinica 2": "Clínica 2",
@@ -74,6 +75,41 @@ STATUS_EMISSAO_NFSE = {
     "EMITIDA": "NFS-e emitida",
     "ERRO": "Erro na emissão",
 }
+
+
+def format_cnpj(value):
+    digits = "".join(
+        character
+        for character in str(value or "")
+        if character.isdigit()
+    )
+    if len(digits) != 14:
+        return str(value or "")
+    return (
+        f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/"
+        f"{digits[8:12]}-{digits[12:]}"
+    )
+
+
+def _carregar_empresas_emissoras(request, incluir_inativas=False):
+    try:
+        payload = api_get(
+            EMPRESAS_EMISSORAS_PATH,
+            {"incluir_inativas": "true"} if incluir_inativas else None,
+        )
+        empresas = payload.get("empresas") or []
+    except ApiError as exc:
+        empresas = []
+        messages.error(
+            request,
+            f"Empresas emissoras: {extract_api_error_message(exc)}",
+        )
+    for empresa in empresas:
+        empresa["cnpj_formatado"] = format_cnpj(empresa.get("cnpj"))
+        empresa["data_atualizacao_formatada"] = format_api_datetime(
+            empresa.get("data_atualizacao")
+        )
+    return empresas
 
 
 def get_cached_atendimento_nota(codigo_atendimento):
@@ -712,6 +748,13 @@ def _carregar_emissoes_nfse(request, filtros=None):
                 status_emissao or "Não iniciada",
             )
         )
+        solicitacao["cnpj_emissor_formatado"] = format_cnpj(
+            solicitacao.get("cnpj_emissor")
+        )
+        solicitacao["emissao_processando"] = (
+            status == "EMISSAO_SOLICITADA"
+            or status_emissao in {"PENDENTE", "PROCESSANDO"}
+        )
 
     base_query = {
         key: value for key, value in filtros.items() if value
@@ -754,6 +797,10 @@ def _carregar_emissoes_nfse(request, filtros=None):
         "filtros": filtros,
         "locais": LOCAIS_SOLICITACAO_NOTA.items(),
         "tipos_atendimento": TIPOS_ATENDIMENTO,
+        "ha_emissoes_processando": any(
+            solicitacao["emissao_processando"]
+            for solicitacao in solicitacoes
+        ),
     }
 
 
@@ -767,9 +814,20 @@ def workflow_solicitacoes(request):
         motivo_recusa = (
             request.POST.get("motivo_recusa") or ""
         ).strip()
+        empresa_emissora_id = as_int_or_zero(
+            request.POST.get("empresa_emissora_id")
+        )
         try:
             if solicitacao_id <= 0:
                 raise ValueError
+            if decisao == "VALIDADA":
+                if empresa_emissora_id <= 0:
+                    raise ValueError("Selecione o CNPJ emissor.")
+                api_put(
+                    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                    f"{solicitacao_id}/empresa-emissora",
+                    {"empresa_emissora_id": empresa_emissora_id},
+                )
             api_post(
                 f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
                 f"{solicitacao_id}/validacao",
@@ -789,8 +847,11 @@ def workflow_solicitacoes(request):
                     "Solicitação recusada e encaminhada para recusas.",
                 )
             return redirect("workflow_solicitacoes")
-        except ValueError:
-            messages.error(request, "Solicitação inválida.")
+        except ValueError as exc:
+            messages.error(
+                request,
+                str(exc) or "Solicitação inválida.",
+            )
         except ApiError as exc:
             messages.error(
                 request,
@@ -804,6 +865,9 @@ def workflow_solicitacoes(request):
     )
     if redirect_url := context.get("redirect_url"):
         return redirect(redirect_url)
+    context["empresas_emissoras"] = _carregar_empresas_emissoras(
+        request
+    )
     return render(request, "workflow_solicitacoes.html", context)
 
 
@@ -899,10 +963,17 @@ def emissao_nfse(request):
             request.GET.get("tipo_atendimento") or ""
         ).strip(),
         "local": (request.GET.get("local") or "").strip(),
+        "cnpj_emissor": (
+            request.GET.get("cnpj_emissor") or ""
+        ).strip(),
     }
     context = _carregar_emissoes_nfse(request, filtros)
     if redirect_url := context.get("redirect_url"):
         return redirect(redirect_url)
+    context["empresas_emissoras"] = _carregar_empresas_emissoras(
+        request,
+        incluir_inativas=True,
+    )
     return render(request, "emissao_nfse.html", context)
 
 
@@ -4351,6 +4422,90 @@ def prazos_recurso_convenio(request):
         {
             "convenios": convenios,
             "resumo": resumo,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def empresas_emissoras(request):
+    form_data = {
+        "empresa_id": "",
+        "cnpj": "",
+        "razao_social": "",
+    }
+    if request.method == "POST":
+        action = (request.POST.get("form_action") or "criar").strip()
+        empresa_id = as_int_or_zero(request.POST.get("empresa_id"))
+        form_data = {
+            "empresa_id": str(empresa_id or ""),
+            "cnpj": (request.POST.get("cnpj") or "").strip(),
+            "razao_social": (
+                request.POST.get("razao_social") or ""
+            ).strip(),
+        }
+        try:
+            if action in {"inativar", "reativar"}:
+                if empresa_id <= 0:
+                    raise ValueError("Empresa emissora inválida.")
+                api_patch(
+                    f"{EMPRESAS_EMISSORAS_PATH}/{empresa_id}/status",
+                    {"ativo": action == "reativar"},
+                )
+                messages.success(
+                    request,
+                    "Empresa emissora "
+                    f"{'reativada' if action == 'reativar' else 'inativada'} "
+                    "com sucesso.",
+                )
+            else:
+                if not form_data["cnpj"] or not form_data["razao_social"]:
+                    raise ValueError("Informe o CNPJ e a razão social.")
+                payload = {
+                    "cnpj": form_data["cnpj"],
+                    "razao_social": form_data["razao_social"],
+                }
+                if action == "editar":
+                    if empresa_id <= 0:
+                        raise ValueError("Empresa emissora inválida.")
+                    api_put(
+                        f"{EMPRESAS_EMISSORAS_PATH}/{empresa_id}",
+                        payload,
+                    )
+                    messages.success(
+                        request,
+                        "Empresa emissora atualizada com sucesso.",
+                    )
+                else:
+                    api_post(EMPRESAS_EMISSORAS_PATH, payload)
+                    messages.success(
+                        request,
+                        "Empresa emissora cadastrada com sucesso.",
+                    )
+            return redirect("empresas_emissoras")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        except ApiError as exc:
+            messages.error(
+                request,
+                f"Empresa emissora: {extract_api_error_message(exc)}",
+            )
+
+    empresas = _carregar_empresas_emissoras(
+        request,
+        incluir_inativas=True,
+    )
+    return render(
+        request,
+        "empresas_emissoras.html",
+        {
+            "empresas": empresas,
+            "form_data": form_data,
+            "resumo": {
+                "total": len(empresas),
+                "ativas": sum(
+                    1 for empresa in empresas if empresa.get("ativo")
+                ),
+            },
         },
     )
 
