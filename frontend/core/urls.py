@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
+    path("acesso-negado/", views.access_denied, name="access_denied"),
     path("esqueci-senha/", views.forgot_password, name="forgot_password"),
     path("redefinir-senha/", views.reset_password, name="reset_password"),
     path(
@@ -19,7 +20,11 @@ urlpatterns = [
         views.empresas_emissoras,
         name="empresas_emissoras",
     ),
-    path("administrativo/acessos/", views.user_access_management, name="user_access_management"),
+    path(
+        "administrativo/acessos/",
+        views.user_access_management,
+        name="user_access_management",
+    ),
     path("follow-up-glosas/", views.follow_up_glosas, name="follow_up_glosas"),
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),

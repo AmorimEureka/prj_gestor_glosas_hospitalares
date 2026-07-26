@@ -19,7 +19,7 @@
 .access-admin-intro strong { color: var(--ink); font-size: 16px; }
 .access-admin-intro span { color: var(--muted); font-size: 12px; }
 .access-admin-count { padding: 7px 11px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-dark) !important; font-weight: 700; }
-.access-admin-grid { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.access-admin-grid { display: grid; grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .access-create-card, .access-list-card { border: 1px solid #e0e8ec; border-radius: 16px; background: #fff; box-shadow: 0 12px 35px rgba(20, 73, 91, .07); }
 .access-create-card { display: grid; gap: 15px; padding: 22px; }
 .access-card-head { display: flex; align-items: center; gap: 11px; margin-bottom: 5px; }
@@ -45,10 +45,29 @@
 .access-role--ti { background: #e9eefc; color: #344f9e; }
 .access-state.is-active { background: #e8f5ef; color: #227153; }
 .access-actions summary { padding: 7px 9px; border: 1px solid #dce4e8; border-radius: 8px; color: var(--primary-dark); font-size: 10px; font-weight: 700; cursor: pointer; list-style: none; }
-.access-actions > div { position: absolute; z-index: 20; right: 18px; top: 58px; display: grid; gap: 12px; width: 250px; padding: 15px; border: 1px solid #dce4e8; border-radius: 12px; background: #fff; box-shadow: 0 18px 45px rgba(20,73,91,.18); }
+.access-actions > div { position: absolute; z-index: 20; right: 18px; top: 58px; display: grid; gap: 14px; width: min(720px, calc(100vw - 120px)); max-height: 75vh; padding: 17px; overflow: auto; border: 1px solid #dce4e8; border-radius: 12px; background: #fff; box-shadow: 0 18px 45px rgba(20,73,91,.18); }
 .access-actions form { display: grid; gap: 9px; }
 .access-actions .access-status-action { background: #fef0ee; color: #9b2c23; }
 .access-empty { padding: 28px; color: var(--muted); font-size: 12px; text-align: center; }
+.access-permissions-block,
+.access-permissions-form { display: grid; gap: 10px; padding: 13px; border: 1px solid #e1e9ed; border-radius: 11px; background: #f9fbfc; }
+.access-permissions-heading { display: grid; gap: 3px; }
+.access-permissions-heading strong { color: var(--ink); font-size: 11px; }
+.access-permissions-heading small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.access-permission-groups { display: grid; gap: 10px; }
+.access-permission-groups--manage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.access-permission-groups fieldset { display: grid; gap: 7px; min-width: 0; margin: 0; padding: 10px; border: 1px solid #e3eaee; border-radius: 9px; background: #fff; }
+.access-permission-groups legend { float: none; width: auto; margin: 0 0 2px; color: var(--primary-dark); font-size: 10px; font-weight: 800; }
+.access-permission-groups label { display: flex; align-items: center; gap: 8px; color: #344054; font-size: 10px; font-weight: 600; letter-spacing: 0; line-height: 1.3; text-transform: none; cursor: pointer; }
+.access-create-card .access-permission-groups input[type="checkbox"],
+.access-actions .access-permission-groups input[type="checkbox"] { flex: 0 0 auto; width: 15px; height: 15px; margin: 0; padding: 0; accent-color: var(--primary); }
+.access-permission-groups.is-full-access { opacity: .65; }
+.access-full-permission-note { display: grid; gap: 4px; padding: 12px; border: 1px solid #d9e2fb; border-radius: 9px; background: #f4f6fd; }
+.access-full-permission-note strong { color: #344f9e; font-size: 11px; }
+.access-full-permission-note span { color: #5b6685; font-size: 10px; line-height: 1.4; }
+.access-denied-card { display: grid; gap: 8px; max-width: 620px; padding: 24px; border: 1px solid #e0e8ec; border-radius: 16px; background: #fff; box-shadow: 0 12px 35px rgba(20, 73, 91, .07); }
+.access-denied-card strong { color: var(--ink); font-size: 16px; }
+.access-denied-card p { margin: 0; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 1050px) {
   .access-admin-grid { grid-template-columns: 1fr; }
@@ -59,6 +78,8 @@
   .access-role { display: none; }
   .access-actions { grid-column: 3; }
   .access-state { display: none; }
+  .access-actions > div { right: 10px; width: calc(100vw - 40px); }
+  .access-permission-groups--manage { grid-template-columns: 1fr; }
 }
 
 [x-cloak] {
@@ -9751,6 +9772,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
   gap: 0.55rem;
   align-items: flex-end;
   margin-right: auto !important;
+}
+
+.workflow-emitter-form {
+  padding: 0.72rem;
+  border: 1px solid #c9dde6;
+  border-radius: 0.5rem;
+  background: #fff;
 }
 
 .workflow-approval-form label {
