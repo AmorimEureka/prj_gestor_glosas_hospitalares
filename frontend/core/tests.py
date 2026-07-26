@@ -6,6 +6,7 @@ from django.contrib.staticfiles import finders
 from django.core.cache import cache
 from django.test import RequestFactory, TestCase
 
+from core.access import SCREEN_KEYS
 from core.services import ApiError
 from core.views import (
     ACOMPANHAMENTO_BUCKETS,
@@ -917,12 +918,238 @@ class LoginFlowTests(TestCase):
         session['api_user'] = {
             'nome': 'Usuário',
             'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
 
         response = self.client.get('/administrativo/acessos/')
 
-        self.assertRedirects(response, '/', fetch_redirect_response=False)
+        self.assertRedirects(
+            response,
+            '/?acesso_negado=1',
+            fetch_redirect_response=False,
+        )
+
+    def test_bloqueia_url_e_oculta_menus_sem_permissao(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Solicitante',
+            'perfil': 'usuario',
+            'telas_permitidas': ['solicitar_nota'],
+        }
+        session.save()
+
+        response = self.client.get('/')
+
+        self.assertRedirects(
+            response,
+            '/requisicao/solicitacao-nota/?acesso_negado=1',
+            fetch_redirect_response=False,
+        )
+        response = self.client.get('/requisicao/solicitacao-nota/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Solicitar Nota')
+        self.assertNotContains(
+            response,
+            '<span class="nav-label">Indicadores</span>',
+        )
+        self.assertNotContains(
+            response,
+            '<span class="nav-label">Financeiro</span>',
+        )
+        self.assertNotContains(
+            response,
+            '<span class="nav-label">Administrativo</span>',
+        )
+
+    def test_usuario_sem_telas_recebe_orientacao(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 8,
+            'nome': 'Sem acesso',
+            'perfil': 'usuario',
+            'telas_permitidas': [],
+        }
+        session.save()
+
+        response = self.client.get('/')
+        self.assertRedirects(
+            response,
+            '/acesso-negado/?acesso_negado=1',
+            fetch_redirect_response=False,
+        )
+        response = self.client.get('/acesso-negado/')
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            'Seu usuário ainda não possui telas liberadas.',
+            status_code=403,
+        )
+
+    @patch('core.views.api_get')
+    def test_ti_visualiza_cadastro_e_selecao_de_telas(self, api_get):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Administrador',
+            'perfil': 'ti',
+            'telas_permitidas': [],
+        }
+        session.save()
+        api_get.return_value = {
+            'usuarios': [
+                {
+                    'id': 9,
+                    'nome': 'Usuário Financeiro',
+                    'email': 'financeiro@teste.com',
+                    'perfil': 'usuario',
+                    'ativo': True,
+                    'telas_permitidas': [
+                        'conciliacao_manual',
+                        'consultar_conciliacoes',
+                    ],
+                }
+            ]
+        }
+
+        response = self.client.get('/administrativo/acessos/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Novo acesso')
+        self.assertContains(response, 'Telas visíveis')
+        self.assertContains(response, 'Salvar telas visíveis')
+        self.assertContains(
+            response,
+            'value="conciliacao_manual"',
+        )
+        self.assertContains(response, 'Gestão de acessos')
+
+    @patch('core.views.api_patch')
+    def test_ti_salva_telas_visiveis_do_usuario(self, api_patch):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Administrador',
+            'perfil': 'ti',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+        response = self.client.post(
+            '/administrativo/acessos/',
+            {
+                'action': 'permissions',
+                'user_id': '9',
+                'telas_permitidas': [
+                    'indicadores',
+                    'follow_up_solicitacoes',
+                ],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/administrativo/acessos/',
+            fetch_redirect_response=False,
+        )
+        api_patch.assert_called_once_with(
+            '/usuarios/9/permissoes',
+            {
+                'telas_permitidas': [
+                    'indicadores',
+                    'follow_up_solicitacoes',
+                ]
+            },
+        )
+
+    @patch('core.views.api_post')
+    def test_somente_ti_cadastra_usuario_com_telas_marcadas(
+        self,
+        api_post,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Administrador',
+            'perfil': 'ti',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+        response = self.client.post(
+            '/administrativo/acessos/',
+            {
+                'action': 'create',
+                'nome': 'Novo usuário',
+                'email': 'novo@teste.com',
+                'senha': 'senha-segura',
+                'perfil': 'usuario',
+                'telas_permitidas': [
+                    'triagem',
+                    'acompanhamento',
+                ],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/administrativo/acessos/',
+            fetch_redirect_response=False,
+        )
+        api_post.assert_called_once_with(
+            '/usuarios/',
+            {
+                'nome': 'Novo usuário',
+                'email': 'novo@teste.com',
+                'senha': 'senha-segura',
+                'perfil': 'usuario',
+                'telas_permitidas': [
+                    'triagem',
+                    'acompanhamento',
+                ],
+            },
+        )
+
+    @patch('core.views.api_get')
+    @patch('core.middleware.api_get')
+    def test_atualiza_sessao_antiga_e_exibe_gestao_de_acessos(
+        self,
+        middleware_api_get,
+        view_api_get,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Administrador',
+            'perfil': 'usuario',
+        }
+        session.save()
+        middleware_api_get.return_value = {
+            'id': 1,
+            'nome': 'Administrador',
+            'email': 'admin@teste.com',
+            'perfil': 'ti',
+            'ativo': True,
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        view_api_get.return_value = {'usuarios': []}
+
+        response = self.client.get('/administrativo/acessos/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Novo acesso')
+        self.assertEqual(self.client.session['api_user']['perfil'], 'ti')
+        middleware_api_get.assert_called_once_with(
+            '/usuarios/me',
+            token='token-seguro',
+        )
 
 
 class FollowUpGlosasTests(TestCase):
@@ -934,6 +1161,7 @@ class FollowUpGlosasTests(TestCase):
             'nome': 'Núcleo de Glosas',
             'email': 'glosas@teste.com',
             'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
 
@@ -1099,7 +1327,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260726-follow-up-layout-34',
+            '?v=20260726-permissoes-telas-35',
             base_template.read_text(),
         )
 
@@ -1450,6 +1678,7 @@ class ConciliacaoFaturamentoTests(TestCase):
             'nome': 'Financeiro',
             'email': 'financeiro@teste.com',
             'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
 
@@ -1841,6 +2070,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             'nome': 'Financeiro',
             'email': 'financeiro@teste.com',
             'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
 
@@ -2521,6 +2751,7 @@ class ConciliacoesFinanceirasTests(TestCase):
             'nome': 'Financeiro',
             'email': 'financeiro@teste.com',
             'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
 
@@ -2873,6 +3104,7 @@ class CadastrarNotaTests(TestCase):
             'nome': 'Amoras',
             'email': 'raffaekk@gmail.com',
             'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
 
@@ -3857,6 +4089,18 @@ class CadastrarNotaTests(TestCase):
         self.assertLess(
             html.index('CNPJ emissor *'),
             html.index('Procedimentos e exames realizados'),
+        )
+        self.assertGreater(
+            html.index('>Confirmar validação</button>'),
+            html.index('Procedimentos e exames realizados'),
+        )
+        self.assertGreater(
+            html.index('>Recusar dados</button>'),
+            html.index('Procedimentos e exames realizados'),
+        )
+        self.assertIn(
+            'form="workflow-approval-form-7"',
+            html,
         )
         self.assertIn(
             '<td colspan="4"><strong>Total geral</strong></td>',

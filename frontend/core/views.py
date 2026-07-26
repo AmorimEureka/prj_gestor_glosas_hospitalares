@@ -15,6 +15,7 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 
+from .access import SCREEN_KEYS, build_screen_groups
 from .services import (
     ApiError,
     api_authenticate,
@@ -296,6 +297,9 @@ def user_access_management(request):
         action = request.POST.get("action")
         try:
             if action == "create":
+                telas_permitidas = request.POST.getlist(
+                    "telas_permitidas"
+                )
                 api_post(
                     "/usuarios/",
                     {
@@ -303,6 +307,7 @@ def user_access_management(request):
                         "email": (request.POST.get("email") or "").strip().lower(),
                         "senha": request.POST.get("senha") or "",
                         "perfil": request.POST.get("perfil") or "usuario",
+                        "telas_permitidas": telas_permitidas,
                     },
                 )
                 messages.success(request, "Acesso criado com sucesso.")
@@ -320,6 +325,20 @@ def user_access_management(request):
                     {"senha": request.POST.get("senha_temporaria") or ""},
                 )
                 messages.success(request, "Senha temporária atualizada.")
+            elif action == "permissions":
+                user_id = int(request.POST.get("user_id") or 0)
+                api_patch(
+                    f"/usuarios/{user_id}/permissoes",
+                    {
+                        "telas_permitidas": request.POST.getlist(
+                            "telas_permitidas"
+                        )
+                    },
+                )
+                messages.success(
+                    request,
+                    "Telas visíveis atualizadas com sucesso.",
+                )
             return redirect("user_access_management")
         except (ApiError, ValueError):
             messages.error(
@@ -332,7 +351,23 @@ def user_access_management(request):
     except ApiError:
         users = []
         messages.error(request, "Não foi possível carregar os acessos.")
-    return render(request, "user_access_management.html", {"users": users})
+    for user in users:
+        user["permission_groups"] = build_screen_groups(
+            user.get("telas_permitidas"),
+            full_access=user.get("perfil") == "ti",
+        )
+    return render(
+        request,
+        "user_access_management.html",
+        {
+            "users": users,
+            "screen_groups": build_screen_groups(SCREEN_KEYS),
+        },
+    )
+
+
+def access_denied(request):
+    return render(request, "access_denied.html", status=403)
 
 
 @require_POST

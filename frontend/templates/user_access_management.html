@@ -4,47 +4,154 @@
 {% block content %}
 <section class="access-admin-page">
   <div class="access-admin-intro">
-    <div><strong>Acessos do sistema</strong><span>Crie contas, defina perfis e controle acessos.</span></div>
+    <div>
+      <strong>Acessos do sistema</strong>
+      <span>Crie contas e escolha individualmente os menus e telas visíveis.</span>
+    </div>
     <span class="access-admin-count">{{ users|length }} usuários</span>
   </div>
 
   <div class="access-admin-grid">
-    <form method="post" class="access-create-card">
-      {% csrf_token %}<input type="hidden" name="action" value="create">
-      <div class="access-card-head"><span>+</span><div><strong>Novo acesso</strong><small>Cadastro exclusivo da TI</small></div></div>
-      <label>Nome completo<input name="nome" required maxlength="120" autocomplete="off"></label>
-      <label>E-mail corporativo<input type="email" name="email" required autocomplete="off"></label>
-      <label>Senha temporária<input type="password" name="senha" minlength="8" required autocomplete="new-password"><small>Mínimo de 8 caracteres.</small></label>
-      <label>Perfil<select name="perfil"><option value="usuario">Usuário</option><option value="ti">Administrador de TI</option></select></label>
+    <form method="post" class="access-create-card" x-data="{ profile: 'usuario' }">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      <div class="access-card-head">
+        <span>+</span>
+        <div>
+          <strong>Novo acesso</strong>
+          <small>Cadastro exclusivo de administradores de TI</small>
+        </div>
+      </div>
+      <label>
+        Nome completo
+        <input name="nome" required maxlength="120" autocomplete="off">
+      </label>
+      <label>
+        E-mail corporativo
+        <input type="email" name="email" required autocomplete="off">
+      </label>
+      <label>
+        Senha temporária
+        <input type="password" name="senha" minlength="8" required autocomplete="new-password">
+        <small>Mínimo de 8 caracteres.</small>
+      </label>
+      <label>
+        Perfil
+        <select name="perfil" x-model="profile">
+          <option value="usuario">Usuário</option>
+          <option value="ti">Administrador de TI</option>
+        </select>
+      </label>
+      <div class="access-permissions-block">
+        <div class="access-permissions-heading">
+          <strong>Telas visíveis</strong>
+          <small x-show="profile === 'usuario'">Marque as telas liberadas para este usuário.</small>
+          <small x-show="profile === 'ti'" x-cloak>Administradores de TI possuem acesso integral.</small>
+        </div>
+        <div class="access-permission-groups" :class="{ 'is-full-access': profile === 'ti' }">
+          {% for group in screen_groups %}
+          <fieldset>
+            <legend>{{ group.label }}</legend>
+            {% for screen in group.screens %}
+            <label>
+              <input
+                type="checkbox"
+                name="telas_permitidas"
+                value="{{ screen.key }}"
+                {% if screen.checked %}checked{% endif %}
+              >
+              <span>{{ screen.label }}</span>
+            </label>
+            {% endfor %}
+          </fieldset>
+          {% endfor %}
+        </div>
+      </div>
       <button type="submit">Criar acesso</button>
     </form>
 
     <div class="access-list-card">
-      <div class="access-list-head"><strong>Usuários cadastrados</strong><span>Controle individual de status e senha</span></div>
+      <div class="access-list-head">
+        <strong>Usuários cadastrados</strong>
+        <span>Controle individual de telas, status e senha</span>
+      </div>
       <div class="access-user-list">
         {% for user in users %}
-          <article class="access-user-row">
-            <span class="access-avatar">{{ user.nome|slice:":1"|upper }}</span>
-            <div class="access-user-data"><strong>{{ user.nome }}</strong><span>{{ user.email }}</span></div>
-            <span class="access-role access-role--{{ user.perfil }}">{% if user.perfil == 'ti' %}TI{% else %}Usuário{% endif %}</span>
-            <span class="access-state {% if user.ativo %}is-active{% endif %}">{% if user.ativo %}Ativo{% else %}Inativo{% endif %}</span>
-            <details class="access-actions">
-              <summary>Gerenciar</summary>
-              <div>
-                <form method="post">
-                  {% csrf_token %}<input type="hidden" name="action" value="password"><input type="hidden" name="user_id" value="{{ user.id }}">
-                  <label>Senha temporária<input type="password" name="senha_temporaria" minlength="8" required autocomplete="new-password"></label>
-                  <button type="submit">Atualizar senha</button>
-                </form>
-                <form method="post">
-                  {% csrf_token %}<input type="hidden" name="action" value="status"><input type="hidden" name="user_id" value="{{ user.id }}">
-                  <input type="hidden" name="ativo" value="{% if user.ativo %}false{% else %}true{% endif %}">
-                  <button class="access-status-action" type="submit">{% if user.ativo %}Desativar acesso{% else %}Reativar acesso{% endif %}</button>
-                </form>
+        <article class="access-user-row">
+          <span class="access-avatar">{{ user.nome|slice:":1"|upper }}</span>
+          <div class="access-user-data">
+            <strong>{{ user.nome }}</strong>
+            <span>{{ user.email }}</span>
+          </div>
+          <span class="access-role access-role--{{ user.perfil }}">
+            {% if user.perfil == 'ti' %}TI{% else %}Usuário{% endif %}
+          </span>
+          <span class="access-state {% if user.ativo %}is-active{% endif %}">
+            {% if user.ativo %}Ativo{% else %}Inativo{% endif %}
+          </span>
+          <details class="access-actions">
+            <summary>Gerenciar</summary>
+            <div>
+              {% if user.perfil == 'ti' %}
+              <div class="access-full-permission-note">
+                <strong>Acesso integral</strong>
+                <span>Administradores de TI visualizam todas as telas e podem gerenciar usuários.</span>
               </div>
-            </details>
-          </article>
-        {% empty %}<p class="access-empty">Nenhum usuário cadastrado.</p>{% endfor %}
+              {% else %}
+              <form method="post" class="access-permissions-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="permissions">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <div class="access-permissions-heading">
+                  <strong>Telas visíveis</strong>
+                  <small>As alterações serão aplicadas no próximo acesso do usuário.</small>
+                </div>
+                <div class="access-permission-groups access-permission-groups--manage">
+                  {% for group in user.permission_groups %}
+                  <fieldset>
+                    <legend>{{ group.label }}</legend>
+                    {% for screen in group.screens %}
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="telas_permitidas"
+                        value="{{ screen.key }}"
+                        {% if screen.checked %}checked{% endif %}
+                      >
+                      <span>{{ screen.label }}</span>
+                    </label>
+                    {% endfor %}
+                  </fieldset>
+                  {% endfor %}
+                </div>
+                <button type="submit">Salvar telas visíveis</button>
+              </form>
+              {% endif %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="password">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <label>
+                  Senha temporária
+                  <input type="password" name="senha_temporaria" minlength="8" required autocomplete="new-password">
+                </label>
+                <button type="submit">Atualizar senha</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="status">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <input type="hidden" name="ativo" value="{% if user.ativo %}false{% else %}true{% endif %}">
+                <button class="access-status-action" type="submit">
+                  {% if user.ativo %}Desativar acesso{% else %}Reativar acesso{% endif %}
+                </button>
+              </form>
+            </div>
+          </details>
+        </article>
+        {% empty %}
+        <p class="access-empty">Nenhum usuário cadastrado.</p>
+        {% endfor %}
       </div>
     </div>
   </div>
