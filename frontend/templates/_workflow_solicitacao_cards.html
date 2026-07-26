@@ -166,6 +166,45 @@
       {% endif %}
 
       {% if workflow_mode == "validacao" %}
+      {% if solicitacao.solicitacoes_anteriores %}
+      <section class="workflow-previous-requests">
+        <div class="workflow-previous-requests-heading">
+          <div>
+            <strong>Solicitações anteriores deste atendimento</strong>
+            <small>Confira o histórico antes de validar este registro.</small>
+          </div>
+          <span>{{ solicitacao.solicitacoes_anteriores|length }} anterior{% if solicitacao.solicitacoes_anteriores|length != 1 %}es{% endif %}</span>
+        </div>
+        <div class="workflow-previous-requests-list">
+          {% for anterior in solicitacao.solicitacoes_anteriores %}
+          <article class="workflow-previous-request workflow-previous-request--{{ anterior.status_classe }}">
+            <div>
+              <strong>Solicitação #{{ anterior.id }}</strong>
+              <span class="workflow-previous-request-status workflow-previous-request-status--{{ anterior.status_classe }}">{{ anterior.status_label }}</span>
+            </div>
+            <dl>
+              <div><dt>Solicitada em</dt><dd>{{ anterior.data_criacao_formatada }}</dd></div>
+              <div><dt>Local</dt><dd>{{ anterior.local_label }}</dd></div>
+              <div><dt>Valor</dt><dd>{{ anterior.valor_nota_formatado|default:"Não informado" }}</dd></div>
+              {% if anterior.numero_nfse %}
+              <div><dt>NFS-e</dt><dd>{{ anterior.numero_nfse }}</dd></div>
+              {% endif %}
+            </dl>
+            <p>{{ anterior.procedimento }}</p>
+            {% if anterior.status == "EMITIDA" and anterior.arquivo_disponivel and anterior.emissao_id %}
+            <a
+              class="workflow-action workflow-action--view"
+              href="{% url 'emissao_nfse_pdf' anterior.emissao_id %}?download=false"
+              target="_blank"
+              rel="noopener"
+            >Visualizar NFS-e</a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       <section class="workflow-attendance-items">
         <div class="workflow-attendance-items-heading">
           <div>
@@ -207,6 +246,13 @@
               </tr>
               {% endfor %}
             </tbody>
+            <tfoot>
+              <tr class="workflow-attendance-total-row">
+                <td colspan="4"><strong>Total geral</strong></td>
+                <td><strong>{{ solicitacao.valor_total_procedimentos_formatado }}</strong></td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
         {% else %}

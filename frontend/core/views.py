@@ -128,7 +128,62 @@ def get_cached_atendimento_nota(codigo_atendimento):
             payload,
             getattr(settings, "SOLICITACAO_NOTA_CACHE_SECONDS", 300),
         )
+    payload = deepcopy(payload)
+    historico = api_get(f"{path}/solicitacoes")
+    payload["solicitacoes_existentes"] = (
+        historico.get("solicitacoes") or []
+    )
     return payload
+
+
+def _preparar_historico_solicitacoes(solicitacoes):
+    for solicitacao in solicitacoes:
+        solicitacao["data_criacao_formatada"] = format_api_datetime(
+            solicitacao.get("data_criacao")
+        )
+        solicitacao["valor_nota_formatado"] = format_brl_input(
+            solicitacao.get("valor_nota")
+        )
+        solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
+            solicitacao.get("local"),
+            solicitacao.get("local") or "Não informado",
+        )
+        if solicitacao.get("ativo") is False:
+            status_label, status_classe = "Inativa", "inativo"
+        else:
+            status_label, status_classe = STATUS_SOLICITACAO_NOTA.get(
+                solicitacao.get("status"),
+                ("Status não informado", "pendente"),
+            )
+        solicitacao["status_label"] = status_label
+        solicitacao["status_classe"] = status_classe
+        solicitacao["status_emissao_label"] = STATUS_EMISSAO_NFSE.get(
+            solicitacao.get("status_emissao"),
+            "",
+        )
+    return solicitacoes
+
+
+def _somar_procedimentos_atendimento(procedimentos):
+    total = Decimal("0")
+    for procedimento in procedimentos:
+        try:
+            total += Decimal(str(procedimento.get("valor_total") or "0"))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+    return total
+
+
+def _descricao_procedimentos_atendimento(procedimentos):
+    linhas = []
+    for procedimento in procedimentos:
+        codigo = str(procedimento.get("codigo") or "").strip()
+        descricao = str(procedimento.get("descricao") or "").strip()
+        if codigo and descricao:
+            linhas.append(f"{codigo} - {descricao}")
+        elif codigo or descricao:
+            linhas.append(codigo or descricao)
+    return "\n".join(linhas)
 
 
 def _safe_login_redirect(request):
@@ -349,6 +404,30 @@ def solicitacao_nota(request):
                     request,
                     f"Consulta do atendimento: {extract_api_error_message(exc)}",
                 )
+
+    if atendimento:
+        procedimentos_atendimento = (
+            atendimento.get("procedimentos_atendimento") or []
+        )
+        total_procedimentos = atendimento.get(
+            "valor_total_procedimentos"
+        )
+        if total_procedimentos is None:
+            total_procedimentos = _somar_procedimentos_atendimento(
+                procedimentos_atendimento
+            )
+            atendimento["valor_total_procedimentos"] = str(
+                total_procedimentos
+            )
+        if not procedimento:
+            procedimento = _descricao_procedimentos_atendimento(
+                procedimentos_atendimento
+            )
+        if not valor_nota:
+            valor_nota = format_brl_input(total_procedimentos)
+        _preparar_historico_solicitacoes(
+            atendimento.get("solicitacoes_existentes") or []
+        )
 
     return render(
         request,
@@ -621,6 +700,22 @@ def _carregar_fila_solicitacoes(
             procedimento["realizado_em_formatado"] = (
                 format_api_datetime(procedimento.get("realizado_em"))
             )
+        procedimentos_atendimento = (
+            solicitacao.get("procedimentos_atendimento") or []
+        )
+        total_procedimentos = solicitacao.get(
+            "valor_total_procedimentos"
+        )
+        if total_procedimentos is None:
+            total_procedimentos = _somar_procedimentos_atendimento(
+                procedimentos_atendimento
+            )
+        solicitacao["valor_total_procedimentos_formatado"] = (
+            format_brl_input(total_procedimentos) or "R$ 0,00"
+        )
+        _preparar_historico_solicitacoes(
+            solicitacao.get("solicitacoes_anteriores") or []
+        )
         solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
             solicitacao.get("local"),
             solicitacao.get("local") or "Não informado",

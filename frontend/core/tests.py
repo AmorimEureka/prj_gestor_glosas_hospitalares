@@ -1,6 +1,6 @@
 from datetime import date
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
@@ -2904,6 +2904,8 @@ class CadastrarNotaTests(TestCase):
                 },
             ],
             'procedimentos_atendimento_disponiveis': True,
+            'valor_total_procedimentos': '385.50',
+            'solicitacoes_existentes': [],
         }
 
     def lista_payload(
@@ -3236,8 +3238,14 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), self.atendimento_payload())
-        api_get.assert_called_once_with(
-            '/app_glosas/requisicoes/atendimentos/123456'
+        api_get.assert_has_calls(
+            [
+                call('/app_glosas/requisicoes/atendimentos/123456'),
+                call(
+                    '/app_glosas/requisicoes/atendimentos/'
+                    '123456/solicitacoes'
+                ),
+            ]
         )
 
     @patch('core.views.api_get')
@@ -3257,8 +3265,20 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(primeira.status_code, 200)
         self.assertEqual(segunda.status_code, 200)
         self.assertEqual(segunda.json(), self.atendimento_payload())
-        api_get.assert_called_once_with(
-            '/app_glosas/requisicoes/atendimentos/123456'
+        self.assertEqual(
+            api_get.call_args_list.count(
+                call('/app_glosas/requisicoes/atendimentos/123456')
+            ),
+            1,
+        )
+        self.assertEqual(
+            api_get.call_args_list.count(
+                call(
+                    '/app_glosas/requisicoes/atendimentos/'
+                    '123456/solicitacoes'
+                )
+            ),
+            2,
         )
 
     @patch('core.views.api_get')
@@ -3284,6 +3304,16 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(pagina, 'ECOCARDIOGRAMA TRANSTORÁCICO')
         self.assertContains(pagina, 'EXAMES CARDIOLÓGICOS')
         self.assertContains(pagina, 'R$ 385,50')
+        self.assertContains(pagina, 'Total geral')
+        self.assertContains(
+            pagina,
+            'value="R$ 385,50"',
+            html=True,
+        )
+        self.assertContains(
+            pagina,
+            '40304361 - ECOCARDIOGRAMA TRANSTORÁCICO',
+        )
         self.assertContains(pagina, '23/07/2026 10:30')
         self.assertContains(pagina, 'DR. TESTE')
         self.assertNotContains(
@@ -3307,8 +3337,71 @@ class CadastrarNotaTests(TestCase):
             html.index('name="procedimento"'),
             html.index('class="note-request-actions"'),
         )
-        api_get.assert_called_once_with(
-            '/app_glosas/requisicoes/atendimentos/123456'
+        self.assertEqual(
+            api_get.call_args_list.count(
+                call('/app_glosas/requisicoes/atendimentos/123456')
+            ),
+            1,
+        )
+        self.assertEqual(
+            api_get.call_args_list.count(
+                call(
+                    '/app_glosas/requisicoes/atendimentos/'
+                    '123456/solicitacoes'
+                )
+            ),
+            2,
+        )
+
+    @patch('core.views.api_get')
+    def test_solicitar_nota_exibe_historico_emitido_e_link_do_pdf(
+        self,
+        api_get,
+    ):
+        atendimento = self.atendimento_payload()
+        historico = {
+            'solicitacoes': [
+                {
+                    'id': 17,
+                    'local': 'Clinica 1',
+                    'procedimento': (
+                        '40304361 - ECOCARDIOGRAMA TRANSTORÁCICO'
+                    ),
+                    'valor_nota': '385.50',
+                    'status': 'EMITIDA',
+                    'ativo': True,
+                    'data_criacao': '2026-07-25T14:30:00',
+                    'validado_em': '2026-07-25T15:00:00',
+                    'emissao_id': 42,
+                    'status_emissao': 'EMITIDA',
+                    'numero_nfse': '98765',
+                    'arquivo_disponivel': True,
+                }
+            ],
+            'total': 1,
+        }
+        api_get.side_effect = lambda path, params=None: (
+            historico
+            if path.endswith('/solicitacoes')
+            else atendimento
+        )
+
+        response = self.client.get(
+            '/requisicao/solicitacao-nota/?codigo_atendimento=123456'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Solicitações anteriores deste atendimento',
+        )
+        self.assertContains(response, 'Solicitação #17')
+        self.assertContains(response, 'NFS-e emitida')
+        self.assertContains(response, '98765')
+        self.assertContains(response, 'Visualizar NFS-e')
+        self.assertContains(
+            response,
+            '/requisicao/emissao-nfse/itens/42/pdf/?download=false',
         )
 
     @patch('core.views.api_post')
@@ -3651,6 +3744,23 @@ class CadastrarNotaTests(TestCase):
                 'prestador': None,
             },
         ]
+        workflow['valor_total_procedimentos'] = '595.50'
+        workflow['solicitacoes_anteriores'] = [
+            {
+                'id': 3,
+                'local': 'Clinica 2',
+                'procedimento': 'Consulta anterior',
+                'valor_nota': '210.00',
+                'status': 'VALIDADA',
+                'ativo': True,
+                'data_criacao': '2026-07-22T08:30:00',
+                'validado_em': '2026-07-22T09:00:00',
+                'emissao_id': None,
+                'status_emissao': None,
+                'numero_nfse': None,
+                'arquivo_disponivel': False,
+            }
+        ]
         api_get.side_effect = lambda path, params=None: (
             self.empresas_payload()
             if path.endswith('/empresas-emissoras')
@@ -3678,6 +3788,19 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'EXAMES CARDIOLÓGICOS')
         self.assertContains(response, 'R$ 385,50')
         self.assertContains(response, 'R$ 210,00')
+        self.assertContains(response, 'R$ 595,50')
+        self.assertContains(response, 'Total geral')
+        self.assertContains(
+            response,
+            'Solicitações anteriores deste atendimento',
+        )
+        self.assertContains(response, 'Solicitação #3')
+        self.assertContains(response, 'Consulta anterior')
+        self.assertContains(response, 'Validada')
+        self.assertContains(
+            response,
+            'workflow-previous-request-status--validada',
+        )
         self.assertContains(response, '23/07/2026 10:30:00')
         self.assertContains(response, 'DR. TESTE')
         self.assertContains(response, '2 itens')
@@ -3686,6 +3809,15 @@ class CadastrarNotaTests(TestCase):
         self.assertNotContains(response, '<small>Código paciente</small>')
         self.assertNotContains(response, '<small>Código convênio</small>')
         self.assertContains(response, '<small>Convênio</small>')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.workflow-approval-form {\n'
+            '  display: flex;\n'
+            '  gap: 0.55rem;\n'
+            '  align-items: flex-end;\n'
+            '  margin-right: auto !important;',
+            css,
+        )
         api_get.assert_any_call(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
             {
