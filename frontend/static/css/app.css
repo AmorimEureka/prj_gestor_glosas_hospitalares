@@ -8778,6 +8778,115 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: none;
 }
 
+.note-request-existing-section {
+  border-bottom-color: #efd49c;
+  background: #fffaf0;
+}
+
+.note-request-existing-section[hidden] {
+  display: none;
+}
+
+.note-request-section-title--warning > span {
+  background: #b56c11;
+}
+
+.note-request-existing-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.note-request-existing-item {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid #e4c481;
+  border-left: 0.28rem solid #c4821d;
+  border-radius: 0.48rem;
+  background: #fff;
+}
+
+.note-request-existing-item > div,
+.workflow-previous-request > div {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.note-request-existing-item dl,
+.workflow-previous-request dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.note-request-existing-item dl > div,
+.workflow-previous-request dl > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.note-request-existing-item dt,
+.workflow-previous-request dt {
+  color: #7a6a4b;
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.note-request-existing-item dd,
+.workflow-previous-request dd,
+.note-request-existing-item p,
+.workflow-previous-request p {
+  margin: 0;
+  color: #3f3a31;
+  font-size: 0.67rem;
+  overflow-wrap: anywhere;
+}
+
+.note-request-existing-status,
+.workflow-previous-request-status {
+  padding: 0.24rem 0.44rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 0.55rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.note-request-existing-status--validada,
+.note-request-existing-status--emitida,
+.workflow-previous-request-status--validada,
+.workflow-previous-request-status--emitida {
+  color: #17704e;
+  background: #eaf9f1;
+}
+
+.note-request-existing-status--recusada,
+.note-request-existing-status--erro,
+.workflow-previous-request-status--recusada,
+.workflow-previous-request-status--erro {
+  color: #a33127;
+  background: #fff1ef;
+}
+
+.note-request-existing-status--emissao,
+.workflow-previous-request-status--emissao {
+  color: #185f83;
+  background: #edf7fd;
+}
+
+.note-request-existing-status--pendente,
+.note-request-existing-status--inativo,
+.workflow-previous-request-status--pendente,
+.workflow-previous-request-status--inativo {
+  color: #8a5b16;
+  background: #fff7e7;
+}
+
 .note-request-data-grid .is-wide {
   grid-column: 1 / -1;
 }
@@ -9523,6 +9632,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-bottom: 0;
 }
 
+.workflow-attendance-items-table tfoot td {
+  border-top: 2px solid #bad3dd;
+  border-bottom: 0;
+  background: #e7f3f7;
+  color: #12394a;
+}
+
+.workflow-attendance-total-row td:first-child {
+  text-align: right;
+}
+
 .workflow-attendance-items-table td strong {
   color: #14394a;
   font-size: inherit;
@@ -9536,6 +9656,63 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #f7fbfc;
   color: #617985;
   font-size: 0.65rem;
+}
+
+.workflow-previous-requests {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.72rem;
+  border: 1px solid #e2be73;
+  border-left: 0.3rem solid #b86f13;
+  border-radius: 0.5rem;
+  background: #fff8e9;
+}
+
+.workflow-previous-requests-heading {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workflow-previous-requests-heading > div {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.workflow-previous-requests-heading strong {
+  color: #6e4510;
+  font-size: 0.76rem;
+}
+
+.workflow-previous-requests-heading small {
+  color: #826a49;
+  font-size: 0.62rem;
+}
+
+.workflow-previous-requests-heading > span {
+  padding: 0.25rem 0.46rem;
+  border: 1px solid #d5ad61;
+  border-radius: 999px;
+  background: #fff;
+  color: #805115;
+  font-size: 0.56rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.workflow-previous-requests-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.workflow-previous-request {
+  display: grid;
+  gap: 0.48rem;
+  padding: 0.62rem;
+  border: 1px solid #ead7ae;
+  border-radius: 0.42rem;
+  background: #fff;
 }
 
 .workflow-refusal-summary {
@@ -9573,6 +9750,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: flex;
   gap: 0.55rem;
   align-items: flex-end;
+  margin-right: auto !important;
 }
 
 .workflow-approval-form label {
@@ -9816,6 +9994,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .note-request-patient-grid .is-address,
   .note-request-data-grid .is-wide {
     grid-column: auto;
+  }
+
+  .note-request-existing-item dl,
+  .workflow-previous-request dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .note-request-actions a,

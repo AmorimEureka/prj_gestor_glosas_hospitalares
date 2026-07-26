@@ -53,6 +53,49 @@
         </p>
       </section>
 
+      <section
+        id="existing-requests-section"
+        class="note-request-section note-request-existing-section"
+        {% if not atendimento.solicitacoes_existentes %}hidden{% endif %}
+      >
+        <div class="note-request-section-title note-request-section-title--warning">
+          <span>!</span>
+          <div>
+            <strong>Solicitações anteriores deste atendimento</strong>
+            <small>Confira os status antes de cadastrar uma nova solicitação.</small>
+          </div>
+        </div>
+        <div id="existing-requests-content" class="note-request-existing-list">
+          {% for solicitacao in atendimento.solicitacoes_existentes %}
+          <article class="note-request-existing-item note-request-existing-item--{{ solicitacao.status_classe }}">
+            <div>
+              <strong>Solicitação #{{ solicitacao.id }}</strong>
+              <span class="note-request-existing-status note-request-existing-status--{{ solicitacao.status_classe }}">
+                {{ solicitacao.status_label }}
+              </span>
+            </div>
+            <dl>
+              <div><dt>Solicitada em</dt><dd>{{ solicitacao.data_criacao_formatada }}</dd></div>
+              <div><dt>Local</dt><dd>{{ solicitacao.local_label }}</dd></div>
+              <div><dt>Valor</dt><dd>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</dd></div>
+              {% if solicitacao.numero_nfse %}
+              <div><dt>NFS-e</dt><dd>{{ solicitacao.numero_nfse }}</dd></div>
+              {% endif %}
+            </dl>
+            <p>{{ solicitacao.procedimento }}</p>
+            {% if solicitacao.status == "EMITIDA" and solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+            <a
+              class="workflow-action workflow-action--view"
+              href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
+              target="_blank"
+              rel="noopener"
+            >Visualizar NFS-e</a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
       <section class="note-request-section">
         <div class="note-request-section-title">
           <span>2</span>
@@ -161,6 +204,13 @@
                   </tr>
                   {% endfor %}
                 </tbody>
+                <tfoot>
+                  <tr class="workflow-attendance-total-row">
+                    <td colspan="4"><strong>Total geral</strong></td>
+                    <td><strong>R$ {{ atendimento.valor_total_procedimentos|br_currency }}</strong></td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             {% else %}
@@ -206,7 +256,7 @@
           </label>
           <label class="is-wide">
             <span>Procedimento *</span>
-            <textarea name="procedimento" rows="3" maxlength="500" required placeholder="Descreva o procedimento">{{ procedimento }}</textarea>
+            <textarea id="procedimento" name="procedimento" rows="5" maxlength="10000" required placeholder="Um procedimento ou exame por linha">{{ procedimento }}</textarea>
           </label>
         </div>
       </section>
@@ -233,7 +283,12 @@
     const fields = [...document.querySelectorAll('[data-patient-field]')];
     const attendanceItemsContent = document.getElementById('attendance-items-content');
     const attendanceItemsCount = document.getElementById('attendance-items-count');
+    const existingRequestsSection = document.getElementById('existing-requests-section');
+    const existingRequestsContent = document.getElementById('existing-requests-content');
+    const valueInput = document.getElementById('valor-nota');
+    const procedureInput = document.getElementById('procedimento');
     const urlTemplate = "{% url 'consultar_atendimento_nota' 0 %}";
+    const pdfUrlTemplate = "{% url 'emissao_nfse_pdf' 0 %}";
     let loadedCode = "{% if atendimento %}{{ atendimento.codigo_atendimento }}{% endif %}";
     let requestSequence = 0;
 
@@ -265,6 +320,101 @@
         style: 'currency',
         currency: 'BRL'
       }).format(parsed);
+    };
+    const requestStatus = {
+      PENDENTE_VALIDACAO: ['Pendente de validação', 'pendente'],
+      VALIDADA: ['Validada', 'validada'],
+      RECUSADA: ['Recusada', 'recusada'],
+      EMISSAO_SOLICITADA: ['Emissão solicitada', 'emissao'],
+      EMITIDA: ['NFS-e emitida', 'emitida'],
+      ERRO_EMISSAO: ['Erro na emissão', 'erro']
+    };
+
+    const attendanceTotal = (payload = {}) => {
+      const explicitTotal = Number(payload.valor_total_procedimentos);
+      if (Number.isFinite(explicitTotal)) return explicitTotal;
+      return (payload.procedimentos_atendimento || []).reduce((total, item) => {
+        const value = Number(item.valor_total);
+        return total + (Number.isFinite(value) ? value : 0);
+      }, 0);
+    };
+
+    const renderExistingRequests = (payload = {}) => {
+      const requests = Array.isArray(payload.solicitacoes_existentes)
+        ? payload.solicitacoes_existentes
+        : [];
+      existingRequestsSection.hidden = requests.length === 0;
+      existingRequestsContent.replaceChildren();
+      requests.forEach((request) => {
+        const [statusLabel, statusClass] = request.ativo === false
+          ? ['Inativa', 'inativo']
+          : (requestStatus[request.status] || ['Status não informado', 'pendente']);
+        const item = document.createElement('article');
+        item.className = `note-request-existing-item note-request-existing-item--${statusClass}`;
+
+        const heading = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `Solicitação #${request.id}`;
+        const badge = document.createElement('span');
+        badge.className = `note-request-existing-status note-request-existing-status--${statusClass}`;
+        badge.textContent = statusLabel;
+        heading.append(title, badge);
+        item.appendChild(heading);
+
+        const details = document.createElement('dl');
+        [
+          ['Solicitada em', formatAttendanceDate(request.data_criacao)],
+          ['Local', valueOrFallback(request.local)],
+          ['Valor', formatAttendanceValue(request.valor_nota)],
+          ...(request.numero_nfse ? [['NFS-e', request.numero_nfse]] : [])
+        ].forEach(([label, value]) => {
+          const group = document.createElement('div');
+          const term = document.createElement('dt');
+          const description = document.createElement('dd');
+          term.textContent = label;
+          description.textContent = value;
+          group.append(term, description);
+          details.appendChild(group);
+        });
+        item.appendChild(details);
+
+        const procedure = document.createElement('p');
+        procedure.textContent = valueOrFallback(request.procedimento);
+        item.appendChild(procedure);
+
+        if (
+          request.status === 'EMITIDA'
+          && request.arquivo_disponivel
+          && request.emissao_id
+        ) {
+          const link = document.createElement('a');
+          link.className = 'workflow-action workflow-action--view';
+          link.href = `${pdfUrlTemplate.replace('/0/', `/${request.emissao_id}/`)}?download=false`;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Visualizar NFS-e';
+          item.appendChild(link);
+        }
+        existingRequestsContent.appendChild(item);
+      });
+    };
+
+    const suggestNoteData = (payload = {}, shouldReplace = true) => {
+      const items = Array.isArray(payload.procedimentos_atendimento)
+        ? payload.procedimentos_atendimento
+        : [];
+      if (shouldReplace || !procedureInput.value.trim()) {
+        procedureInput.value = items.map((item) => {
+          const code = String(item.codigo || '').trim();
+          const description = String(item.descricao || '').trim();
+          return code && description
+            ? `${code} - ${description}`
+            : (code || description);
+        }).filter(Boolean).join('\n');
+      }
+      if (shouldReplace || !valueInput.value.trim()) {
+        valueInput.value = formatAttendanceValue(attendanceTotal(payload));
+      }
     };
 
     const renderAttendanceItems = (payload = {}, hasAttendance = true) => {
@@ -341,6 +491,23 @@
         body.appendChild(row);
       });
       table.appendChild(body);
+      const footer = document.createElement('tfoot');
+      const footerRow = document.createElement('tr');
+      footerRow.className = 'workflow-attendance-total-row';
+      const totalLabel = document.createElement('td');
+      totalLabel.colSpan = 4;
+      const totalLabelStrong = document.createElement('strong');
+      totalLabelStrong.textContent = 'Total geral';
+      totalLabel.appendChild(totalLabelStrong);
+      const totalValue = document.createElement('td');
+      const totalValueStrong = document.createElement('strong');
+      totalValueStrong.textContent = formatAttendanceValue(attendanceTotal(payload));
+      totalValue.appendChild(totalValueStrong);
+      const remaining = document.createElement('td');
+      remaining.colSpan = 2;
+      footerRow.append(totalLabel, totalValue, remaining);
+      footer.appendChild(footerRow);
+      table.appendChild(footer);
       wrapper.appendChild(table);
       attendanceItemsContent.appendChild(wrapper);
     };
@@ -350,6 +517,7 @@
       loadedCode = '';
       submitButton.disabled = true;
       renderAttendanceItems({}, false);
+      renderExistingRequests({});
     };
 
     const setStatus = (message, state = '') => {
@@ -369,6 +537,7 @@
       }
 
       const currentSequence = ++requestSequence;
+      const previousLoadedCode = loadedCode;
       clearPatient();
       searchButton.disabled = true;
       setStatus('Consultando atendimento no MV...', 'loading');
@@ -386,6 +555,11 @@
           field.value = payload[field.dataset.patientField] || 'Não informado';
         });
         renderAttendanceItems(payload);
+        renderExistingRequests(payload);
+        suggestNoteData(
+          payload,
+          previousLoadedCode !== String(payload.codigo_atendimento)
+        );
         loadedCode = String(payload.codigo_atendimento);
         submitButton.disabled = false;
         setStatus('Atendimento encontrado. Confira os dados abaixo.', 'success');
