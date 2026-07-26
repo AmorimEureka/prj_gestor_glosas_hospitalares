@@ -75,6 +75,7 @@
               </span>
             </div>
             <dl>
+              <div><dt>Solicitada por</dt><dd>{{ solicitacao.cadastrado_por|default:"Não informado" }}</dd></div>
               <div><dt>Solicitada em</dt><dd>{{ solicitacao.data_criacao_formatada }}</dd></div>
               <div><dt>Local</dt><dd>{{ solicitacao.local_label }}</dd></div>
               <div><dt>Valor</dt><dd>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</dd></div>
@@ -82,7 +83,11 @@
               <div><dt>NFS-e</dt><dd>{{ solicitacao.numero_nfse }}</dd></div>
               {% endif %}
             </dl>
+            {% if solicitacao.status == "RECUSADA" or not solicitacao.ativo %}
+            <p><strong>Motivo:</strong> {{ solicitacao.motivo|default:"Não informado" }}</p>
+            {% else %}
             <p>{{ solicitacao.procedimento }}</p>
+            {% endif %}
             {% if solicitacao.status == "EMITIDA" and solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
             <a
               class="workflow-action workflow-action--view"
@@ -363,6 +368,7 @@
 
         const details = document.createElement('dl');
         [
+          ['Solicitada por', valueOrFallback(request.cadastrado_por)],
           ['Solicitada em', formatAttendanceDate(request.data_criacao)],
           ['Local', valueOrFallback(request.local)],
           ['Valor', formatAttendanceValue(request.valor_nota)],
@@ -378,9 +384,15 @@
         });
         item.appendChild(details);
 
-        const procedure = document.createElement('p');
-        procedure.textContent = valueOrFallback(request.procedimento);
-        item.appendChild(procedure);
+        const summary = document.createElement('p');
+        if (request.status === 'RECUSADA' || request.ativo === false) {
+          const label = document.createElement('strong');
+          label.textContent = 'Motivo: ';
+          summary.append(label, valueOrFallback(request.motivo));
+        } else {
+          summary.textContent = valueOrFallback(request.procedimento);
+        }
+        item.appendChild(summary);
 
         if (
           request.status === 'EMITIDA'
