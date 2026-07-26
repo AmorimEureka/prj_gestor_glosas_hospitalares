@@ -143,6 +143,7 @@
                     <th>Procedimento / exame</th>
                     <th>Grupo</th>
                     <th>Quantidade</th>
+                    <th>Valor total</th>
                     <th>Realizado em</th>
                     <th>Prestador</th>
                   </tr>
@@ -154,6 +155,7 @@
                     <td><strong>{{ item.descricao }}</strong></td>
                     <td>{{ item.grupo|default:"Não informado" }}</td>
                     <td>{{ item.quantidade|default_if_none:"Não informada" }}</td>
+                    <td>R$ {{ item.valor_total|br_currency }}</td>
                     <td>{{ item.realizado_em|api_datetime }}</td>
                     <td>{{ item.prestador|default:"Não informado" }}</td>
                   </tr>
@@ -253,6 +255,17 @@
         second: '2-digit'
       }).format(parsed);
     };
+    const formatAttendanceValue = (value) => {
+      if (value === null || value === undefined || value === '') {
+        return 'Não informado';
+      }
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return String(value);
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(parsed);
+    };
 
     const renderAttendanceItems = (payload = {}, hasAttendance = true) => {
       const items = Array.isArray(payload.procedimentos_atendimento)
@@ -292,6 +305,7 @@
         'Procedimento / exame',
         'Grupo',
         'Quantidade',
+        'Valor total',
         'Realizado em',
         'Prestador'
       ].forEach((label) => {
@@ -310,6 +324,7 @@
           valueOrFallback(item.descricao),
           valueOrFallback(item.grupo),
           valueOrFallback(item.quantidade, 'Não informada'),
+          formatAttendanceValue(item.valor_total),
           formatAttendanceDate(item.realizado_em),
           valueOrFallback(item.prestador)
         ].forEach((value, index) => {

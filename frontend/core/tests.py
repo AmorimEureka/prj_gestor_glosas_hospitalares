@@ -1099,7 +1099,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260724-campos-monetarios-32',
+            '?v=20260726-empresas-emissoras-33',
             base_template.read_text(),
         )
 
@@ -2898,6 +2898,7 @@ class CadastrarNotaTests(TestCase):
                     'descricao': 'ECOCARDIOGRAMA TRANSTORÁCICO',
                     'grupo': 'EXAMES CARDIOLÓGICOS',
                     'quantidade': '1',
+                    'valor_total': '385.50',
                     'realizado_em': '2026-07-23T10:30:00',
                     'prestador': 'DR. TESTE',
                 },
@@ -2927,6 +2928,11 @@ class CadastrarNotaTests(TestCase):
             'local': 'Clinica 1',
             'procedimento': 'Consulta cardiológica',
             'valor_nota': '60.75',
+            'empresa_emissora_id': 3,
+            'cnpj_emissor': '05613278000158',
+            'razao_social_emissor': (
+                'PRONTOCARDIO PRONTOATENDIMENTO CARDIOLOGICO LTDA'
+            ),
             'usuario_id': 4,
             'cadastrado_por': 'Amoras',
             'data_criacao': '2026-07-23T14:30:00',
@@ -2948,6 +2954,33 @@ class CadastrarNotaTests(TestCase):
             'workflow_atualizado_em': '2026-07-23T14:30:00',
             'procedimentos_atendimento': [],
             'procedimentos_atendimento_disponiveis': True,
+        }
+
+    def empresas_payload(self):
+        return {
+            'empresas': [
+                {
+                    'id': 3,
+                    'cnpj': '05613278000158',
+                    'razao_social': (
+                        'PRONTOCARDIO PRONTOATENDIMENTO CARDIOLOGICO LTDA'
+                    ),
+                    'ativo': True,
+                    'atualizado_por': 'Amoras',
+                    'data_atualizacao': '2026-07-26T18:30:00',
+                },
+                {
+                    'id': 4,
+                    'cnpj': '08711085000128',
+                    'razao_social': (
+                        'PRONTOCARDIO SERVICOS MEDICOS HOSPITALARES LTDA'
+                    ),
+                    'ativo': True,
+                    'atualizado_por': None,
+                    'data_atualizacao': '2026-07-26T18:30:00',
+                },
+            ],
+            'total': 2,
         }
 
     @patch('core.views.api_get')
@@ -3250,6 +3283,7 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(pagina, 'Procedimentos e exames realizados')
         self.assertContains(pagina, 'ECOCARDIOGRAMA TRANSTORÁCICO')
         self.assertContains(pagina, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(pagina, 'R$ 385,50')
         self.assertContains(pagina, '23/07/2026 10:30')
         self.assertContains(pagina, 'DR. TESTE')
         self.assertNotContains(
@@ -3603,6 +3637,7 @@ class CadastrarNotaTests(TestCase):
                 'descricao': 'ECOCARDIOGRAMA TRANSTORÁCICO',
                 'grupo': 'EXAMES CARDIOLÓGICOS',
                 'quantidade': '1',
+                'valor_total': '385.50',
                 'realizado_em': '2026-07-23T10:30:00',
                 'prestador': 'DR. TESTE',
             },
@@ -3611,13 +3646,15 @@ class CadastrarNotaTests(TestCase):
                 'descricao': 'CONSULTA EM CARDIOLOGIA',
                 'grupo': 'PROCEDIMENTOS',
                 'quantidade': '1',
+                'valor_total': '210.00',
                 'realizado_em': '2026-07-23T09:45:00',
                 'prestador': None,
             },
         ]
-        api_get.return_value = self.lista_payload(
-            [workflow],
-            total=1,
+        api_get.side_effect = lambda path, params=None: (
+            self.empresas_payload()
+            if path.endswith('/empresas-emissoras')
+            else self.lista_payload([workflow], total=1)
         )
 
         response = self.client.get(
@@ -3639,13 +3676,17 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Procedimentos e exames realizados')
         self.assertContains(response, 'ECOCARDIOGRAMA TRANSTORÁCICO')
         self.assertContains(response, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(response, 'R$ 385,50')
+        self.assertContains(response, 'R$ 210,00')
         self.assertContains(response, '23/07/2026 10:30:00')
         self.assertContains(response, 'DR. TESTE')
         self.assertContains(response, '2 itens')
+        self.assertContains(response, 'CNPJ emissor *')
+        self.assertContains(response, '05.613.278/0001-58')
         self.assertNotContains(response, '<small>Código paciente</small>')
         self.assertNotContains(response, '<small>Código convênio</small>')
         self.assertContains(response, '<small>Convênio</small>')
-        api_get.assert_called_once_with(
+        api_get.assert_any_call(
             '/app_glosas/requisicoes/solicitacoes-nota/workflow',
             {
                 'status': 'PENDENTE_VALIDACAO',
@@ -3686,7 +3727,8 @@ class CadastrarNotaTests(TestCase):
         )
 
     @patch('core.views.api_post')
-    def test_workflow_confirma_validacao(self, api_post):
+    @patch('core.views.api_put')
+    def test_workflow_confirma_validacao(self, api_put, api_post):
         api_post.return_value = {
             **self.workflow_payload('VALIDADA'),
             'validacao': 'VALIDADA',
@@ -3697,10 +3739,16 @@ class CadastrarNotaTests(TestCase):
             {
                 'solicitacao_id': '7',
                 'decisao': 'VALIDADA',
+                'empresa_emissora_id': '3',
             },
         )
 
         self.assertEqual(response.status_code, 302)
+        api_put.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota/'
+            '7/empresa-emissora',
+            {'empresa_emissora_id': 3},
+        )
         api_post.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota/7/validacao',
             {
@@ -3778,15 +3826,20 @@ class CadastrarNotaTests(TestCase):
 
     @patch('core.views.api_get')
     def test_emissao_filtra_solicitacoes_e_exibe_acoes(self, api_get):
-        api_get.return_value = self.lista_payload(
-            [self.workflow_payload('VALIDADA')],
-            total=1,
+        api_get.side_effect = lambda path, params=None: (
+            self.empresas_payload()
+            if path.endswith('/empresas-emissoras')
+            else self.lista_payload(
+                [self.workflow_payload('VALIDADA')],
+                total=1,
+            )
         )
 
         response = self.client.get(
             '/requisicao/emissao-nfse/'
             '?nome_paciente=Maria&cpf=123&'
-            'tipo_atendimento=Ambulat%C3%B3rio&local=Clinica+1'
+            'tipo_atendimento=Ambulat%C3%B3rio&local=Clinica+1&'
+            'cnpj_emissor=05613278000158'
         )
 
         self.assertEqual(response.status_code, 200)
@@ -3807,7 +3860,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Validada por')
         self.assertContains(response, 'Amoras')
         self.assertContains(response, 'form="batch-emission-form"')
-        api_get.assert_called_once_with(
+        self.assertContains(response, 'Empresa emissora')
+        self.assertContains(response, '05.613.278/0001-58')
+        self.assertNotContains(response, '<small>Código paciente</small>')
+        self.assertNotContains(response, '<small>Código convênio</small>')
+        api_get.assert_any_call(
             '/app_glosas/requisicoes/emissoes-nfse',
             {
                 'limit': 10,
@@ -3816,6 +3873,7 @@ class CadastrarNotaTests(TestCase):
                 'cpf': '123',
                 'tipo_atendimento': 'Ambulatório',
                 'local': 'Clinica 1',
+                'cnpj_emissor': '05613278000158',
             },
         )
 
@@ -3901,6 +3959,34 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertContains(response, 'Visualizar NFS-e')
         self.assertContains(response, 'Baixar PDF')
+        self.assertContains(response, 'workflow-emission-spinner', count=4)
+        self.assertContains(
+            response,
+            'window.setTimeout(() => window.location.reload(), 5000)',
+        )
+
+    @patch('core.views.api_get')
+    def test_cadastro_empresas_exibe_dados_iniciais_e_estado(self, api_get):
+        api_get.return_value = self.empresas_payload()
+
+        response = self.client.get('/administrativo/empresas-emissoras/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>Empresas (Emissão NFS-e)</h1>')
+        self.assertContains(response, '05.613.278/0001-58')
+        self.assertContains(response, '08.711.085/0001-28')
+        self.assertContains(response, 'Ativa', count=2)
+        self.assertContains(response, '>Editar</a>', count=2)
+        self.assertContains(
+            response,
+            'name="form_action" value="inativar"',
+            count=2,
+        )
+        self.assertContains(response, 'Sistema')
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/empresas-emissoras',
+            {'incluir_inativas': 'true'},
+        )
 
     @patch('core.views.api_post')
     def test_emissao_em_lote_encaminha_ids_ao_airflow(self, api_post):
