@@ -351,7 +351,9 @@
         <form method="post" @submit="processing = true">
           {% csrf_token %}
           <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
-          <button type="submit" class="workflow-action workflow-action--issue">Emitir esta NFS-e</button>
+          <button type="submit" class="workflow-action workflow-action--issue">
+            {% if solicitacao.status == "ERRO_EMISSAO" %}Tentar emitir novamente{% else %}Emitir esta NFS-e{% endif %}
+          </button>
         </form>
         <button
           type="button"
