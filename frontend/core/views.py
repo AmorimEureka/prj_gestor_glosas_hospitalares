@@ -46,6 +46,7 @@ DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
+DASHBOARD_GLOSAS_LIMIT = 25000
 CONCILIACAO_FATURAMENTO_PATH = (
     "/app_glosas/financeiro/conciliacao-faturamento"
 )
@@ -4480,7 +4481,7 @@ def dashboard(request):
         payload = get_cached_dashboard_payload(
             DASHBOARD_GLOSAS_CACHE_KEY,
             settings.API_REGISTRO_GLOSA_PATH,
-            {"limit": 5000},
+            {"limit": DASHBOARD_GLOSAS_LIMIT},
             force_refresh=force_refresh,
         )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
@@ -5164,7 +5165,7 @@ def acompanhamento(request):
         payload = get_cached_dashboard_payload(
             ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
             settings.API_REGISTRO_GLOSA_PATH,
-            {"limit": 5000},
+            {"limit": DASHBOARD_GLOSAS_LIMIT},
         )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
         registros = [
@@ -5300,11 +5301,17 @@ def build_conciliacao_faturamento_payload(data):
         if valor_bruto is None:
             continue
         valor_glosado = as_float_or_zero(nota.get("valor_glosado"))
-        valor_liquido = round(valor_bruto - valor_glosado, 2)
+        valor_impostos = as_float_or_zero(nota.get("valor_impostos"))
+        if valor_impostos < 0:
+            raise ValueError("O total das retenções não pode ser negativo.")
+        valor_liquido = round(
+            valor_bruto - valor_glosado - valor_impostos,
+            2,
+        )
         if valor_liquido <= 0:
             raise ValueError(
-                "O valor glosado deve ser menor que o valor da remessa "
-                "conciliado com a NFS-e."
+                "A soma da glosa e das retenções deve ser menor que o valor "
+                "da remessa conciliado com a NFS-e."
             )
         nota["valor_alocado"] = f"{valor_liquido:.2f}"
     cd_remessa = as_int_or_none(data.get("cd_remessa"))
@@ -5391,6 +5398,11 @@ def build_edicao_conciliacao_payload(data):
         valor_recebido = as_float_or_none(
             data.get(f"valor_recebido_{cd_remessa}")
         )
+        valor_impostos = as_float_or_none(
+            data.get(f"valor_impostos_{cd_remessa}")
+        )
+        if valor_impostos is None:
+            valor_impostos = 0.0
         if valor_glosado is None or valor_glosado < 0:
             raise ValueError(
                 f"Informe um valor de glosa válido para a remessa "
@@ -5401,11 +5413,17 @@ def build_edicao_conciliacao_payload(data):
                 f"Informe um valor recebido maior que zero para a remessa "
                 f"{cd_remessa}."
             )
+        if valor_impostos < 0:
+            raise ValueError(
+                f"Informe um total de retenções válido para a remessa "
+                f"{cd_remessa}."
+            )
         remessas.append(
             {
                 "cd_remessa": cd_remessa,
                 "valor_glosado": f"{valor_glosado:.2f}",
                 "valor_recebido": f"{valor_recebido:.2f}",
+                "valor_impostos": f"{valor_impostos:.2f}",
             }
         )
     if remessas:
@@ -5485,6 +5503,12 @@ def build_alteracoes_auditoria_conciliacao(evento):
             f"Valor glosado · remessa {cd_remessa}",
             anterior.get("valor_glosado"),
             novo.get("valor_glosado"),
+            "moeda",
+        )
+        adicionar(
+            f"Total das retenções · remessa {cd_remessa}",
+            anterior.get("valor_impostos"),
+            novo.get("valor_impostos"),
             "moeda",
         )
 
