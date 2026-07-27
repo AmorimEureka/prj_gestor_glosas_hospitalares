@@ -19,7 +19,7 @@
 .access-admin-intro strong { color: var(--ink); font-size: 16px; }
 .access-admin-intro span { color: var(--muted); font-size: 12px; }
 .access-admin-count { padding: 7px 11px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-dark) !important; font-weight: 700; }
-.access-admin-grid { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.access-admin-grid { display: grid; grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .access-create-card, .access-list-card { border: 1px solid #e0e8ec; border-radius: 16px; background: #fff; box-shadow: 0 12px 35px rgba(20, 73, 91, .07); }
 .access-create-card { display: grid; gap: 15px; padding: 22px; }
 .access-card-head { display: flex; align-items: center; gap: 11px; margin-bottom: 5px; }
@@ -45,10 +45,29 @@
 .access-role--ti { background: #e9eefc; color: #344f9e; }
 .access-state.is-active { background: #e8f5ef; color: #227153; }
 .access-actions summary { padding: 7px 9px; border: 1px solid #dce4e8; border-radius: 8px; color: var(--primary-dark); font-size: 10px; font-weight: 700; cursor: pointer; list-style: none; }
-.access-actions > div { position: absolute; z-index: 20; right: 18px; top: 58px; display: grid; gap: 12px; width: 250px; padding: 15px; border: 1px solid #dce4e8; border-radius: 12px; background: #fff; box-shadow: 0 18px 45px rgba(20,73,91,.18); }
+.access-actions > div { position: absolute; z-index: 20; right: 18px; top: 58px; display: grid; gap: 14px; width: min(720px, calc(100vw - 120px)); max-height: 75vh; padding: 17px; overflow: auto; border: 1px solid #dce4e8; border-radius: 12px; background: #fff; box-shadow: 0 18px 45px rgba(20,73,91,.18); }
 .access-actions form { display: grid; gap: 9px; }
 .access-actions .access-status-action { background: #fef0ee; color: #9b2c23; }
 .access-empty { padding: 28px; color: var(--muted); font-size: 12px; text-align: center; }
+.access-permissions-block,
+.access-permissions-form { display: grid; gap: 10px; padding: 13px; border: 1px solid #e1e9ed; border-radius: 11px; background: #f9fbfc; }
+.access-permissions-heading { display: grid; gap: 3px; }
+.access-permissions-heading strong { color: var(--ink); font-size: 11px; }
+.access-permissions-heading small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.access-permission-groups { display: grid; gap: 10px; }
+.access-permission-groups--manage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.access-permission-groups fieldset { display: grid; gap: 7px; min-width: 0; margin: 0; padding: 10px; border: 1px solid #e3eaee; border-radius: 9px; background: #fff; }
+.access-permission-groups legend { float: none; width: auto; margin: 0 0 2px; color: var(--primary-dark); font-size: 10px; font-weight: 800; }
+.access-permission-groups label { display: flex; align-items: center; gap: 8px; color: #344054; font-size: 10px; font-weight: 600; letter-spacing: 0; line-height: 1.3; text-transform: none; cursor: pointer; }
+.access-create-card .access-permission-groups input[type="checkbox"],
+.access-actions .access-permission-groups input[type="checkbox"] { flex: 0 0 auto; width: 15px; height: 15px; margin: 0; padding: 0; accent-color: var(--primary); }
+.access-permission-groups.is-full-access { opacity: .65; }
+.access-full-permission-note { display: grid; gap: 4px; padding: 12px; border: 1px solid #d9e2fb; border-radius: 9px; background: #f4f6fd; }
+.access-full-permission-note strong { color: #344f9e; font-size: 11px; }
+.access-full-permission-note span { color: #5b6685; font-size: 10px; line-height: 1.4; }
+.access-denied-card { display: grid; gap: 8px; max-width: 620px; padding: 24px; border: 1px solid #e0e8ec; border-radius: 16px; background: #fff; box-shadow: 0 12px 35px rgba(20, 73, 91, .07); }
+.access-denied-card strong { color: var(--ink); font-size: 16px; }
+.access-denied-card p { margin: 0; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 1050px) {
   .access-admin-grid { grid-template-columns: 1fr; }
@@ -59,6 +78,8 @@
   .access-role { display: none; }
   .access-actions { grid-column: 3; }
   .access-state { display: none; }
+  .access-actions > div { right: 10px; width: calc(100vw - 40px); }
+  .access-permission-groups--manage { grid-template-columns: 1fr; }
 }
 
 [x-cloak] {
@@ -364,10 +385,11 @@ body.is-login-entry .app-light-reveal span {
   border: 1px solid transparent;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.7), rgba(232, 245, 248, 0.42));
   color: #173d4f;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
   min-height: 34px;
   padding: 6px 10px;
   border-radius: 8px;
@@ -403,6 +425,35 @@ body.is-login-entry .app-light-reveal span {
   padding: 6px 10px;
   border-left: 3px solid rgba(31, 111, 134, 0.18);
   font-size: 13px;
+}
+
+.nav-subgroup {
+  display: grid;
+  gap: 3px;
+}
+
+.sidebar .nav-subgroup-toggle {
+  width: calc(100% - 10px);
+}
+
+.nav-nested-chevron {
+  margin-left: auto;
+  color: #71818d;
+  font-size: 0.58rem;
+  transition: transform 0.16s ease;
+}
+
+.nav-subgroup-toggle[aria-expanded="true"] .nav-nested-chevron {
+  transform: rotate(90deg);
+}
+
+.sidebar .nav-submenu--nested {
+  margin-left: 18px;
+}
+
+.sidebar .nav-subitem--nested {
+  min-height: 30px;
+  font-size: 12px;
 }
 
 .sidebar-footer {
@@ -809,8 +860,7 @@ body.is-login-entry .app-light-reveal span {
   grid-template-columns:
     minmax(360px, 1.55fr)
     minmax(215px, 1.1fr)
-    repeat(4, minmax(145px, 1fr))
-    max-content;
+    repeat(4, minmax(145px, 1fr));
   gap: 10px;
   align-items: end;
   padding: 12px 14px;
@@ -994,6 +1044,7 @@ body.is-login-entry .app-light-reveal span {
 }
 
 .indicator-filter-actions {
+  grid-column: 1 / -1;
   display: flex;
   gap: 8px;
   align-self: end;
@@ -3962,6 +4013,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #8a520d;
 }
 
+.result-total--treated {
+  min-width: 156px;
+  border-color: #b9ddc9;
+  background: #edf8f2;
+  box-shadow: inset 3px 0 0 #2f8a5f;
+}
+
+.result-total--treated strong {
+  color: #24734f;
+}
+
 .collapse-actions {
   display: flex;
   align-items: center;
@@ -4608,6 +4670,214 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .result-kpi--value {
   background: #f2f8fa;
   border-color: #cddfe7;
+}
+
+/* ── Follow-Up de Glosas ─────────────────────────────── */
+.follow-up-glosa-search {
+  flex: 1 1 480px;
+  max-width: 720px;
+}
+
+.follow-up-glosa-list {
+  display: block;
+}
+
+.follow-up-glosa-card {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid #cddce5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(16, 42, 58, 0.05);
+}
+
+.follow-up-glosa-card:last-child {
+  margin-bottom: 0;
+}
+
+.follow-up-glosa-card-header {
+  display: grid;
+  grid-template-columns: 18px minmax(85px, 0.7fr) minmax(150px, 1.4fr) minmax(110px, 0.9fr) minmax(80px, 0.7fr) minmax(125px, 1fr) minmax(125px, 1fr) minmax(125px, 1fr);
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 0;
+  border-left: 4px solid #d98c2b;
+  background: #fbfdfe;
+  color: var(--ink);
+  padding: 14px 16px 14px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.follow-up-glosa-card-header:hover {
+  background: #f4f9fb;
+}
+
+.follow-up-glosa-chevron {
+  color: #6b7d89;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+.follow-up-glosa-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.follow-up-glosa-card-field {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.follow-up-glosa-card-field small,
+.follow-up-glosa-patient-header small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.follow-up-glosa-card-field strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-up-glosa-card-value {
+  text-align: right;
+}
+
+.follow-up-glosa-card-value--danger strong {
+  color: #b24d32;
+}
+
+.follow-up-glosa-card-value--treated strong {
+  color: #24734f;
+}
+
+.follow-up-glosa-card-body {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #dce6ec;
+  background: #f5f8fa;
+  padding: 12px;
+}
+
+.follow-up-glosa-card-content {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.follow-up-glosa-loading {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.follow-up-glosa-patient {
+  overflow: hidden;
+  border: 1px solid #d4e1e8;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.follow-up-glosa-patient-header {
+  display: grid;
+  grid-template-columns: 16px minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: #eef6f8;
+  color: var(--ink);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.follow-up-glosa-patient-header > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.follow-up-glosa-patient-body {
+  border-top: 1px solid #d8e5eb;
+}
+
+.follow-up-glosa-records-scroll {
+  min-height: 0;
+  overflow: visible;
+  padding: 12px 12px 24px;
+  scroll-padding-bottom: 24px;
+}
+
+.follow-up-glosa-atendimento:last-child {
+  margin-bottom: 0;
+}
+
+.follow-up-glosa-grupo-procedimento .account-group-header {
+  background: #edf5f8;
+  box-shadow: inset 4px 0 0 #5e91a5;
+}
+
+.follow-up-glosa-table-wrap {
+  overflow-x: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.follow-up-glosa-actions {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+@media (max-width: 1100px) {
+  .follow-up-glosa-card-header {
+    grid-template-columns: 18px repeat(3, minmax(120px, 1fr));
+  }
+
+  .follow-up-glosa-card-field:nth-of-type(4),
+  .follow-up-glosa-card-field:nth-of-type(5),
+  .follow-up-glosa-card-field:nth-of-type(6) {
+    grid-column: auto;
+  }
+
+  .follow-up-glosa-table-wrap {
+    overflow-x: auto;
+  }
+
+  .follow-up-glosa-table-wrap .account-table {
+    min-width: 1080px;
+  }
+}
+
+@media (max-width: 700px) {
+  .follow-up-glosa-card-header {
+    grid-template-columns: 14px 1fr 1fr;
+    gap: 10px;
+  }
+
+  .follow-up-glosa-card-header > .follow-up-glosa-chevron {
+    grid-row: 1 / span 3;
+  }
+
+  .follow-up-glosa-card-value {
+    text-align: left;
+  }
+
+  .follow-up-glosa-patient-header {
+    grid-template-columns: 14px minmax(130px, 1fr);
+  }
+
+  .follow-up-glosa-patient-header .mpill {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 /* ── Account table ────────────────────────────────────── */
@@ -5560,6 +5830,103 @@ body:not(.sidebar-collapsed) .indicator-grid {
   letter-spacing: 0.04em;
 }
 
+.tiss-reason-select {
+  position: relative;
+  z-index: 30;
+  width: 100%;
+}
+
+.tiss-reason-control {
+  display: flex;
+  width: 100%;
+}
+
+.tiss-reason-control .tiss-reason-input {
+  min-width: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.tiss-reason-toggle {
+  position: relative;
+  flex: 0 0 42px;
+  border: 1px solid #ced4da;
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+  background: #fff;
+  color: #526875;
+  cursor: pointer;
+}
+
+.tiss-reason-toggle:hover,
+.tiss-reason-toggle:focus-visible {
+  background: #eef6f8;
+  color: var(--primary-dark);
+}
+
+.tiss-reason-toggle span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translate(-50%, -70%) rotate(45deg);
+}
+
+.tiss-reason-dropdown {
+  position: absolute;
+  inset: calc(100% + 4px) 0 auto;
+  z-index: 80;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #b9d2dc;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(16, 42, 58, 0.2);
+  padding: 5px;
+}
+
+.tiss-reason-option {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #173d4f;
+  padding: 8px 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tiss-reason-option:hover,
+.tiss-reason-option.is-active {
+  background: #eaf4f7;
+}
+
+.tiss-reason-option strong {
+  color: #17617a;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tiss-reason-option span {
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.tiss-reason-empty {
+  margin: 0;
+  color: var(--muted);
+  padding: 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
 .required-marker {
   color: #c0392b;
   font-weight: 800;
@@ -5640,6 +6007,1419 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .empty-state {
   margin: 0;
   color: var(--muted);
+}
+
+/* Financeiro · Conciliação Fiscal x Faturamento */
+.finance-reconciliation-page {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 24px 0;
+}
+
+.finance-search-bar,
+.finance-list-heading,
+.finance-note-card,
+.finance-empty-state {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.finance-search-bar {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.finance-search-bar label {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+}
+
+.finance-search-bar label span,
+.finance-form-grid label > span,
+.finance-bank-grid label > span,
+.finance-remittance-search label > span,
+.finance-glosa-fields label > span {
+  color: #496777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-search-bar input,
+.finance-form-grid input,
+.finance-bank-grid input,
+.finance-bank-grid select,
+.finance-remittance-search input,
+.finance-glosa-fields .finance-money-input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #cbdbe3;
+  border-radius: 8px;
+  background: #fff;
+  color: #0b2f43;
+  font-size: 13px;
+}
+
+.finance-search-bar button,
+.finance-remittance-search button,
+.finance-submit-area button {
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.finance-search-bar a {
+  display: inline-grid;
+  min-height: 38px;
+  place-items: center;
+  padding: 8px 12px;
+  border: 1px solid #cbdbe3;
+  border-radius: 8px;
+  color: #496777;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.finance-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+}
+
+.finance-list-heading > div:not(.collapse-actions),
+.finance-section-title > div {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-list-heading strong,
+.finance-section-title strong {
+  color: #123748;
+  font-size: 14px;
+}
+
+.finance-list-heading span,
+.finance-section-title span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.finance-count,
+.finance-formula {
+  flex: none;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #edf7f9;
+  color: var(--primary-dark) !important;
+  font-weight: 800;
+}
+
+.finance-note-list {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 10px;
+}
+
+.finance-note-card {
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.finance-note-card.is-open {
+  border-color: #9dc8d5;
+  box-shadow: 0 8px 24px rgba(18, 55, 72, 0.08);
+}
+
+.finance-note-summary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(100px, 0.7fr) minmax(110px, 0.8fr) minmax(220px, 1.8fr) minmax(110px, 0.8fr) minmax(120px, 0.9fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 0;
+  background: #fff;
+  color: #123748;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-note-summary:hover {
+  background: #f8fcfd;
+}
+
+.finance-note-summary > span:not(.finance-note-chevron),
+.finance-selected-main > span,
+.finance-remittance-result > span,
+.finance-total-box {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.finance-note-summary small,
+.finance-selected-main small,
+.finance-remittance-result small,
+.finance-total-box small {
+  color: #71818d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-note-summary strong,
+.finance-selected-main strong,
+.finance-remittance-result strong {
+  overflow: hidden;
+  color: #123748;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-note-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #71818d;
+  border-bottom: 2px solid #71818d;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.finance-note-chevron.is-open {
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+
+.finance-note-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-top: 1px solid #dce8ed;
+  background: #f8fbfc;
+}
+
+.finance-receipt-section,
+.finance-remittance-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dce8ed;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.finance-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-form-grid,
+.finance-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.finance-form-grid label,
+.finance-bank-grid label,
+.finance-remittance-search label,
+.finance-glosa-fields label {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.finance-bank-grid {
+  padding-top: 12px;
+  border-top: 1px dashed #cbdbe3;
+}
+
+.finance-bank-grid label small {
+  color: #a3281d;
+  font-size: 10px;
+}
+
+.finance-bank-launch-field {
+  grid-column: span 3;
+}
+
+.finance-remittance-search {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) max-content;
+  align-items: end;
+  gap: 8px;
+}
+
+.finance-remittance-search button:disabled,
+.finance-remittance-result:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.finance-remittance-results,
+.finance-selected-remittances {
+  display: grid;
+  gap: 7px;
+}
+
+.finance-remittance-results {
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 7px;
+  border: 1px solid #dce8ed;
+  border-radius: 8px;
+  background: #f7fafb;
+}
+
+.finance-remittance-result {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.65fr) minmax(180px, 1.5fr) minmax(145px, 0.9fr) minmax(145px, 0.9fr) 30px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid #d5e4e9;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-remittance-result > .finance-remittance-context {
+  display: flex;
+  grid-column: 1 / -2;
+}
+
+.finance-remittance-result > b {
+  grid-column: -2 / -1;
+  grid-row: 1 / span 2;
+}
+
+.finance-remittance-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-width: 0;
+  padding-top: 7px;
+  border-top: 1px dashed #d8e5ea;
+}
+
+.finance-remittance-context > span:not(.finance-financial-status) {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-remittance-context small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-remittance-context strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-financial-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid #b9d8e2;
+  border-radius: 999px;
+  background: #edf7f9;
+  color: #155d72;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.finance-remittance-context.has-acato .finance-financial-status {
+  border-color: #e6c78b;
+  background: #fff8e8;
+  color: #875b0d;
+}
+
+.finance-financial-status.is-blocked {
+  border-color: #e6c78b;
+  background: #fff8e8;
+  color: #875b0d;
+}
+
+.finance-remittance-restriction {
+  display: grid;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #e6c78b;
+  border-radius: 8px;
+  background: #fffdf7;
+}
+
+.finance-restriction-heading,
+.finance-restriction-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px 18px;
+}
+
+.finance-restriction-heading > strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-restriction-values > span {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-restriction-values small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-restriction-values strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-remittance-restriction p {
+  margin: 0;
+  color: #875b0d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Financeiro · Conciliação Financeira */
+.finance-pending-summary {
+  display: grid;
+  grid-template-columns: 18px minmax(85px, 0.55fr) minmax(105px, 0.7fr) minmax(180px, 1.4fr) minmax(90px, 0.55fr) repeat(3, minmax(115px, 0.8fr)) minmax(220px, 1.2fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  background: #fff;
+  color: #123748;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-pending-summary:hover {
+  background: #f8fcfd;
+}
+
+.finance-pending-summary > span:not(.finance-note-chevron),
+.finance-pending-meta > span,
+.finance-pending-value,
+.finance-pending-remittance > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.finance-pending-summary small,
+.finance-pending-meta small,
+.finance-pending-value small,
+.finance-pending-remittance small {
+  color: #71818d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-pending-summary strong,
+.finance-pending-meta strong,
+.finance-pending-remittance strong {
+  overflow: hidden;
+  color: #123748;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-pending-statuses {
+  display: flex !important;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px !important;
+}
+
+.finance-pending-status {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid #b9d8e2;
+  border-radius: 999px;
+  background: #edf7f9;
+  color: #155d72;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
+
+.finance-pending-status.is-partial {
+  border-color: #c8c5eb;
+  background: #f4f3ff;
+  color: #5147a5;
+}
+
+.finance-pending-status.is-received {
+  border-color: #9ed8c3;
+  background: #edf9f4;
+  color: #157451;
+}
+
+.finance-pending-status.is-overdue {
+  border-color: #efb4ad;
+  background: #fff1ef;
+  color: #a3281d;
+}
+
+.finance-pending-details {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid #dce8ed;
+  background: #f8fbfc;
+}
+
+.finance-pending-meta,
+.finance-pending-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.finance-pending-meta,
+.finance-pending-value {
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.finance-pending-value strong {
+  color: #123748;
+  font-size: 14px;
+}
+
+.finance-pending-value.is-pending {
+  border-color: #e6c78b;
+  background: #fffdf7;
+}
+
+.finance-pending-value.is-pending strong {
+  color: #875b0d;
+}
+
+.finance-pending-remittances {
+  display: grid;
+  gap: 6px;
+}
+
+.finance-pending-remittances > strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-pending-remittance {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.6fr) minmax(110px, 0.7fr) repeat(3, minmax(125px, 0.9fr)) minmax(150px, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.finance-pending-remittance-wrap {
+  overflow: hidden;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.finance-pending-remittance-wrap .finance-pending-remittance {
+  border: 0;
+  border-radius: 0;
+}
+
+.finance-pending-remittance-wrap .finance-conciliation-maintenance,
+.finance-pending-remittance-wrap .finance-conciliation-maintenance-notice {
+  margin: 0 10px 10px;
+}
+
+.finance-pending-invoice {
+  grid-template-columns: minmax(75px, 0.45fr) minmax(95px, 0.6fr) repeat(4, minmax(105px, 0.75fr)) minmax(145px, 1fr) minmax(210px, auto);
+}
+
+.finance-pending-invoice.finance-pending-invoice--history {
+  grid-template-columns: minmax(65px, 0.45fr) minmax(80px, 0.55fr) repeat(4, minmax(88px, 0.65fr)) minmax(85px, 0.6fr) minmax(165px, 1.25fr) repeat(2, minmax(105px, 0.75fr)) minmax(130px, 0.9fr) 190px;
+  width: 100%;
+  min-width: 0;
+}
+
+.finance-pending-invoice.finance-pending-invoice--history > span {
+  align-self: start;
+}
+
+.finance-pending-remittance .finance-bank-data {
+  display: grid;
+  gap: 2px;
+  white-space: normal;
+}
+
+.finance-bank-data span,
+.finance-bank-data em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-bank-data em {
+  color: #123748;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.finance-previous-receipt-item {
+  width: 100%;
+  min-width: 0;
+  background: #f3f9fb;
+}
+
+.finance-previous-receipt-item + .finance-previous-receipt-item {
+  border-top: 1px solid #cfe1e8;
+}
+
+.finance-previous-receipt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.finance-previous-receipt-actions .btn {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.finance-previous-receipt-edit-form {
+  border-top-color: #cfe1e8;
+}
+
+.finance-pending-invoice-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.finance-pending-invoice-actions .btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.finance-receipt-toggle {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.finance-pending-receipt-form {
+  display: grid;
+  grid-template-columns: minmax(125px, 0.7fr) minmax(115px, 0.6fr) minmax(180px, 1.2fr) repeat(2, minmax(140px, 0.85fr)) minmax(180px, 1.2fr);
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #dce8ed;
+  background: #f8fbfc;
+}
+
+.finance-new-receipt-record {
+  border-top-color: #b9d8e2;
+  background: #f3f9fb;
+}
+
+.finance-new-receipt-heading {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  gap: 8px;
+  color: #123748;
+}
+
+.finance-new-receipt-heading strong {
+  font-size: 11px;
+}
+
+.finance-new-receipt-heading span {
+  color: #627987;
+  font-size: 10px;
+}
+
+.finance-pending-receipt-form label {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.finance-pending-receipt-form label > span {
+  color: #496777;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-pending-receipt-form input,
+.finance-pending-receipt-form select {
+  width: 100%;
+  min-height: 40px;
+  border-color: #cbdbe3;
+  border-radius: 6px;
+  color: #0b2f43;
+  font-size: 12px;
+}
+
+.finance-pending-launch-field {
+  grid-column: auto;
+}
+
+.finance-pending-receipt-submit {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.finance-pending-receipt-submit .finance-inline-error {
+  margin-right: auto;
+}
+
+@media (max-width: 900px) {
+  .finance-pending-summary {
+    grid-template-columns: 18px repeat(2, minmax(150px, 1fr));
+  }
+
+  .finance-pending-statuses {
+    grid-column: 2 / -1;
+  }
+
+  .finance-pending-meta,
+  .finance-pending-values,
+  .finance-pending-receipt-form {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .finance-pending-invoice {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
+  .finance-pending-invoice-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .finance-pending-summary,
+  .finance-pending-meta,
+  .finance-pending-values,
+  .finance-pending-remittance {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-pending-receipt-form {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-pending-launch-field,
+  .finance-pending-receipt-submit {
+    grid-column: auto;
+  }
+
+  .finance-pending-receipt-submit {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-pending-summary .finance-note-chevron {
+    display: none;
+  }
+
+  .finance-pending-statuses {
+    grid-column: auto;
+  }
+
+  .finance-pending-invoice-actions {
+    grid-column: auto;
+    justify-content: stretch;
+  }
+
+  .finance-pending-invoice-actions > .btn,
+  .finance-pending-invoice-actions .finance-inline-form,
+  .finance-pending-invoice-actions .finance-inline-form .btn {
+    flex: 1;
+  }
+
+}
+
+.finance-selected-context {
+  padding: 8px 12px;
+  background: #f8fbfc;
+}
+
+.finance-remittance-result:hover {
+  border-color: var(--primary);
+  background: #f5fbfc;
+}
+
+.finance-remittance-result b {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 20px;
+}
+
+.finance-selected-remittance {
+  overflow: hidden;
+  border: 1px solid #c9dfe6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.finance-selected-main {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.65fr) minmax(180px, 1.5fr) minmax(145px, 0.9fr) minmax(145px, 0.9fr) 32px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.finance-remove-remittance {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: #fbeeed;
+  color: #a3281d;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.finance-glosa-fields {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 50px;
+  padding: 9px 12px;
+  border-top: 1px solid #e3edf0;
+  background: #f8fbfc;
+}
+
+.finance-glosa-check {
+  display: flex !important;
+  grid-auto-flow: column;
+  align-items: center;
+}
+
+.finance-glosa-check input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary);
+}
+
+.finance-glosa-fields label:not(.finance-glosa-check) {
+  width: min(220px, 100%);
+}
+
+.finance-money-input {
+  text-align: right;
+}
+
+.finance-empty-remittance,
+.finance-inline-error {
+  margin: 0;
+  font-size: 11px;
+}
+
+.finance-empty-remittance {
+  padding: 18px;
+  border: 1px dashed #cbdbe3;
+  border-radius: 8px;
+  color: #71818d;
+  text-align: center;
+}
+
+.finance-inline-error {
+  color: #a3281d;
+  font-weight: 700;
+}
+
+.finance-reconciliation-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #dce8ed;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.finance-total-box {
+  min-width: 135px;
+  padding: 8px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.finance-total-box strong {
+  color: #123748;
+  font-size: 15px;
+}
+
+.finance-total-box.is-valid {
+  border-color: #8dc7ab;
+  background: #edf9f2;
+}
+
+.finance-total-box.is-invalid {
+  border-color: #dfaaa5;
+  background: #fff3f2;
+}
+
+.finance-total-operator {
+  color: #71818d;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.finance-submit-area {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.finance-submit-area p {
+  max-width: 470px;
+  text-align: right;
+}
+
+.finance-empty-state {
+  display: grid;
+  gap: 4px;
+  padding: 38px 20px;
+  color: #496777;
+  text-align: center;
+}
+
+.finance-empty-state strong {
+  color: #123748;
+  font-size: 15px;
+}
+
+.finance-empty-state span {
+  font-size: 12px;
+}
+
+/* Financeiro com a mesma linguagem visual da Triagem */
+.finance-reconciliation-page {
+  gap: 10px;
+  padding: 0 4px 20px 0;
+}
+
+.finance-search-bar.panel {
+  align-items: flex-end;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.finance-search-bar .filter-group {
+  gap: 3px;
+}
+
+.finance-search-bar .filter-group > span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.finance-search-bar .filter-actions {
+  padding-bottom: 0;
+}
+
+.finance-search-bar .btn,
+.finance-remittance-search .btn,
+.finance-submit-area .btn {
+  min-height: 42px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.finance-results-panel {
+  flex: none;
+  margin: 0;
+  padding: 12px;
+  overflow: visible;
+  border-radius: 8px;
+}
+
+.finance-results-panel .panel-header {
+  margin-bottom: 12px;
+}
+
+.finance-results-panel .finance-list-heading {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.finance-results-panel .finance-list-heading .panel-title {
+  color: #102f3f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.finance-results-toolbar {
+  min-height: 66px;
+}
+
+.finance-results-toolbar .result-total {
+  min-width: 145px;
+}
+
+.finance-results-panel .finance-note-list {
+  min-height: auto;
+  overflow: visible;
+  padding: 0 4px 0 0;
+}
+
+.finance-note-card {
+  margin-bottom: 8px;
+  border-color: #cfdde4;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(22, 79, 99, 0.08);
+}
+
+.finance-note-card.is-open {
+  border-color: #76aaba;
+  box-shadow: 0 8px 22px rgba(22, 79, 99, 0.14);
+}
+
+.finance-note-summary {
+  min-height: 52px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, #245f75 0%, #2b7187 100%);
+  color: #fff;
+}
+
+.finance-note-summary:hover {
+  background: linear-gradient(90deg, #286a82 0%, #327f96 100%);
+}
+
+.finance-note-summary small {
+  color: rgba(237, 248, 251, 0.72);
+  font-weight: 600;
+}
+
+.finance-note-summary strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finance-note-summary .finance-note-convenio strong {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.finance-note-chevron {
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+.finance-note-form {
+  gap: 10px;
+  padding: 12px;
+  border-top: 2px solid #234f64;
+  background: #edf4f7;
+}
+
+.finance-receipt-section,
+.finance-remittance-section {
+  gap: 10px;
+  padding: 12px;
+  border-color: #d3e1e7;
+  border-radius: 8px;
+  box-shadow: 0 2px 7px rgba(18, 55, 72, 0.04);
+}
+
+.finance-section-title {
+  min-height: 34px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0eaee;
+}
+
+.finance-section-title strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finance-search-bar input,
+.finance-form-grid input,
+.finance-bank-grid input,
+.finance-bank-grid select,
+.finance-remittance-search input,
+.finance-glosa-fields .finance-money-input {
+  min-height: 42px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.finance-search-bar input:focus,
+.finance-form-grid input:focus,
+.finance-bank-grid input:focus,
+.finance-bank-grid select:focus,
+.finance-remittance-search input:focus,
+.finance-glosa-fields .finance-money-input:focus {
+  border-color: #6da5b7;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(31, 111, 134, 0.12);
+}
+
+.finance-remittance-results {
+  max-height: 260px;
+  padding: 8px;
+  border-color: #cfdfe6;
+  border-radius: 8px;
+  background: #f4f8fa;
+}
+
+.finance-remittance-result {
+  min-height: 52px;
+  border-color: #c9dce4;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #fff 0%, #f8fbfc 100%);
+}
+
+.finance-remittance-result:hover {
+  border-color: #7fb0c0;
+  background: #eef8fb;
+}
+
+.finance-remittance-result b {
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(22, 79, 99, 0.2);
+}
+
+.finance-selected-remittance {
+  border-color: #b9d3dd;
+  box-shadow: 0 3px 9px rgba(18, 55, 72, 0.06);
+}
+
+.finance-selected-main {
+  min-height: 48px;
+  background: #f7fbfc;
+}
+
+.finance-glosa-fields {
+  min-height: 48px;
+  background: #fff;
+}
+
+.finance-reconciliation-footer {
+  border-color: #d3e1e7;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.finance-total-box {
+  min-width: 145px;
+  min-height: 52px;
+  border-color: #cfe1e8;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 4px 0 0 #8ab5c3;
+}
+
+.finance-total-box:nth-of-type(2) {
+  border-color: #efcf9b;
+  background: #fff8ed;
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.finance-total-box.is-invalid {
+  box-shadow: inset 4px 0 0 #b94a3f;
+}
+
+.finance-total-box.is-valid {
+  box-shadow: inset 4px 0 0 #2f8a5f;
+}
+
+/* Financeiro · fluxo Faturamento X Fiscal centrado na remessa */
+.finance-remittance-summary {
+  grid-template-columns: 18px minmax(105px, .7fr) minmax(120px, .85fr) minmax(190px, 1.4fr) repeat(3, minmax(125px, .9fr));
+}
+
+.finance-process-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(480px, 2fr);
+  align-items: end;
+  gap: 14px;
+}
+
+.finance-process-grid > label,
+.finance-nfse-allocation-grid > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.finance-process-grid label > span,
+.finance-nfse-allocation-grid label > span {
+  color: #496777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.finance-process-grid input,
+.finance-nfse-allocation-grid input {
+  min-height: 42px;
+  border-color: #cbdbe3;
+  border-radius: 6px;
+  color: #123748;
+}
+
+.finance-process-grid input[readonly] {
+  background: #edf4f7;
+  font-weight: 700;
+}
+
+.finance-process-position {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(135px, 1fr));
+  gap: 8px;
+}
+
+.finance-process-position > span {
+  display: grid;
+  gap: 3px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid #cfe1e8;
+  border-radius: 6px;
+  background: #f8fbfc;
+}
+
+.finance-process-position small,
+.finance-history-row small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.finance-process-position strong,
+.finance-history-row strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-history-list {
+  display: grid;
+  gap: 7px;
+}
+
+.finance-history-row {
+  display: grid;
+  grid-template-columns: minmax(90px, .7fr) minmax(110px, .8fr) repeat(2, minmax(125px, .9fr)) repeat(2, minmax(110px, .8fr));
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d7e5ea;
+  border-radius: 7px;
+  background: #f8fbfc;
+}
+
+.finance-history-row > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.finance-nfse-result {
+  grid-template-columns: minmax(90px, .65fr) minmax(120px, .8fr) minmax(145px, .9fr) minmax(145px, .9fr) 30px;
+}
+
+.finance-selected-nfse .finance-selected-main {
+  grid-template-columns: minmax(90px, .65fr) minmax(120px, .8fr) repeat(2, minmax(145px, .9fr)) 32px;
+}
+
+.finance-nfse-allocation-grid {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) max-content minmax(190px, 1fr) minmax(190px, 1fr) minmax(190px, 1fr);
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e3edf0;
+  background: #fff;
+}
+
+.finance-glosa-toggle {
+  align-self: center;
+  min-height: 42px;
+  padding: 0 8px;
+  border: 1px solid #d7e5ea;
+  border-radius: 6px;
+  background: #f8fbfc;
+}
+
+.finance-selected-nfse .finance-bank-grid {
+  padding: 12px;
+  background: #f8fbfc;
+}
+
+.finance-reconciliation-footer .finance-submit-area {
+  margin-left: auto;
+}
+
+@media (max-width: 1100px) {
+  .finance-note-summary {
+    grid-template-columns: 18px repeat(2, minmax(100px, 1fr));
+  }
+
+  .finance-note-convenio {
+    grid-column: span 2;
+  }
+
+  .finance-form-grid,
+  .finance-bank-grid,
+  .finance-process-grid,
+  .finance-nfse-allocation-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .finance-history-row,
+  .finance-remittance-summary {
+    grid-template-columns: 18px repeat(3, minmax(120px, 1fr));
+  }
+
+  .finance-bank-launch-field {
+    grid-column: span 2;
+  }
+
+  .finance-reconciliation-footer {
+    flex-wrap: wrap;
+  }
+
+  .finance-submit-area {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .finance-search-bar,
+  .finance-list-heading,
+  .finance-section-title,
+  .finance-reconciliation-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-note-summary,
+  .finance-form-grid,
+  .finance-bank-grid,
+  .finance-remittance-result,
+  .finance-selected-main,
+  .finance-remittance-search,
+  .finance-process-grid,
+  .finance-process-position,
+  .finance-history-row,
+  .finance-nfse-allocation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-note-chevron {
+    display: none;
+  }
+
+  .finance-note-convenio,
+  .finance-bank-launch-field {
+    grid-column: auto;
+  }
+
+  .finance-remittance-result b,
+  .finance-remove-remittance {
+    justify-self: end;
+  }
+
+  .finance-remittance-result > .finance-remittance-context,
+  .finance-remittance-result > b {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .finance-total-operator {
+    display: none;
+  }
+
+  .finance-total-box {
+    width: 100%;
+  }
 }
 
 @media (max-width: 900px) {
@@ -6004,5 +7784,2333 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
   .geral-funnel-band em {
     font-size: 10px;
+  }
+}
+
+/* Financeiro · manutenção e histórico de conciliações */
+.finance-conciliation-maintenance {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid #cbdde4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.finance-conciliation-maintenance-actions,
+.finance-conciliation-maintenance-actions > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finance-conciliation-maintenance-actions {
+  justify-content: space-between;
+}
+
+.finance-conciliation-maintenance-actions > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-conciliation-maintenance-actions strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-conciliation-maintenance-actions span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.finance-inline-form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.finance-conciliation-maintenance-notice {
+  padding: 10px 12px;
+  border: 1px solid #e6c78b;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #79500a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.finance-danger-button {
+  border: 1px solid #e3a29a;
+  background: #fff1ef;
+  color: #a3281d;
+  font-weight: 700;
+}
+
+.finance-danger-button:hover {
+  border-color: #c94a3b;
+  background: #c94a3b;
+  color: #fff;
+}
+
+.finance-conciliation-edit-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.7fr) max-content;
+  align-items: end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0eaee;
+}
+
+.finance-conciliation-edit-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.finance-conciliation-edit-form label > span {
+  color: #496777;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-conciliation-edit-values {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #f8fbfc;
+}
+
+.finance-conciliation-edit-values > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-conciliation-edit-values > div:first-child strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-conciliation-edit-values > div:first-child span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.finance-conciliation-edit-remittance {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.35fr) repeat(2, minmax(180px, 1fr));
+  align-items: end;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbdbe3;
+}
+
+.finance-conciliation-edit-code {
+  display: grid;
+  gap: 3px;
+  min-height: 40px;
+  align-content: center;
+}
+
+.finance-conciliation-edit-code small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.finance-conciliation-edit-code strong {
+  color: #123748;
+  font-size: 12px;
+}
+
+.finance-history-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(180px, 0.8fr) max-content max-content;
+  align-items: end;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.finance-history-filters .filter-group {
+  display: grid;
+  gap: 4px;
+}
+
+.finance-history-filters .filter-group > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.finance-history-filters input,
+.finance-history-filters select {
+  min-height: 42px;
+  border-color: #cbdbe3;
+  border-radius: 6px;
+}
+
+.finance-history-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #cbdbe3;
+  border-radius: 6px;
+  color: #496777;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.finance-history-check input {
+  min-height: auto;
+}
+
+.finance-history-totals {
+  flex-wrap: wrap;
+}
+
+.finance-history-list,
+.finance-history-receipts {
+  display: grid;
+  gap: 9px;
+}
+
+.finance-history-card {
+  overflow: hidden;
+  border: 1px solid #cfdde4;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(22, 79, 99, 0.07);
+}
+
+.finance-history-card.is-open {
+  border-color: #76aaba;
+  box-shadow: 0 8px 22px rgba(22, 79, 99, 0.13);
+}
+
+.finance-history-card.is-inactive {
+  border-color: #d7dfe2;
+}
+
+.finance-history-summary {
+  display: grid;
+  grid-template-columns: 18px minmax(90px, 0.5fr) minmax(190px, 1.3fr) minmax(160px, 1fr) minmax(130px, 0.7fr) minmax(105px, 0.5fr) minmax(190px, 0.8fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 14px;
+  border: 0;
+  background: linear-gradient(90deg, #245f75 0%, #2b7187 100%);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.finance-history-card.is-inactive .finance-history-summary {
+  background: linear-gradient(90deg, #5c6d75 0%, #73848b 100%);
+}
+
+.finance-history-summary > span:not(.finance-note-chevron) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.finance-history-summary small {
+  color: rgba(237, 248, 251, 0.72);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-history-summary strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-history-statuses {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 5px !important;
+}
+
+.finance-history-status {
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-history-status.is-pending {
+  border-color: #f1ce87;
+  background: #fff5dc;
+  color: #79500a;
+}
+
+.finance-history-status.is-received {
+  border-color: #a9dbc6;
+  background: #e8f8f1;
+  color: #176244;
+}
+
+.finance-history-status.is-inactive {
+  border-color: #f1bab4;
+  background: #fff1ef;
+  color: #9b3025;
+}
+
+.finance-history-details {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 2px solid #234f64;
+  background: #edf4f7;
+}
+
+.finance-history-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d3e1e7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.finance-history-note-list,
+.finance-history-note,
+.finance-history-note-receipts {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-history-note {
+  padding: 10px;
+  border: 1px solid #d3e1e7;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.finance-history-note.is-inactive {
+  border-color: #e2c9c6;
+  background: #fff9f8;
+}
+
+.finance-history-note-receipts {
+  padding-top: 9px;
+  border-top: 1px solid #dce8ed;
+}
+
+.finance-history-note-receipts > strong {
+  color: #244b5d;
+  font-size: 11px;
+}
+
+.finance-history-section-title {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0eaee;
+}
+
+.finance-history-section-title > div {
+  display: grid;
+  gap: 2px;
+}
+
+.finance-history-section-title strong {
+  color: #123748;
+  font-size: 13px;
+}
+
+.finance-history-section-title span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.finance-history-data-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.finance-history-note-grid {
+  grid-template-columns: minmax(75px, 0.5fr) repeat(4, minmax(100px, 0.75fr)) minmax(90px, 0.65fr) minmax(115px, 0.85fr) minmax(115px, 0.85fr) minmax(145px, 1.1fr) minmax(135px, 1fr);
+}
+
+.finance-history-receipt-grid {
+  grid-template-columns: minmax(85px, 0.55fr) minmax(95px, 0.65fr) minmax(190px, 1.4fr) repeat(2, minmax(115px, 0.8fr)) minmax(135px, 0.9fr) minmax(140px, 1fr);
+}
+
+.finance-history-note-inactivation {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #8c3c33;
+  font-size: 10px;
+}
+
+.finance-history-note-inactivation small {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-history-note-inactivation em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.finance-history-data-grid > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 7px;
+  background: #f9fbfc;
+}
+
+.finance-history-data-grid small {
+  color: #71818d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.finance-history-data-grid strong {
+  overflow-wrap: anywhere;
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-history-data-grid em {
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.finance-history-table-wrap {
+  overflow-x: auto;
+}
+
+.finance-history-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-history-table th,
+.finance-history-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e0eaee;
+  text-align: left;
+}
+
+.finance-history-table th {
+  color: #71818d;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.finance-history-audit {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finance-history-event {
+  --history-event-color: #26788d;
+  --history-event-border: #b8d8e1;
+  --history-event-background: #f5fbfc;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  position: relative;
+  min-height: 64px;
+}
+
+.finance-history-event.is-created {
+  --history-event-color: #16845b;
+  --history-event-border: #a9ddc8;
+  --history-event-background: #f2fbf7;
+}
+
+.finance-history-event.is-updated {
+  --history-event-color: #bd7200;
+  --history-event-border: #edcb91;
+  --history-event-background: #fffaf0;
+}
+
+.finance-history-event.is-deleted {
+  --history-event-color: #c13f33;
+  --history-event-border: #edb2ac;
+  --history-event-background: #fff5f3;
+}
+
+.finance-history-event.is-received {
+  --history-event-color: #5b50ad;
+  --history-event-border: #c9c4ec;
+  --history-event-background: #f7f6ff;
+}
+
+.finance-history-event-rail {
+  position: relative;
+  min-height: 100%;
+}
+
+.finance-history-event-rail::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--history-event-color);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.finance-history-event:first-child .finance-history-event-rail::before {
+  top: 22px;
+}
+
+.finance-history-event:last-child .finance-history-event-rail::before {
+  bottom: calc(100% - 23px);
+}
+
+.finance-history-event-node {
+  display: grid;
+  position: absolute;
+  z-index: 1;
+  top: 13px;
+  left: 50%;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--history-event-color);
+  box-shadow: 0 0 0 2px var(--history-event-border);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.finance-history-event-card {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0 7px;
+  padding: 10px 12px;
+  border: 1px solid var(--history-event-border);
+  border-left: 4px solid var(--history-event-color);
+  border-radius: 8px;
+  background: var(--history-event-background);
+}
+
+.finance-history-event-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.finance-history-event-card strong {
+  color: #123748;
+  font-size: 11px;
+}
+
+.finance-history-event-kind {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--history-event-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--history-event-color);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.finance-history-event-meta,
+.finance-history-empty {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.finance-history-event-context {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.65fr) minmax(14rem, 1.35fr) minmax(8rem, 0.7fr) minmax(10rem, 0.9fr);
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.finance-history-event-context > span {
+  display: grid;
+  gap: 0.12rem;
+  align-content: start;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d8e6ec;
+  border-radius: 0.45rem;
+  background: rgb(255 255 255 / 68%);
+}
+
+.finance-history-event-context small {
+  color: #6a7e89;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+}
+
+.finance-history-event-context strong {
+  color: #123748;
+  font-size: 0.72rem;
+}
+
+.finance-history-event-context em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-history-lineage {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  padding: 0.15rem 0.42rem;
+  border: 1px solid #b9d9e4;
+  border-radius: 999px;
+  color: #386273;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.finance-history-changes {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0;
+}
+
+.finance-history-changes-title {
+  margin-top: 0.55rem;
+  color: #466172;
+  font-size: 0.68rem;
+}
+
+.finance-history-changes-empty {
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.finance-history-changes > div {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.75fr) minmax(18rem, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d8e6ec;
+  border-radius: 0.45rem;
+  background: #f7fbfc;
+}
+
+.finance-history-changes dt {
+  color: #466172;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.finance-history-changes dd {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.finance-history-changes del {
+  color: #8a4b4b;
+}
+
+.finance-history-changes ins {
+  color: #145d6f;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.finance-history-empty {
+  padding: 14px;
+  border: 1px dashed #cbdbe3;
+  border-radius: 7px;
+  text-align: center;
+}
+
+@media (max-width: 1450px) {
+  .finance-history-filters {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .finance-history-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .finance-history-summary {
+    grid-template-columns: 18px repeat(2, minmax(150px, 1fr));
+  }
+
+  .finance-history-statuses {
+    grid-column: 2 / -1;
+  }
+
+  .finance-history-data-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .finance-history-event-context {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .finance-conciliation-maintenance-actions,
+  .finance-conciliation-maintenance-actions > div,
+  .finance-conciliation-edit-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-conciliation-edit-form,
+  .finance-conciliation-edit-remittance,
+  .finance-history-filters,
+  .finance-history-summary,
+  .finance-history-data-grid,
+  .finance-history-event-context,
+  .finance-history-changes > div {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-history-changes dd {
+    flex-wrap: wrap;
+  }
+
+  .finance-history-event-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .finance-history-summary .finance-note-chevron {
+    display: none;
+  }
+
+  .finance-history-statuses {
+    grid-column: auto;
+  }
+}
+
+/* Requisição · Solicitar Nota */
+.note-request-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.note-request-card {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #c9dde6;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 0.45rem 1.4rem rgb(23 85 105 / 8%);
+}
+
+.note-request-head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem 1.3rem;
+  border-bottom: 1px solid #cfe0e7;
+  background:
+    linear-gradient(115deg, rgb(232 246 250 / 94%), rgb(255 255 255 / 98%));
+}
+
+.note-request-head h2,
+.note-request-head p {
+  margin: 0;
+}
+
+.note-request-head h2 {
+  color: #102f40;
+  font-size: 1.05rem;
+}
+
+.note-request-head p {
+  margin-top: 0.25rem;
+  color: #647b88;
+  font-size: 0.78rem;
+}
+
+.note-request-kicker {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: #14748c;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.note-request-step {
+  padding: 0.36rem 0.68rem;
+  border: 1px solid #a8d2de;
+  border-radius: 999px;
+  background: #f2fbfd;
+  color: #176b80;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.note-request-form {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.note-request-form-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.note-request-section {
+  padding: 1.1rem 1.3rem;
+  border-bottom: 1px solid #dce8ed;
+}
+
+.note-request-section-title {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.note-request-section-title > span {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #176f85;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.note-request-section-title > div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.note-request-section-title strong {
+  color: #153849;
+  font-size: 0.84rem;
+}
+
+.note-request-section-title small {
+  color: #6b808b;
+  font-size: 0.68rem;
+}
+
+.note-request-lookup {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.42fr) max-content;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.note-request-lookup label,
+.note-request-patient-grid label,
+.note-request-data-grid label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.note-request-lookup label > span,
+.note-request-patient-grid label > span,
+.note-request-data-grid label > span {
+  color: #526b78;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.note-request-lookup input,
+.note-request-patient-grid input,
+.note-request-data-grid input,
+.note-request-data-grid select,
+.note-request-data-grid textarea {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid #c9dce5;
+  border-radius: 0.45rem;
+  outline: none;
+  background: #fff;
+  color: #123345;
+  font: inherit;
+  font-size: 0.8rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.note-request-lookup input:focus,
+.note-request-data-grid select:focus,
+.note-request-data-grid textarea:focus {
+  border-color: #2486a0;
+  box-shadow: 0 0 0 0.18rem rgb(36 134 160 / 15%);
+}
+
+.note-request-patient-grid input[readonly],
+.note-request-data-grid input[readonly] {
+  overflow: hidden;
+  background: #f4f8fa;
+  color: #173c4d;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.note-request-search {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
+  padding: 0.62rem 0.85rem;
+  border: 1px solid #176f85;
+  border-radius: 0.45rem;
+  background: #176f85;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.note-request-search svg {
+  width: 1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+}
+
+.note-request-search:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.note-request-status {
+  min-height: 1rem;
+  margin: 0.48rem 0 0;
+  color: #6b808b;
+  font-size: 0.68rem;
+}
+
+.note-request-status.is-success {
+  color: #16704f;
+  font-weight: 700;
+}
+
+.note-request-status.is-error {
+  color: #b13c35;
+  font-weight: 700;
+}
+
+.note-request-status.is-loading {
+  color: #176f85;
+}
+
+.note-request-patient-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.72rem;
+}
+
+.note-request-patient-grid .is-wide,
+.note-request-patient-grid .is-address {
+  grid-column: span 2;
+}
+
+.note-request-data-grid {
+  display: grid;
+  grid-template-columns: minmax(14rem, 26rem) minmax(16rem, 1fr);
+  gap: 0.72rem;
+  align-items: start;
+}
+
+.note-request-attendance-items {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.note-request-attendance-count {
+  justify-self: end;
+  padding: 0.26rem 0.48rem;
+  border: 1px solid #bad8e3;
+  border-radius: 999px;
+  background: #eef8fb;
+  color: #176b81;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.note-request-attendance-count[hidden] {
+  display: none;
+}
+
+.note-request-existing-section {
+  border-bottom-color: #efd49c;
+  background: #fffaf0;
+}
+
+.note-request-existing-section[hidden] {
+  display: none;
+}
+
+.note-request-section-title--warning > span {
+  background: #b56c11;
+}
+
+.note-request-existing-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.note-request-existing-item {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid #e4c481;
+  border-left: 0.28rem solid #c4821d;
+  border-radius: 0.48rem;
+  background: #fff;
+}
+
+.note-request-existing-item > div,
+.workflow-previous-request > div {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.note-request-existing-item dl,
+.workflow-previous-request dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.note-request-existing-item dl > div,
+.workflow-previous-request dl > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.note-request-existing-item dt,
+.workflow-previous-request dt {
+  color: #7a6a4b;
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.note-request-existing-item dd,
+.workflow-previous-request dd,
+.note-request-existing-item p,
+.workflow-previous-request p {
+  margin: 0;
+  color: #3f3a31;
+  font-size: 0.67rem;
+  overflow-wrap: anywhere;
+}
+
+.note-request-existing-status,
+.workflow-previous-request-status {
+  padding: 0.24rem 0.44rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 0.55rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.note-request-existing-status--validada,
+.note-request-existing-status--emitida,
+.workflow-previous-request-status--validada,
+.workflow-previous-request-status--emitida {
+  color: #17704e;
+  background: #eaf9f1;
+}
+
+.note-request-existing-status--recusada,
+.note-request-existing-status--erro,
+.workflow-previous-request-status--recusada,
+.workflow-previous-request-status--erro {
+  color: #a33127;
+  background: #fff1ef;
+}
+
+.note-request-existing-status--emissao,
+.workflow-previous-request-status--emissao {
+  color: #185f83;
+  background: #edf7fd;
+}
+
+.note-request-existing-status--pendente,
+.note-request-existing-status--inativo,
+.workflow-previous-request-status--pendente,
+.workflow-previous-request-status--inativo {
+  color: #8a5b16;
+  background: #fff7e7;
+}
+
+.note-request-data-grid .is-wide {
+  grid-column: 1 / -1;
+}
+
+.note-request-data-grid textarea {
+  min-height: 5.2rem;
+  resize: vertical;
+}
+
+.note-request-actions {
+  position: static;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 1.3rem;
+  border: 0;
+  border-top: 1px solid #c9dde6;
+  border-radius: 0;
+  background: rgb(247 250 251 / 96%);
+  box-shadow: 0 -0.3rem 0.9rem rgb(18 68 86 / 10%);
+  backdrop-filter: blur(0.35rem);
+}
+
+.note-request-actions a,
+.note-request-actions button {
+  min-height: 2.45rem;
+  padding: 0.62rem 0.95rem;
+  border-radius: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.note-request-actions a {
+  border: 1px solid #aebfc7;
+  background: #fff;
+  color: #526b78;
+}
+
+.note-request-actions button {
+  border: 1px solid #176f85;
+  background: #176f85;
+  color: #fff;
+}
+
+.note-request-actions button:disabled {
+  border-color: #b8c8cf;
+  background: #dce5e9;
+  color: #7a8d96;
+  cursor: not-allowed;
+}
+
+.note-request-results {
+  overflow: hidden;
+}
+
+.note-request-list-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
+.note-request-list-page > .panel {
+  margin-bottom: 0;
+}
+
+.note-request-list-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(8rem, 0.65fr) minmax(13rem, 1.35fr)
+    minmax(12rem, 1.15fr) minmax(10rem, 0.85fr)
+    minmax(11rem, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.note-request-list-filters .filter-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.note-request-status-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.note-request-status-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.16rem 0.65rem;
+  padding: 0.72rem 0.78rem;
+  border: 1px solid #cbdde5;
+  border-top: 0.24rem solid #65a9ba;
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 0.18rem 0.55rem rgb(22 88 108 / 6%);
+}
+
+.note-request-status-card > span {
+  align-self: center;
+  color: #4f6976;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.note-request-status-card > strong {
+  grid-row: span 2;
+  align-self: center;
+  color: #163b4c;
+  font-size: 1.35rem;
+}
+
+.note-request-status-card > small {
+  color: #718691;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.note-request-status-card > b {
+  grid-column: 1 / -1;
+  color: #153c4e;
+  font-size: 0.78rem;
+}
+
+.note-request-status-card--pendente {
+  border-top-color: #d6a536;
+}
+
+.note-request-status-card--validada,
+.note-request-status-card--emitida {
+  border-top-color: #2d9a6d;
+}
+
+.note-request-status-card--emissao {
+  border-top-color: #3d88b3;
+}
+
+.note-request-status-card--recusada,
+.note-request-status-card--erro {
+  border-top-color: #c95a50;
+}
+
+.note-request-results-toolbar {
+  justify-content: space-between;
+}
+
+.note-request-results-total {
+  display: grid;
+  min-width: 7rem;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid #c7dce5;
+  border-left: 0.28rem solid #65a9ba;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.note-request-results-total span {
+  color: #607985;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.note-request-results-total strong {
+  color: #123849;
+  font-size: 0.92rem;
+}
+
+.note-request-records {
+  display: block;
+  padding: 0.72rem;
+  overflow-x: auto;
+}
+
+.note-request-record + .note-request-record {
+  margin-top: 0.62rem;
+}
+
+.note-request-record {
+  min-width: 65rem;
+  overflow: hidden;
+  border: 1px solid #c9dde6;
+  border-radius: 0.62rem;
+  background: #fff;
+}
+
+.note-request-record-header {
+  display: grid;
+  width: 100%;
+  grid-template-columns:
+    1.1rem minmax(6.8rem, 0.7fr) minmax(14rem, 1.6fr)
+    minmax(8rem, 1fr) minmax(6rem, 0.75fr)
+    minmax(7rem, 0.75fr) minmax(8rem, 0.9fr)
+    minmax(9.5rem, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.78rem 0.88rem;
+  border: 0;
+  background: #2b7184;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-request-record-header > span:not(
+  .note-request-record-chevron,
+  .note-request-record-status
+),
+.note-request-record-details > span {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.note-request-record-header small {
+  color: rgb(255 255 255 / 72%);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.note-request-record-header strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-request-record-status {
+  justify-self: end;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.note-request-record-status--pendente {
+  border-color: #f3d692;
+  background: #fff7df;
+  color: #78530a;
+}
+
+.note-request-record-status--validada,
+.note-request-record-status--emitida {
+  border-color: #a9e0c6;
+  background: #eaf9f1;
+  color: #176c4b;
+}
+
+.note-request-record-status--emissao {
+  border-color: #b9d9ef;
+  background: #edf7fd;
+  color: #185f83;
+}
+
+.note-request-record-status--recusada,
+.note-request-record-status--erro {
+  border-color: #ffb9b0;
+  background: #fff1ef;
+  color: #a33127;
+}
+
+.note-request-record-chevron {
+  display: inline-block;
+  color: #d8edf3;
+  font-size: 0.65rem;
+  transition: transform 0.16s ease;
+}
+
+.note-request-record-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.note-request-record-body {
+  display: grid;
+  gap: 0.72rem;
+  padding: 0.78rem;
+  background: #f5fafc;
+}
+
+.note-request-record-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+  gap: 0.62rem;
+}
+
+.note-request-detail-group {
+  overflow: hidden;
+  border: 1px solid #d4e3e9;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.note-request-detail-group--nfse {
+  border-color: #a9d9c2;
+  background: #f5fcf8;
+}
+
+.note-request-detail-group h3 {
+  padding: 0.52rem 0.65rem;
+  margin: 0;
+  border-bottom: 1px solid #dce8ed;
+  background: #edf5f8;
+  color: #1a5367;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.note-request-detail-group--nfse h3 {
+  border-bottom-color: #cbe7d8;
+  background: #e8f7ef;
+  color: #176c4b;
+}
+
+.note-request-detail-group > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.62rem;
+}
+
+.note-request-detail-group > div > span {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+  min-height: 3.15rem;
+  padding: 0.5rem 0.58rem;
+  border: 1px solid #e0eaee;
+  border-radius: 0.38rem;
+  background: #fff;
+}
+
+.note-request-detail-group > div > span.is-wide {
+  grid-column: 1 / -1;
+}
+
+.note-request-detail-group small,
+.note-request-edit-form label > span {
+  color: #647b87;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.note-request-detail-group strong {
+  color: #14394a;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.note-request-edit-form {
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.8fr) minmax(11rem, 0.8fr);
+  gap: 0.65rem;
+  padding: 0.72rem;
+  border: 1px solid #b9d8e2;
+  border-radius: 0.5rem;
+  background: #eef8fb;
+}
+
+.note-request-edit-form label {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+}
+
+.note-request-edit-form label.is-wide,
+.note-request-edit-actions {
+  grid-column: 1 / -1;
+}
+
+.note-request-edit-form select,
+.note-request-edit-form input,
+.note-request-edit-form textarea {
+  width: 100%;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid #c6dce5;
+  border-radius: 0.42rem;
+  background: #fff;
+  color: #14394a;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.note-request-edit-form textarea {
+  resize: vertical;
+}
+
+.note-request-edit-actions,
+.note-request-record-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.note-request-record-actions {
+  padding-top: 0.68rem;
+  border-top: 1px solid #d7e5ea;
+}
+
+.note-request-record-actions form {
+  margin: 0;
+}
+
+/* Requisição · workflow e emissão de NFS-e */
+.workflow-request-panel {
+  overflow: hidden;
+}
+
+.workflow-emission-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
+.workflow-emission-page > .panel {
+  margin-bottom: 0;
+}
+
+.workflow-request-toolbar {
+  justify-content: space-between;
+}
+
+.workflow-request-list {
+  display: block;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.workflow-request-card + .workflow-request-card {
+  margin-top: 0.65rem;
+}
+
+.workflow-request-card {
+  min-width: 72rem;
+  overflow: hidden;
+  border: 1px solid #c7dce5;
+  border-radius: 0.62rem;
+  background: #fff;
+  box-shadow: 0 0.2rem 0.6rem rgb(22 88 108 / 6%);
+}
+
+.workflow-request-header {
+  display: grid;
+  grid-template-columns:
+    1.1rem minmax(6rem, 0.65fr) minmax(13rem, 1.5fr)
+    minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
+    minmax(6.5rem, 0.7fr) minmax(7rem, 0.75fr)
+    minmax(9rem, 0.9fr) minmax(8rem, auto);
+  gap: 0.72rem;
+  align-items: center;
+  padding: 0.78rem 0.88rem;
+  background: #2b7184;
+  color: #fff;
+  cursor: pointer;
+}
+
+.workflow-request-card--emissao .workflow-request-header {
+  grid-template-columns:
+    1.4rem 1.1rem minmax(6rem, 0.65fr) minmax(12rem, 1.5fr)
+    minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
+    minmax(6.5rem, 0.7fr) minmax(7rem, 0.75fr)
+    minmax(9rem, 0.9fr) minmax(6.5rem, auto);
+}
+
+.workflow-request-header > span:not(.workflow-request-chevron, .workflow-request-status) {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.workflow-request-header small,
+.workflow-request-details small,
+.workflow-refusal-summary small,
+.workflow-refusal-form label > span {
+  color: #607985;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.workflow-request-header small {
+  color: rgb(255 255 255 / 72%);
+}
+
+.workflow-request-header strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-request-chevron {
+  color: #d8edf3;
+  font-size: 0.65rem;
+  transition: transform 0.16s ease;
+}
+
+.workflow-request-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.workflow-request-selector {
+  display: grid;
+  margin: 0;
+  place-items: center;
+}
+
+.workflow-request-selector input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+.workflow-request-status {
+  display: inline-flex;
+  gap: 0.32rem;
+  align-items: center;
+  justify-self: end;
+  padding: 0.28rem 0.48rem;
+  border: 1px solid rgb(255 255 255 / 50%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 13%);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.workflow-emission-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  animation: workflow-emission-spin 1.05s linear infinite;
+}
+
+@keyframes workflow-emission-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.workflow-request-status--recusa {
+  border-color: #ffb9b0;
+  background: #fff1ef;
+  color: #a33127;
+}
+
+.workflow-request-status--inativo {
+  border-color: #c8d0d5;
+  background: #f0f3f5;
+  color: #52636c;
+}
+
+.workflow-request-status--emissao {
+  border-color: #b9d9ef;
+  background: #edf7fd;
+  color: #185f83;
+}
+
+.workflow-request-status--validada,
+.workflow-request-status--emitida {
+  border-color: #a9e0c6;
+  background: #eaf9f1;
+  color: #176c4b;
+}
+
+.workflow-request-status--erro {
+  border-color: #ffb9b0;
+  background: #fff1ef;
+  color: #a33127;
+}
+
+.workflow-request-body {
+  display: grid;
+  gap: 0.72rem;
+  padding: 0.78rem;
+  background: #f5fafc;
+}
+
+.workflow-detail-sections {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.workflow-detail-section {
+  display: grid;
+  gap: 0.48rem;
+  padding: 0.65rem;
+  border: 1px solid #d4e3e9;
+  border-radius: 0.5rem;
+  background: #f8fbfc;
+}
+
+.workflow-detail-section h3 {
+  margin: 0;
+  color: #315764;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.workflow-detail-section--issuer {
+  border-color: #b8d8e3;
+  background: #edf8fb;
+}
+
+.workflow-request-details {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.62rem;
+}
+
+.workflow-request-details > span,
+.workflow-refusal-summary > span {
+  display: grid;
+  gap: 0.18rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid #d4e3e9;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.workflow-request-details > span.is-wide {
+  grid-column: span 3;
+}
+
+.workflow-request-details strong,
+.workflow-refusal-summary strong {
+  color: #14394a;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.workflow-attendance-items {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.72rem;
+  border: 1px solid #c9dde6;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.workflow-attendance-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.workflow-attendance-items-heading h3 {
+  margin: 0;
+  color: #12394a;
+  font-size: 0.76rem;
+}
+
+.workflow-attendance-items-heading p {
+  margin: 0.16rem 0 0;
+  color: #617985;
+  font-size: 0.62rem;
+}
+
+.workflow-attendance-items-heading > span {
+  flex-shrink: 0;
+  padding: 0.26rem 0.48rem;
+  border: 1px solid #bad8e3;
+  border-radius: 999px;
+  background: #eef8fb;
+  color: #176b81;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.workflow-attendance-items-table {
+  overflow-x: auto;
+  border: 1px solid #d5e4ea;
+  border-radius: 0.42rem;
+}
+
+.workflow-attendance-items-table table {
+  width: 100%;
+  min-width: 65rem;
+  border-collapse: collapse;
+}
+
+.workflow-attendance-items-table th,
+.workflow-attendance-items-table td {
+  padding: 0.52rem 0.58rem;
+  border-bottom: 1px solid #dce8ed;
+  color: #294b59;
+  font-size: 0.63rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.workflow-attendance-items-table th {
+  background: #edf6f9;
+  color: #55717d;
+  font-size: 0.55rem;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.workflow-attendance-items-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.workflow-attendance-items-table tfoot td {
+  border-top: 2px solid #bad3dd;
+  border-bottom: 0;
+  background: #e7f3f7;
+  color: #12394a;
+}
+
+.workflow-attendance-total-row td:first-child {
+  text-align: left;
+}
+
+.workflow-attendance-items-table td strong {
+  color: #14394a;
+  font-size: inherit;
+}
+
+.workflow-attendance-items-empty {
+  margin: 0;
+  padding: 0.62rem;
+  border: 1px dashed #cadde5;
+  border-radius: 0.4rem;
+  background: #f7fbfc;
+  color: #617985;
+  font-size: 0.65rem;
+}
+
+.workflow-previous-requests {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.72rem;
+  border: 1px solid #e2be73;
+  border-left: 0.3rem solid #b86f13;
+  border-radius: 0.5rem;
+  background: #fff8e9;
+}
+
+.workflow-previous-requests-heading {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workflow-previous-requests-heading > div {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.workflow-previous-requests-heading strong {
+  color: #6e4510;
+  font-size: 0.76rem;
+}
+
+.workflow-previous-requests-heading small {
+  color: #826a49;
+  font-size: 0.62rem;
+}
+
+.workflow-previous-requests-heading > span {
+  padding: 0.25rem 0.46rem;
+  border: 1px solid #d5ad61;
+  border-radius: 999px;
+  background: #fff;
+  color: #805115;
+  font-size: 0.56rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.workflow-previous-requests-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.workflow-previous-request {
+  display: grid;
+  gap: 0.48rem;
+  padding: 0.62rem;
+  border: 1px solid #ead7ae;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.workflow-refusal-summary {
+  display: grid;
+  grid-template-columns: minmax(18rem, 2fr) repeat(2, minmax(10rem, 1fr));
+  gap: 0.62rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #d9e6eb;
+}
+
+.workflow-refusal-summary > span:first-child {
+  border-color: #edc0bb;
+  background: #fff7f6;
+}
+
+.workflow-inactivation-summary > span:first-child {
+  border-color: #c8d0d5;
+  background: #f0f3f5;
+}
+
+.workflow-validation-actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-top: 0.72rem;
+  border-top: 1px solid #d9e6eb;
+}
+
+.workflow-validation-actions form {
+  margin: 0;
+}
+
+.workflow-approval-form {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-end;
+  margin-right: auto !important;
+}
+
+.workflow-emitter-form {
+  padding: 0.72rem;
+  border: 1px solid #c9dde6;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.workflow-approval-form label {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+  min-width: 27rem;
+}
+
+.workflow-approval-form label > span,
+.issuer-form label > span {
+  color: #607985;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workflow-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.78rem;
+  border-radius: 0.42rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.workflow-action--approve,
+.workflow-action--issue {
+  border: 1px solid #187c5a;
+  background: #187c5a;
+  color: #fff;
+}
+
+.workflow-action--reject {
+  border: 1px solid #cf5d53;
+  background: #fff;
+  color: #a33127;
+}
+
+.workflow-action--view {
+  border: 1px solid #1d7189;
+  background: #fff;
+  color: #185f83;
+}
+
+.workflow-action--download {
+  border: 1px solid #1d7189;
+  background: #1d7189;
+  color: #fff;
+}
+
+.workflow-action--view:hover {
+  color: #185f83;
+  text-decoration: none;
+}
+
+.workflow-action--download:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+.workflow-emission-error {
+  border-color: #efc2bc !important;
+  background: #fff7f6 !important;
+}
+
+.workflow-emission-error strong {
+  color: #8f3028;
+}
+
+.workflow-emission-file-unavailable {
+  color: #647b87;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.workflow-action:disabled {
+  border-color: #bdcbd1;
+  background: #dfe7ea;
+  color: #7b8d95;
+  cursor: not-allowed;
+}
+
+.workflow-refusal-form {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) auto;
+  gap: 0.55rem;
+  align-items: end;
+  width: min(42rem, 100%);
+}
+
+.workflow-refusal-form label {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+}
+
+.workflow-refusal-form textarea {
+  width: 100%;
+  padding: 0.52rem 0.62rem;
+  border: 1px solid #d2a19c;
+  border-radius: 0.42rem;
+  color: #14394a;
+  font: inherit;
+  font-size: 0.7rem;
+  resize: vertical;
+}
+
+.note-request-results-total--refused {
+  border-left-color: #cf5d53;
+}
+
+.note-emission-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(12rem, 1.15fr) minmax(9rem, 0.7fr)
+    minmax(15rem, 1.3fr) minmax(10rem, 0.85fr)
+    minmax(9rem, 0.75fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.note-emission-filters .filter-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.workflow-batch-form {
+  margin-right: auto;
+}
+
+.issuer-admin-page {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.issuer-form {
+  padding: 0.9rem;
+}
+
+.issuer-form-fields {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.6fr) minmax(20rem, 1.4fr) auto;
+  gap: 0.7rem;
+  align-items: end;
+}
+
+.issuer-form label {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.issuer-form-actions,
+.issuer-row-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.issuer-row-actions form {
+  margin: 0;
+}
+
+.issuer-admin-table {
+  min-width: 960px;
+}
+
+.issuer-admin-table th:first-child,
+.issuer-admin-table td:first-child {
+  width: 190px;
+  padding-right: 18px;
+  text-align: left;
+}
+
+.issuer-admin-table th:nth-child(2),
+.issuer-admin-table td:nth-child(2) {
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+@media (max-width: 1100px) {
+  .note-request-list-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .note-request-list-filters .filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  .note-request-patient-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .note-request-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workflow-request-details {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .note-emission-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .issuer-form-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .issuer-form-actions {
+    grid-column: 1 / -1;
+  }
+
+  .note-emission-filters .filter-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .note-request-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-request-step {
+    align-self: flex-start;
+  }
+
+  .note-request-lookup,
+  .note-request-patient-grid,
+  .note-request-data-grid,
+  .note-request-list-filters,
+  .note-request-edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .note-request-list-filters .filter-actions,
+  .note-request-edit-form label.is-wide,
+  .note-request-edit-actions {
+    grid-column: auto;
+  }
+
+  .note-request-list-filters .filter-actions,
+  .note-request-edit-actions,
+  .note-request-record-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-request-patient-grid .is-wide,
+  .note-request-patient-grid .is-address,
+  .note-request-data-grid .is-wide {
+    grid-column: auto;
+  }
+
+  .note-request-existing-item dl,
+  .workflow-previous-request dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .note-request-actions a,
+  .note-request-actions button {
+    flex: 1;
+    text-align: center;
+  }
+
+  .note-request-actions {
+    width: 100%;
+  }
+
+  .note-request-results-toolbar {
+    gap: 0.7rem;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-request-results .pagination-control {
+    padding: 0.65rem 0 0;
+    border-top: 1px solid #dbe4ea;
+    border-left: 0;
+  }
+
+  .workflow-request-toolbar,
+  .workflow-validation-actions,
+  .workflow-refusal-summary {
+    align-items: stretch;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-request-toolbar .pagination-control {
+    padding: 0.65rem 0 0;
+    border-top: 1px solid #dbe4ea;
+    border-left: 0;
+  }
+
+  .workflow-refusal-form,
+  .note-emission-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-approval-form,
+  .issuer-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workflow-approval-form label {
+    min-width: 0;
+  }
+
+  .issuer-form-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .issuer-form-actions {
+    grid-column: auto;
+  }
+
+  .workflow-request-details {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-request-details > span.is-wide {
+    grid-column: auto;
   }
 }

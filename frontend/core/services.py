@@ -49,7 +49,9 @@ def api_request(method: str, path: str, token: str | None = None, **kwargs):
         raise ApiError(f"falha ao consultar a API: {exc}") from exc
 
     if response.status_code >= 400:
-        raise ApiError(response.text, response.status_code)
+        message = response.text
+        response.close()
+        raise ApiError(message, response.status_code)
     return response
 
 
@@ -64,6 +66,20 @@ def api_get(path: str, params: dict | None = None, token: str | None = None):
         return response.json()
     except ValueError as exc:
         raise ApiError("API retornou uma resposta invalida para JSON.") from exc
+
+
+def api_get_stream(
+    path: str,
+    params: dict | None = None,
+    token: str | None = None,
+):
+    return api_request(
+        "GET",
+        path,
+        token=token,
+        params={k: v for k, v in (params or {}).items() if v is not None},
+        stream=True,
+    )
 
 
 def api_post(path: str, data: dict):

@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro{% endblock %}
+{% block page_title %}Solicitar Nota{% endblock %}
+{% block content %}
+<section class="note-request-page">
+  <article class="note-request-card">
+    <header class="note-request-head">
+      <div>
+        <span class="note-request-kicker">Emissão de nota fiscal</span>
+        <h2>Dados da solicitação</h2>
+        <p>Consulte o atendimento no MV, confira os dados do paciente e informe os dados da nota.</p>
+      </div>
+      <span class="note-request-step">Cadastro</span>
+    </header>
+
+    <form method="post" id="note-request-form" class="note-request-form" novalidate>
+      {% csrf_token %}
+      <div class="note-request-form-scroll">
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>1</span>
+          <div>
+            <strong>Atendimento</strong>
+            <small>Os dados são consultados no Oracle.</small>
+          </div>
+        </div>
+        <div class="note-request-lookup">
+          <label>
+            <span>Código atendimento *</span>
+            <input
+              type="text"
+              id="codigo-atendimento"
+              name="codigo_atendimento"
+              value="{{ codigo_atendimento }}"
+              inputmode="numeric"
+              pattern="[0-9]+"
+              autocomplete="off"
+              required
+            >
+          </label>
+          <button type="button" id="buscar-atendimento" class="note-request-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+            Buscar atendimento
+          </button>
+        </div>
+        <p
+          id="atendimento-status"
+          class="note-request-status {% if atendimento %}is-success{% endif %}"
+          aria-live="polite"
+        >
+          {% if atendimento %}Atendimento encontrado. Confira os dados abaixo.{% else %}Informe o código para carregar o paciente.{% endif %}
+        </p>
+      </section>
+
+      <section
+        id="existing-requests-section"
+        class="note-request-section note-request-existing-section"
+        {% if not atendimento.solicitacoes_existentes %}hidden{% endif %}
+      >
+        <div class="note-request-section-title note-request-section-title--warning">
+          <span>!</span>
+          <div>
+            <strong>Solicitações anteriores deste atendimento</strong>
+            <small>Confira os status antes de cadastrar uma nova solicitação.</small>
+          </div>
+        </div>
+        <div id="existing-requests-content" class="note-request-existing-list">
+          {% for solicitacao in atendimento.solicitacoes_existentes %}
+          <article class="note-request-existing-item note-request-existing-item--{{ solicitacao.status_classe }}">
+            <div>
+              <strong>Solicitação #{{ solicitacao.id }}</strong>
+              <span class="note-request-existing-status note-request-existing-status--{{ solicitacao.status_classe }}">
+                {{ solicitacao.status_label }}
+              </span>
+            </div>
+            <dl>
+              <div><dt>Solicitada por</dt><dd>{{ solicitacao.cadastrado_por|default:"Não informado" }}</dd></div>
+              <div><dt>Solicitada em</dt><dd>{{ solicitacao.data_criacao_formatada }}</dd></div>
+              <div><dt>Local</dt><dd>{{ solicitacao.local_label }}</dd></div>
+              <div><dt>Valor</dt><dd>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</dd></div>
+              {% if solicitacao.numero_nfse %}
+              <div><dt>NFS-e</dt><dd>{{ solicitacao.numero_nfse }}</dd></div>
+              {% endif %}
+            </dl>
+            {% if solicitacao.status == "RECUSADA" or not solicitacao.ativo %}
+            <p><strong>Motivo:</strong> {{ solicitacao.motivo|default:"Não informado" }}</p>
+            {% else %}
+            <p>{{ solicitacao.procedimento }}</p>
+            {% endif %}
+            {% if solicitacao.status == "EMITIDA" and solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+            <a
+              class="workflow-action workflow-action--view"
+              href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
+              target="_blank"
+              rel="noopener"
+            >Visualizar NFS-e</a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>2</span>
+          <div>
+            <strong>Paciente</strong>
+          </div>
+        </div>
+        <div class="note-request-patient-grid">
+          <label class="is-wide">
+            <span>Nome do paciente</span>
+            <input data-patient-field="nm_paciente" value="{{ atendimento.nm_paciente|default:'' }}" readonly>
+          </label>
+          <label class="is-wide">
+            <span>Convênio</span>
+            <input data-patient-field="convenio" value="{{ atendimento.convenio|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>CPF</span>
+            <input data-patient-field="nr_cpf" value="{{ atendimento.nr_cpf|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>CEP</span>
+            <input data-patient-field="nr_cep" value="{{ atendimento.nr_cep|default:'' }}" readonly>
+          </label>
+          <label class="is-address">
+            <span>Endereço</span>
+            <input data-patient-field="ds_endereco" value="{{ atendimento.ds_endereco|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Número</span>
+            <input data-patient-field="nr_endereco" value="{{ atendimento.nr_endereco|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Bairro</span>
+            <input data-patient-field="nm_bairro" value="{{ atendimento.nm_bairro|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Complemento</span>
+            <input data-patient-field="ds_complemento" value="{{ atendimento.ds_complemento|default:'' }}" readonly>
+          </label>
+          <label class="is-wide">
+            <span>E-mail</span>
+            <input data-patient-field="email" value="{{ atendimento.email|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Telefone / Celular</span>
+            <input data-patient-field="nr_fone" value="{{ atendimento.nr_fone|default:'' }}" readonly>
+          </label>
+          <label>
+            <span>Tipo atendimento</span>
+            <input data-patient-field="tipo_atendimento" value="{{ atendimento.tipo_atendimento|default:'' }}" readonly>
+          </label>
+        </div>
+      </section>
+
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>3</span>
+          <div>
+            <strong>Procedimentos e exames realizados</strong>
+            <small>Itens registrados na conta deste atendimento.</small>
+          </div>
+        </div>
+        <div class="note-request-attendance-items">
+          <span
+            id="attendance-items-count"
+            class="note-request-attendance-count"
+            {% if not atendimento.procedimentos_atendimento %}hidden{% endif %}
+          >
+            {{ atendimento.procedimentos_atendimento|length }}
+            {% if atendimento.procedimentos_atendimento|length == 1 %}item{% else %}itens{% endif %}
+          </span>
+          <div id="attendance-items-content">
+            {% if not atendimento %}
+            <p class="workflow-attendance-items-empty">
+              Consulte um atendimento para visualizar os procedimentos e exames realizados.
+            </p>
+            {% elif not atendimento.procedimentos_atendimento_disponiveis %}
+            <p class="workflow-attendance-items-empty">
+              Não foi possível consultar os procedimentos e exames no momento.
+            </p>
+            {% elif atendimento.procedimentos_atendimento %}
+            <div class="workflow-attendance-items-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Procedimento / exame</th>
+                    <th>Grupo</th>
+                    <th>Quantidade</th>
+                    <th>Valor total</th>
+                    <th>Realizado em</th>
+                    <th>Prestador</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in atendimento.procedimentos_atendimento %}
+                  <tr>
+                    <td>{{ item.codigo|default:"Não informado" }}</td>
+                    <td><strong>{{ item.descricao }}</strong></td>
+                    <td>{{ item.grupo|default:"Não informado" }}</td>
+                    <td>{{ item.quantidade|default_if_none:"Não informada" }}</td>
+                    <td>R$ {{ item.valor_total|br_currency }}</td>
+                    <td>{{ item.realizado_em|api_datetime }}</td>
+                    <td>{{ item.prestador|default:"Não informado" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr class="workflow-attendance-total-row">
+                    <td colspan="4"><strong>Total geral</strong></td>
+                    <td><strong>R$ {{ atendimento.valor_total_procedimentos|br_currency }}</strong></td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {% else %}
+            <p class="workflow-attendance-items-empty">
+              Nenhum procedimento ou exame foi encontrado para este atendimento.
+            </p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="note-request-section">
+        <div class="note-request-section-title">
+          <span>4</span>
+          <div>
+            <strong>Nota fiscal</strong>
+            <small>Preencha os dados que serão utilizados na emissão.</small>
+          </div>
+        </div>
+        <div class="note-request-data-grid">
+          <label>
+            <span>Local *</span>
+            <select name="local" required>
+              <option value="">Selecione o local</option>
+              {% for value, label in locais %}
+                <option value="{{ value }}" {% if local == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Valor da nota *</span>
+            <input
+              type="text"
+              id="valor-nota"
+              name="valor_nota"
+              value="{{ valor_nota }}"
+              inputmode="numeric"
+              data-money-input
+              autocomplete="off"
+              placeholder="R$ 0,00"
+              required
+            >
+          </label>
+          <label class="is-wide">
+            <span>Procedimento *</span>
+            <textarea id="procedimento" name="procedimento" rows="5" maxlength="10000" required placeholder="Um procedimento ou exame por linha">{{ procedimento }}</textarea>
+          </label>
+        </div>
+      </section>
+      </div>
+      <div class="note-request-actions">
+        <a href="{% url 'solicitacao_nota' %}">Limpar</a>
+        <button
+          type="submit"
+          id="cadastrar-solicitacao"
+          {% if not atendimento %}disabled{% endif %}
+        >Cadastrar nota</button>
+      </div>
+    </form>
+  </article>
+</section>
+
+<script>
+  (() => {
+    const form = document.getElementById('note-request-form');
+    const codeInput = document.getElementById('codigo-atendimento');
+    const searchButton = document.getElementById('buscar-atendimento');
+    const submitButton = document.getElementById('cadastrar-solicitacao');
+    const status = document.getElementById('atendimento-status');
+    const fields = [...document.querySelectorAll('[data-patient-field]')];
+    const attendanceItemsContent = document.getElementById('attendance-items-content');
+    const attendanceItemsCount = document.getElementById('attendance-items-count');
+    const existingRequestsSection = document.getElementById('existing-requests-section');
+    const existingRequestsContent = document.getElementById('existing-requests-content');
+    const valueInput = document.getElementById('valor-nota');
+    const procedureInput = document.getElementById('procedimento');
+    const urlTemplate = "{% url 'consultar_atendimento_nota' 0 %}";
+    const pdfUrlTemplate = "{% url 'emissao_nfse_pdf' 0 %}";
+    let loadedCode = "{% if atendimento %}{{ atendimento.codigo_atendimento }}{% endif %}";
+    let requestSequence = 0;
+
+    const valueOrFallback = (value, fallback = 'Não informado') => {
+      if (value === null || value === undefined || value === '') return fallback;
+      return String(value);
+    };
+
+    const formatAttendanceDate = (value) => {
+      if (!value) return 'Não informado';
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return String(value);
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(parsed);
+    };
+    const formatAttendanceValue = (value) => {
+      if (value === null || value === undefined || value === '') {
+        return 'Não informado';
+      }
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return String(value);
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(parsed);
+    };
+    const requestStatus = {
+      PENDENTE_VALIDACAO: ['Pendente de validação', 'pendente'],
+      VALIDADA: ['Validada', 'validada'],
+      RECUSADA: ['Recusada', 'recusada'],
+      EMISSAO_SOLICITADA: ['Emissão solicitada', 'emissao'],
+      EMITIDA: ['NFS-e emitida', 'emitida'],
+      ERRO_EMISSAO: ['Erro na emissão', 'erro']
+    };
+
+    const attendanceTotal = (payload = {}) => {
+      const explicitTotal = Number(payload.valor_total_procedimentos);
+      if (Number.isFinite(explicitTotal)) return explicitTotal;
+      return (payload.procedimentos_atendimento || []).reduce((total, item) => {
+        const value = Number(item.valor_total);
+        return total + (Number.isFinite(value) ? value : 0);
+      }, 0);
+    };
+
+    const renderExistingRequests = (payload = {}) => {
+      const requests = Array.isArray(payload.solicitacoes_existentes)
+        ? payload.solicitacoes_existentes
+        : [];
+      existingRequestsSection.hidden = requests.length === 0;
+      existingRequestsContent.replaceChildren();
+      requests.forEach((request) => {
+        const [statusLabel, statusClass] = request.ativo === false
+          ? ['Inativa', 'inativo']
+          : (requestStatus[request.status] || ['Status não informado', 'pendente']);
+        const item = document.createElement('article');
+        item.className = `note-request-existing-item note-request-existing-item--${statusClass}`;
+
+        const heading = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `Solicitação #${request.id}`;
+        const badge = document.createElement('span');
+        badge.className = `note-request-existing-status note-request-existing-status--${statusClass}`;
+        badge.textContent = statusLabel;
+        heading.append(title, badge);
+        item.appendChild(heading);
+
+        const details = document.createElement('dl');
+        [
+          ['Solicitada por', valueOrFallback(request.cadastrado_por)],
+          ['Solicitada em', formatAttendanceDate(request.data_criacao)],
+          ['Local', valueOrFallback(request.local)],
+          ['Valor', formatAttendanceValue(request.valor_nota)],
+          ...(request.numero_nfse ? [['NFS-e', request.numero_nfse]] : [])
+        ].forEach(([label, value]) => {
+          const group = document.createElement('div');
+          const term = document.createElement('dt');
+          const description = document.createElement('dd');
+          term.textContent = label;
+          description.textContent = value;
+          group.append(term, description);
+          details.appendChild(group);
+        });
+        item.appendChild(details);
+
+        const summary = document.createElement('p');
+        if (request.status === 'RECUSADA' || request.ativo === false) {
+          const label = document.createElement('strong');
+          label.textContent = 'Motivo: ';
+          summary.append(label, valueOrFallback(request.motivo));
+        } else {
+          summary.textContent = valueOrFallback(request.procedimento);
+        }
+        item.appendChild(summary);
+
+        if (
+          request.status === 'EMITIDA'
+          && request.arquivo_disponivel
+          && request.emissao_id
+        ) {
+          const link = document.createElement('a');
+          link.className = 'workflow-action workflow-action--view';
+          link.href = `${pdfUrlTemplate.replace('/0/', `/${request.emissao_id}/`)}?download=false`;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Visualizar NFS-e';
+          item.appendChild(link);
+        }
+        existingRequestsContent.appendChild(item);
+      });
+    };
+
+    const suggestNoteData = (payload = {}, shouldReplace = true) => {
+      const items = Array.isArray(payload.procedimentos_atendimento)
+        ? payload.procedimentos_atendimento
+        : [];
+      if (shouldReplace || !procedureInput.value.trim()) {
+        procedureInput.value = items.map((item) => {
+          const code = String(item.codigo || '').trim();
+          const description = String(item.descricao || '').trim();
+          return code && description
+            ? `${code} - ${description}`
+            : (code || description);
+        }).filter(Boolean).join('\n');
+      }
+      if (shouldReplace || !valueInput.value.trim()) {
+        valueInput.value = formatAttendanceValue(attendanceTotal(payload));
+      }
+    };
+
+    const renderAttendanceItems = (payload = {}, hasAttendance = true) => {
+      const items = Array.isArray(payload.procedimentos_atendimento)
+        ? payload.procedimentos_atendimento
+        : [];
+      attendanceItemsCount.hidden = items.length === 0;
+      attendanceItemsCount.textContent = `${items.length} ${items.length === 1 ? 'item' : 'itens'}`;
+      attendanceItemsContent.replaceChildren();
+
+      const renderMessage = (message) => {
+        const paragraph = document.createElement('p');
+        paragraph.className = 'workflow-attendance-items-empty';
+        paragraph.textContent = message;
+        attendanceItemsContent.appendChild(paragraph);
+      };
+
+      if (!hasAttendance) {
+        renderMessage('Consulte um atendimento para visualizar os procedimentos e exames realizados.');
+        return;
+      }
+      if (payload.procedimentos_atendimento_disponiveis === false) {
+        renderMessage('Não foi possível consultar os procedimentos e exames no momento.');
+        return;
+      }
+      if (!items.length) {
+        renderMessage('Nenhum procedimento ou exame foi encontrado para este atendimento.');
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'workflow-attendance-items-table';
+      const table = document.createElement('table');
+      const header = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      [
+        'Código',
+        'Procedimento / exame',
+        'Grupo',
+        'Quantidade',
+        'Valor total',
+        'Realizado em',
+        'Prestador'
+      ].forEach((label) => {
+        const cell = document.createElement('th');
+        cell.textContent = label;
+        headerRow.appendChild(cell);
+      });
+      header.appendChild(headerRow);
+      table.appendChild(header);
+
+      const body = document.createElement('tbody');
+      items.forEach((item) => {
+        const row = document.createElement('tr');
+        [
+          valueOrFallback(item.codigo),
+          valueOrFallback(item.descricao),
+          valueOrFallback(item.grupo),
+          valueOrFallback(item.quantidade, 'Não informada'),
+          formatAttendanceValue(item.valor_total),
+          formatAttendanceDate(item.realizado_em),
+          valueOrFallback(item.prestador)
+        ].forEach((value, index) => {
+          const cell = document.createElement('td');
+          if (index === 1) {
+            const strong = document.createElement('strong');
+            strong.textContent = value;
+            cell.appendChild(strong);
+          } else {
+            cell.textContent = value;
+          }
+          row.appendChild(cell);
+        });
+        body.appendChild(row);
+      });
+      table.appendChild(body);
+      const footer = document.createElement('tfoot');
+      const footerRow = document.createElement('tr');
+      footerRow.className = 'workflow-attendance-total-row';
+      const totalLabel = document.createElement('td');
+      totalLabel.colSpan = 4;
+      const totalLabelStrong = document.createElement('strong');
+      totalLabelStrong.textContent = 'Total geral';
+      totalLabel.appendChild(totalLabelStrong);
+      const totalValue = document.createElement('td');
+      const totalValueStrong = document.createElement('strong');
+      totalValueStrong.textContent = formatAttendanceValue(attendanceTotal(payload));
+      totalValue.appendChild(totalValueStrong);
+      const remaining = document.createElement('td');
+      remaining.colSpan = 2;
+      footerRow.append(totalLabel, totalValue, remaining);
+      footer.appendChild(footerRow);
+      table.appendChild(footer);
+      wrapper.appendChild(table);
+      attendanceItemsContent.appendChild(wrapper);
+    };
+
+    const clearPatient = () => {
+      fields.forEach((field) => { field.value = ''; });
+      loadedCode = '';
+      submitButton.disabled = true;
+      renderAttendanceItems({}, false);
+      renderExistingRequests({});
+    };
+
+    const setStatus = (message, state = '') => {
+      status.textContent = message;
+      status.classList.toggle('is-success', state === 'success');
+      status.classList.toggle('is-error', state === 'error');
+      status.classList.toggle('is-loading', state === 'loading');
+    };
+
+    const loadAttendance = async () => {
+      const code = codeInput.value.trim();
+      const numericCode = Number(code);
+      if (
+        !/^\d+$/.test(code)
+        || !Number.isSafeInteger(numericCode)
+        || numericCode <= 0
+      ) {
+        clearPatient();
+        setStatus('Informe um código de atendimento válido.', 'error');
+        codeInput.focus();
+        return;
+      }
+
+      const currentSequence = ++requestSequence;
+      const previousLoadedCode = loadedCode;
+      clearPatient();
+      searchButton.disabled = true;
+      setStatus('Consultando atendimento no MV...', 'loading');
+      let failureMessage = (
+        'Não foi possível consultar o atendimento agora. '
+        + 'Tente novamente em instantes.'
+      );
+      try {
+        const response = await fetch(
+          urlTemplate.replace('/0/', `/${encodeURIComponent(code)}/`),
+          { headers: { Accept: 'application/json' } }
+        );
+        const payload = await response.json().catch(() => null);
+        if (response.redirected && response.url.includes('/login')) {
+          failureMessage = (
+            'Sua sessão expirou. Atualize a página e entre novamente.'
+          );
+          throw new Error('session-expired');
+        }
+        if (!response.ok) {
+          failureMessage = (
+            payload?.detail
+            || 'Atendimento não encontrado. Confira o código informado.'
+          );
+          throw new Error('attendance-not-found');
+        }
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          throw new Error('invalid-attendance-response');
+        }
+        if (currentSequence !== requestSequence) return;
+        fields.forEach((field) => {
+          field.value = payload[field.dataset.patientField] || 'Não informado';
+        });
+        renderAttendanceItems(payload);
+        renderExistingRequests(payload);
+        suggestNoteData(
+          payload,
+          previousLoadedCode !== String(payload.codigo_atendimento)
+        );
+        loadedCode = String(payload.codigo_atendimento);
+        submitButton.disabled = false;
+        setStatus('Atendimento encontrado. Confira os dados abaixo.', 'success');
+      } catch {
+        if (currentSequence !== requestSequence) return;
+        clearPatient();
+        setStatus(failureMessage, 'error');
+      } finally {
+        if (currentSequence === requestSequence) searchButton.disabled = false;
+      }
+    };
+
+    codeInput.addEventListener('input', () => {
+      if (codeInput.value.trim() !== loadedCode) {
+        clearPatient();
+        setStatus('Código alterado. Aguarde a nova consulta.');
+      }
+    });
+    codeInput.addEventListener('change', loadAttendance);
+    searchButton.addEventListener('click', loadAttendance);
+    form.addEventListener('submit', (event) => {
+      if (!loadedCode || loadedCode !== codeInput.value.trim()) {
+        event.preventDefault();
+        loadAttendance();
+        return;
+      }
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        form.reportValidity();
+      }
+    });
+  })();
+</script>
+{% endblock %}

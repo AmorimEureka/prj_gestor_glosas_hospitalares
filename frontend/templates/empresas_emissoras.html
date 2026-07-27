@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Receita Certa > Administrativo{% endblock %}
+{% block page_title %}Empresas (Emissão NFS-e){% endblock %}
+{% block content %}
+<section class="admin-page issuer-admin-page">
+  <div class="admin-summary">
+    <span>{{ resumo.total }} empresas</span>
+    <span>{{ resumo.ativas }} ativas</span>
+  </div>
+
+  <form method="post" class="admin-panel issuer-form">
+    {% csrf_token %}
+    <input type="hidden" name="form_action" value="{% if form_data.empresa_id %}editar{% else %}criar{% endif %}">
+    <input type="hidden" name="empresa_id" value="{{ form_data.empresa_id }}">
+    <div class="issuer-form-fields">
+      <label>
+        <span>CNPJ *</span>
+        <input
+          class="form-control"
+          name="cnpj"
+          value="{{ form_data.cnpj }}"
+          inputmode="numeric"
+          maxlength="18"
+          required
+          placeholder="00.000.000/0000-00"
+        >
+      </label>
+      <label>
+        <span>Razão Social *</span>
+        <input
+          class="form-control"
+          name="razao_social"
+          value="{{ form_data.razao_social }}"
+          maxlength="200"
+          required
+          placeholder="Razão social da empresa emissora"
+        >
+      </label>
+      <div class="issuer-form-actions">
+        <button type="submit" class="btn btn-primary">
+          {% if form_data.empresa_id %}Salvar alterações{% else %}Cadastrar empresa{% endif %}
+        </button>
+        {% if form_data.empresa_id %}
+        <a href="{% url 'empresas_emissoras' %}" class="btn btn-outline-secondary">Cancelar edição</a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  <div class="admin-panel">
+    <div class="admin-table-wrap">
+      <table class="admin-table issuer-admin-table">
+        <thead>
+          <tr>
+            <th>CNPJ</th>
+            <th>Razão Social</th>
+            <th>Estado</th>
+            <th>Última alteração</th>
+            <th>Alterado por</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for empresa in empresas %}
+          <tr>
+            <td><strong>{{ empresa.cnpj_formatado }}</strong></td>
+            <td>{{ empresa.razao_social }}</td>
+            <td>
+              {% if empresa.ativo %}
+              <span class="status status--success">Ativa</span>
+              {% else %}
+              <span class="status">Inativa</span>
+              {% endif %}
+            </td>
+            <td>{{ empresa.data_atualizacao_formatada|default:"Não informado" }}</td>
+            <td>{{ empresa.atualizado_por|default:"Sistema" }}</td>
+            <td>
+              <div class="issuer-row-actions">
+                <a
+                  class="btn btn-sm btn-outline-primary"
+                  href="?editar={{ empresa.id }}"
+                  data-issuer-edit
+                  data-id="{{ empresa.id }}"
+                  data-cnpj="{{ empresa.cnpj }}"
+                  data-razao-social="{{ empresa.razao_social }}"
+                >Editar</a>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="empresa_id" value="{{ empresa.id }}">
+                  <input type="hidden" name="form_action" value="{% if empresa.ativo %}inativar{% else %}reativar{% endif %}">
+                  <button type="submit" class="btn btn-sm {% if empresa.ativo %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                    {% if empresa.ativo %}Inativar{% else %}Reativar{% endif %}
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">Nenhuma empresa emissora cadastrada.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<script>
+  document.querySelectorAll('[data-issuer-edit]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const form = document.querySelector('.issuer-form');
+      form.querySelector('[name=form_action]').value = 'editar';
+      form.querySelector('[name=empresa_id]').value = button.dataset.id;
+      form.querySelector('[name=cnpj]').value = button.dataset.cnpj;
+      form.querySelector('[name=razao_social]').value = button.dataset.razaoSocial;
+      form.querySelector('button[type=submit]').textContent = 'Salvar alterações';
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+{% endblock %}

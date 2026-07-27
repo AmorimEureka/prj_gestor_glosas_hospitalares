@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
+{% block page_title %}Follow-Up de Glosas{% endblock %}
+{% block content %}
+
+{{ tiss_motivos|json_script:"follow-up-tiss-motivos-data" }}
+<script>
+  (() => {
+    const normalizeText = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('pt-BR')
+      .trim();
+
+    const loadTissReasons = () => {
+      if (window.followUpTissReasons) return window.followUpTissReasons;
+      const source = document.getElementById('follow-up-tiss-motivos-data');
+      let rows = [];
+      try {
+        rows = JSON.parse(source?.textContent || '[]');
+      } catch (error) {
+        rows = [];
+      }
+      window.followUpTissReasons = rows.map((item) => {
+        const code = String(item.codigo_termo || '').trim();
+        const description = String(item.termo || '').trim();
+        const value = [code, description].filter(Boolean).join(' - ');
+        return {
+          code,
+          description,
+          value,
+          searchText: normalizeText(`${code} ${description}`),
+        };
+      });
+      return window.followUpTissReasons;
+    };
+
+    window.followUpTissReasonSelect = (initialValue = '') => ({
+      options: loadTissReasons(),
+      query: String(initialValue || '').trim(),
+      selectedValue: '',
+      open: false,
+      activeIndex: 0,
+      init() {
+        this.syncValue(this.query);
+      },
+      syncValue(value) {
+        this.query = String(value || '').trim();
+        const exact = this.findExact(this.query);
+        if (exact) {
+          this.query = exact.value;
+          this.selectedValue = exact.value;
+        } else {
+          this.selectedValue = '';
+        }
+        this.activeIndex = 0;
+        this.open = false;
+        this.$refs.search?.setCustomValidity('');
+      },
+      normalize(value) {
+        return normalizeText(value);
+      },
+      findExact(value) {
+        const normalized = this.normalize(value);
+        return this.options.find(
+          (option) => this.normalize(option.value) === normalized
+        );
+      },
+      get filteredOptions() {
+        const terms = this.normalize(this.query).split(/\s+/).filter(Boolean);
+        const matches = terms.length
+          ? this.options.filter(
+              (option) => terms.every(
+                (term) => option.searchText.includes(term)
+              )
+            )
+          : this.options;
+        return matches.slice(0, 20);
+      },
+      onInput(event) {
+        this.query = event.target.value;
+        this.selectedValue = '';
+        this.activeIndex = 0;
+        this.open = true;
+        event.target.setCustomValidity('');
+      },
+      toggle() {
+        this.open = !this.open;
+        this.activeIndex = 0;
+        if (this.open) this.$nextTick(() => this.$refs.search?.focus());
+      },
+      close() {
+        this.open = false;
+        const exact = this.findExact(this.query);
+        if (exact) this.select(exact, false);
+      },
+      move(step) {
+        if (!this.open) this.open = true;
+        const count = this.filteredOptions.length;
+        if (!count) return;
+        this.activeIndex = (this.activeIndex + step + count) % count;
+      },
+      selectActive() {
+        const option = this.filteredOptions[this.activeIndex];
+        if (option) this.select(option);
+      },
+      select(option, focus = true) {
+        this.query = option.value;
+        this.selectedValue = option.value;
+        this.open = false;
+        this.$refs.search?.setCustomValidity('');
+        if (focus) this.$nextTick(() => this.$refs.search?.focus());
+      },
+    });
+  })();
+</script>
+
+<section class="panel filter-panel follow-up-glosa-page" x-data="{ loading: false }">
+  <form class="remessa-filters" method="get" @submit="loading = true">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="follow-up-glosa-nfse">NFS-e</label>
+        <input id="follow-up-glosa-nfse" name="numero_nfse" value="{{ filtros.numero_nfse }}" class="form-control" placeholder="Número da NFS-e">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-glosa-remessa">Remessa</label>
+        <input id="follow-up-glosa-remessa" name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" inputmode="numeric" placeholder="Código da remessa">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-glosa-convenio">Convênio</label>
+        <select id="follow-up-glosa-convenio" name="convenio" class="form-select">
+          <option value="">Todos</option>
+          {% for convenio in convenios %}
+          <option value="{{ convenio }}" {% if filtros.convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" :disabled="loading">
+          <span x-show="!loading">Filtrar</span>
+          <span x-show="loading" x-cloak>Buscando...</span>
+        </button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel results-summary-panel">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Remessas aguardando tratamento</span>
+        {% if pagination.total %}
+          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} remessas exibidas</span>
+        {% endif %}
+      </div>
+      {% if cards %}
+      <div class="collapse-actions">
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.followUpExpandLevel = Math.min((window.followUpExpandLevel || 0) + 1, 3); window.dispatchEvent(new CustomEvent('expand-follow-up-level-' + window.followUpExpandLevel))"
+        >Expandir</button>
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.followUpExpandLevel = 0; window.dispatchEvent(new CustomEvent('collapse-all-follow-up'))"
+        >Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total">
+          <span>Remessas</span>
+          <strong>{{ resumo.remessas }}</strong>
+        </span>
+        <span class="result-total result-total--value">
+          <span>Valor glosado</span>
+          <strong>R$ {{ resumo.valor_total_glosado|br_currency }}</strong>
+        </span>
+        <span class="result-total result-total--value">
+          <span>Valor pendente</span>
+          <strong>R$ {{ resumo.valor_total_pendente|br_currency }}</strong>
+        </span>
+        <span class="result-total result-total--treated">
+          <span>Total tratado</span>
+          <strong>R$ {{ resumo.valor_total_tratado|br_currency }}</strong>
+        </span>
+      </div>
+      {% if pagination.total %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}
+        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Anterior</span>
+        {% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <label for="follow-up-page-select">Página</label>
+          <select id="follow-up-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}
+            <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+            {% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}
+        <a class="page-step" href="{{ pagination.next_url }}">Próxima</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Próxima</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if consulta_indisponivel %}
+    <div class="service-unavailable">
+      <div class="service-unavailable-icon" aria-hidden="true">!</div>
+      <div>
+        <strong>Consulta temporariamente indisponível</strong>
+        <p>Não foi possível consultar as glosas originadas na conciliação.</p>
+      </div>
+    </div>
+  {% else %}
+    <div class="results-list follow-up-glosa-list">
+      {% for card in cards %}
+      <article
+        class="follow-up-glosa-card"
+        x-data="{
+          open: false,
+          loadDetails() {
+            this.$nextTick(() => htmx.trigger(this.$refs.header, 'follow-up-load'));
+          },
+          toggle() {
+            this.open = !this.open;
+            if (this.open) this.loadDetails();
+          },
+          expand() {
+            this.open = true;
+            this.loadDetails();
+          }
+        }"
+        @expand-follow-up-level-1.window="expand()"
+        @collapse-all-follow-up.window="open = false"
+      >
+        <button
+          type="button"
+          class="follow-up-glosa-card-header"
+          x-ref="header"
+          @click="toggle()"
+          :aria-expanded="open"
+          aria-controls="follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}"
+          hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}"
+          hx-trigger="follow-up-load once"
+          hx-target="#follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}"
+          hx-select="#follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}"
+          hx-swap="outerHTML"
+        >
+          <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
+          <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ card.convenio|default:"-" }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>DATA ENTREGA</small><strong>{{ card.data_entrega_formatada }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{{ card.numero_nfse|default:"-" }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DA REMESSA</small><strong>R$ {{ card.valor_remessa|br_currency }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>TOTAL TRATADO</small><strong>R$ {{ card.valor_total_tratado|br_currency }}</strong></span>
+        </button>
+
+        <div class="follow-up-glosa-card-body" x-show="open" x-cloak>
+          <div id="follow-up-glosa-detail-{{ card.conciliacao_remessa_id }}" class="follow-up-glosa-card-content">
+          {% if card.detalhes_carregados %}
+          {% for paciente in card.pacientes %}
+          <section
+            class="follow-up-glosa-patient"
+            x-data="{ patientOpen: (window.followUpExpandLevel || 0) >= 2 }"
+            @expand-follow-up-level-2.window="patientOpen = true"
+            @collapse-all-follow-up.window="patientOpen = false"
+          >
+            <button type="button" class="follow-up-glosa-patient-header" @click="patientOpen = !patientOpen" :aria-expanded="patientOpen">
+              <span class="follow-up-glosa-chevron" :class="{ 'is-open': patientOpen }">&#9654;</span>
+              <span><small>PACIENTE</small><strong>{{ paciente.nm_paciente }}</strong></span>
+              <span class="mpill mpill--dim">{{ paciente.total_itens }} item(ns)</span>
+            </button>
+
+            <template x-if="patientOpen">
+              <div class="follow-up-glosa-patient-body">
+                <div class="follow-up-glosa-records-scroll">
+                {% for atendimento in paciente.atendimentos %}
+                <div
+                  class="atd-block follow-up-glosa-atendimento"
+                  x-data="{ atdOpen: (window.followUpExpandLevel || 0) >= 3 }"
+                  @expand-follow-up-level-3.window="atdOpen = true"
+                  @collapse-all-follow-up.window="atdOpen = false"
+                >
+                  <button type="button" class="atd-header" @click="atdOpen = !atdOpen" :aria-expanded="atdOpen">
+                    <span class="atd-chevron" :class="{ 'atd-chevron--open': atdOpen }">&#9654;</span>
+                    <span class="atd-title">Atendimento <strong>#{{ atendimento.cd_atendimento|default:"-" }}</strong></span>
+                    <span class="atd-meta">
+                      {{ atendimento.dt_atendimento_formatada }} &middot; {{ atendimento.tp_atendimento|default:"Tipo não informado" }}
+                      &middot; {{ atendimento.total_grupos }} grupo(s) &middot; {{ atendimento.total_itens }} lançamento(ões)
+                    </span>
+                  </button>
+                  <template x-if="atdOpen">
+                    <div class="atd-body">
+                      <div class="account-groups">
+                      {% for grupo_procedimento in atendimento.grupos_procedimento %}
+                      <section class="account-group-section follow-up-glosa-grupo-procedimento">
+                        <header class="account-group-header">
+                          <span class="account-group-title">{{ grupo_procedimento.ds_gru_fat }}</span>
+                          <strong class="account-group-count">{{ grupo_procedimento.total_itens }} lanç.</strong>
+                        </header>
+                        <div class="table-responsive detail-table-wrap follow-up-glosa-table-wrap account-group-table-wrap">
+                          <table class="table align-middle account-table">
+                  <colgroup>
+                    <col class="account-col-conta"><col class="account-col-convenio"><col class="account-col-procedimento">
+                    <col class="account-col-descricao"><col class="account-col-guia"><col class="account-col-alta">
+                    <col class="account-col-lancamento"><col class="account-col-tipo"><col class="account-col-qtd">
+                    <col class="account-col-valor"><col class="account-col-acao">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Conta</th><th>Convênio</th><th>Procedimento</th><th class="col-desc">Descrição</th>
+                      <th>Guia</th><th>Data da alta</th><th>DT Lanç.</th><th>Tipo Atendimento</th>
+                      <th class="account-col-label-qtd">Qtd Lanç.</th><th class="col-valor">Valor</th><th>Ação</th>
+                    </tr>
+                  </thead>
+                  {% for item in grupo_procedimento.itens %}
+                  <tbody x-data="{
+                    modal: '',
+                    registroBaseId: '{{ item.registro_glosa.id|default:"" }}',
+                    registroRecusaId: '{{ item.registro_recusa.id|default:"" }}',
+                    registroAcatoId: '{{ item.registro_acato.id|default:"" }}',
+                    processoRecusa: '{{ item.registro_recusa.processo_recurso|default:""|escapejs }}',
+                    processoAcato: '{{ item.registro_acato.processo_recurso|default:""|escapejs }}',
+                    qtdRecusada: '{{ item.registro_recusa.qtd_glosada_input|default:""|escapejs }}',
+                    qtdAcatada: '{{ item.registro_acato.qtd_glosada_input|default:""|escapejs }}',
+                    valorRecusado: '{{ item.registro_recusa.valor_glosado_input|default:""|escapejs }}',
+                    valorAcatado: '{{ item.registro_acato.valor_glosado_input|default:""|escapejs }}',
+                    dataRecusa: '{{ item.registro_recusa.dt_recurso_input|default:""|escapejs }}',
+                    dataAcato: '{{ item.registro_acato.dt_recurso_input|default:""|escapejs }}',
+                    motivoRecusa: '{{ item.registro_recusa.motivo_glosa|default:""|escapejs }}',
+                    motivoAcato: '{{ item.registro_acato.motivo_glosa|default:""|escapejs }}',
+                    descricaoRecusa: '{{ item.registro_recusa.descricao_glosa|default:""|escapejs }}',
+                    descricaoAcato: '{{ item.registro_acato.descricao_glosa|default:""|escapejs }}',
+                    registroTratadoId: '',
+                    processoTratado: '',
+                    qtdTratada: '',
+                    valorTratado: '',
+                    dataTratada: '',
+                    motivoTratado: '',
+                    descricaoTratada: '',
+                    editingExisting: false,
+                    openTreatment(tipo) {
+                      const acato = tipo === 'acatar';
+                      const actionId = acato ? this.registroAcatoId : this.registroRecusaId;
+                      this.editingExisting = Boolean(actionId);
+                      this.registroTratadoId = actionId || this.registroBaseId;
+                      this.processoTratado = acato ? this.processoAcato : this.processoRecusa;
+                      this.qtdTratada = acato ? this.qtdAcatada : this.qtdRecusada;
+                      this.valorTratado = acato ? this.valorAcatado : this.valorRecusado;
+                      this.dataTratada = acato ? this.dataAcato : this.dataRecusa;
+                      this.motivoTratado = acato ? this.motivoAcato : this.motivoRecusa;
+                      this.descricaoTratada = acato ? this.descricaoAcato : this.descricaoRecusa;
+                      this.modal = tipo;
+                      this.$nextTick(() => window.dispatchEvent(new CustomEvent('follow-up-tiss-reason', {
+                        detail: {
+                          itemId: String(this.registroBaseId),
+                          value: this.motivoTratado,
+                        },
+                      })));
+                    },
+                    formatValorTratado() {
+                      const digits = this.valorTratado.replace(/\D/g, '');
+                      const cents = Number(digits || 0);
+                      this.valorTratado = (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    }
+                  }">
+                    <tr class="item-row">
+                      <td class="cell-mono">{{ item.cd_reg|default:"-" }}</td>
+                      <td>{{ item.nm_convenio|default:"-" }}</td>
+                      <td class="cell-mono">{{ item.cd_pro_fat|default:"-" }}</td>
+                      <td class="col-desc">{{ item.descricao|default:"-" }}</td>
+                      <td class="cell-mono">{{ item.nr_guia|default:"-" }}</td>
+                      <td>{{ item.dt_alta_formatada }}</td>
+                      <td>{{ item.dt_lancamento_formatada }}</td>
+                      <td>{{ item.tp_atendimento|default:"-" }}</td>
+                      <td class="cell-center">{{ item.qt_lancamento|floatformat:"-2" }}</td>
+                      <td class="cell-valor">R$ {{ item.vl_total_conta|br_currency }}</td>
+                      <td class="account-action-cell">
+                        <div class="follow-up-glosa-actions">
+                          <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+Recusar</button>
+                          <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ Acatar</button>
+                        </div>
+
+                        <div class="glosa-modal" x-show="modal" x-cloak @keydown.escape.window="modal = ''">
+                          <div class="glosa-modal-backdrop" @click="modal = ''"></div>
+                          <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="follow-up-modal-title-{{ item.registro_glosa_id }}">
+                            <form method="post" class="glosa-modal-form" data-has-registro="true" data-reload-on-success="true" onsubmit="return window.handleGlosaSubmit(this, event);">
+                              {% csrf_token %}
+                              <input type="hidden" name="registro_glosa_id" :value="registroTratadoId">
+                              <input type="hidden" name="cd_paciente" value="{{ item.cd_paciente }}">
+                              <input type="hidden" name="nm_paciente" value="{{ item.nm_paciente }}">
+                              <input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+                              <input type="hidden" name="cd_atendimento" value="{{ item.cd_atendimento }}">
+                              <input type="hidden" name="cd_reg" value="{{ item.cd_reg }}">
+                              <input type="hidden" name="cd_lancamento" value="{{ item.cd_lancamento|default:'' }}">
+                              <input type="hidden" name="cd_prestador" value="{{ item.cd_prestador }}">
+                              <input type="hidden" name="nm_prestador" value="{{ item.nm_prestador }}">
+                              <input type="hidden" name="cd_convenio" value="{{ item.cd_convenio }}">
+                              <input type="hidden" name="nm_convenio" value="{{ item.nm_convenio }}">
+                              <input type="hidden" name="tp_atendimento" value="{{ item.tp_atendimento }}">
+                              <input type="hidden" name="cd_pro_fat" value="{{ item.cd_pro_fat }}">
+                              <input type="hidden" name="cd_gru_pro" value="{{ item.cd_gru_pro|default:'0' }}">
+                              <input type="hidden" name="ds_gru_pro" value="{{ item.ds_gru_pro|default:'Grupo não informado' }}">
+                              <input type="hidden" name="cd_gru_fat" value="{{ item.cd_gru_fat|default:'0' }}">
+                              <input type="hidden" name="ds_gru_fat" value="{{ item.ds_gru_fat|default:'Grupo não informado' }}">
+                              <input type="hidden" name="descricao" value="{{ item.descricao|default:'' }}">
+                              <input type="hidden" name="nr_guia" value="{{ item.nr_guia }}">
+                              <input type="hidden" name="dt_atendimento" value="{{ item.dt_atendimento }}">
+                              <input type="hidden" name="dt_alta" value="{{ item.dt_alta|default:'' }}">
+                              <input type="hidden" name="dt_lancamento" value="{{ item.dt_lancamento|default:'' }}">
+                              <input type="hidden" name="qt_lancamento" value="{{ item.qt_lancamento }}">
+                              <input type="hidden" name="vl_total_conta" value="{{ item.vl_total_conta }}">
+                              <input type="hidden" name="sn_glosado" :value="modal === 'acatar' ? 'not' : 'true'">
+                              <input type="hidden" name="processo_controle_fatura_gab" value="{{ item.registro_glosa.processo_controle_fatura_gab }}">
+                              <input type="hidden" name="data_glosa" value="{{ item.registro_glosa.data_glosa_input }}">
+                              <input type="hidden" name="dt_pagamento" value="{{ item.registro_glosa.dt_pagamento_oculto }}">
+
+                              <div class="glosa-modal-header">
+                                <div>
+                                  <span class="glosa-modal-eyebrow" x-text="modal === 'acatar' ? 'Registro de acato' : 'Registro de recurso'"></span>
+                                  <h2 id="follow-up-modal-title-{{ item.registro_glosa_id }}">Conta {{ item.cd_reg|default:"-" }}</h2>
+                                </div>
+                                <button type="button" class="glosa-modal-close" @click="modal = ''" aria-label="Fechar">x</button>
+                              </div>
+                              <div class="glosa-modal-context">
+                                <span>{{ paciente.nm_paciente }}</span><span>{{ item.nm_convenio|default:"Convênio não informado" }}</span>
+                                <span>Atend. {{ item.cd_atendimento|default:"-" }}</span><span class="glosa-modal-context-desc">{{ item.descricao|default:"Procedimento não informado" }}</span>
+                              </div>
+                              <div class="glosa-section-stack">
+                                <section class="glosa-section">
+                                  <h3 x-text="modal === 'acatar' ? 'Tratamento por acato' : 'Processo de recurso'"></h3>
+                                  <div class="glosa-section-grid">
+                                    <div class="glosa-field glosa-field--wide">
+                                      <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <div
+                                        class="tiss-reason-select"
+                                        x-data="followUpTissReasonSelect('')"
+                                        @follow-up-tiss-reason.window="if ($event.detail.itemId === '{{ item.registro_glosa.id }}') syncValue($event.detail.value)"
+                                        @click.outside="close()"
+                                      >
+                                        <div class="tiss-reason-control">
+                                          <input
+                                            x-ref="search"
+                                            name="motivo_glosa"
+                                            class="form-control tiss-reason-input"
+                                            x-model="query"
+                                            :data-tiss-selected-value="selectedValue"
+                                            data-tiss-reason
+                                            placeholder="Digite o código ou a descrição TISS"
+                                            autocomplete="off"
+                                            role="combobox"
+                                            aria-autocomplete="list"
+                                            :aria-expanded="open"
+                                            @focus="open = true"
+                                            @input="onInput($event)"
+                                            @keydown.arrow-down.prevent="move(1)"
+                                            @keydown.arrow-up.prevent="move(-1)"
+                                            @keydown.enter="if (open) { $event.preventDefault(); selectActive(); }"
+                                            @keydown.escape.stop="open = false"
+                                            required
+                                          >
+                                          <button
+                                            type="button"
+                                            class="tiss-reason-toggle"
+                                            @click="toggle()"
+                                            :aria-expanded="open"
+                                            aria-label="Exibir motivos de glosa TISS"
+                                          ><span aria-hidden="true"></span></button>
+                                        </div>
+                                        <div class="tiss-reason-dropdown" x-show="open" x-cloak role="listbox">
+                                          <template x-for="(option, index) in filteredOptions" :key="option.value">
+                                            <button
+                                              type="button"
+                                              class="tiss-reason-option"
+                                              :class="{ 'is-active': index === activeIndex }"
+                                              role="option"
+                                              :aria-selected="selectedValue === option.value"
+                                              @mouseenter="activeIndex = index"
+                                              @mousedown.prevent="select(option)"
+                                            >
+                                              <strong x-text="option.code"></strong>
+                                              <span x-text="option.description"></span>
+                                            </button>
+                                          </template>
+                                          <p class="tiss-reason-empty" x-show="filteredOptions.length === 0">Nenhum motivo TISS encontrado.</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div class="glosa-field glosa-field--wide">
+                                      <label>Processo do Recurso <span class="required-marker" aria-hidden="true" x-show="modal !== 'acatar'">*</span></label>
+                                      <input name="processo_recurso" class="form-control" x-model="processoTratado" placeholder="Informe o processo do recurso" :required="modal !== 'acatar'">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <input type="date" name="dt_recurso" class="form-control" x-model="dataTratada" required>
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Qtd glosada</label>
+                                      <input type="text" class="form-control form-control-readonly" value="{{ item.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Valor glosado</label>
+                                      <input type="text" class="form-control form-control-readonly" value="R$ {{ item.vl_total_conta|br_currency }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label x-text="modal === 'acatar' ? 'Qtd Acatada' : 'Qtd Recursada *'"></label>
+                                      <input type="number" step="1" min="1" max="{{ item.qt_lancamento }}" data-max-quantity="{{ item.qt_lancamento }}" inputmode="numeric" name="qtd_glosada" class="form-control" x-model="qtdTratada" :required="modal !== 'acatar'" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label x-text="modal === 'acatar' ? 'Valor Acatado' : 'Valor Recursado *'"></label>
+                                      <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ item.vl_total_conta }}" x-model="valorTratado" :required="modal !== 'acatar'" @input="valorTratado = $event.target.value; formatValorTratado()">
+                                    </div>
+                                    <div class="glosa-field glosa-field--full">
+                                      <label>Descrição</label>
+                                      <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do tratamento" x-model="descricaoTratada"></textarea>
+                                    </div>
+                                  </div>
+                                </section>
+                              </div>
+                              <div class="glosa-modal-actions">
+                                <button class="btn btn-outline-danger" name="form_action" value="desfazer" formnovalidate x-show="editingExisting" x-cloak><span class="submit-label">Desfazer</span><span class="loading-label">Desfazendo...</span></button>
+                                <button type="button" class="btn btn-outline-secondary" @click="modal = ''">Cancelar</button>
+                                <button :class="modal === 'acatar' ? 'btn-success-outline' : 'btn-danger-outline'" name="form_action" value="salvar">
+                                  <span class="submit-label" x-text="modal === 'acatar' ? 'Registrar acato' : 'Registrar recurso'"></span>
+                                  <span class="loading-label">Registrando...</span>
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                  {% endfor %}
+                          </table>
+                        </div>
+                      </section>
+                      {% endfor %}
+                      </div>
+                    </div>
+                  </template>
+                </div>
+                {% empty %}
+                  <p class="empty-state">Nenhum atendimento encontrado para este paciente.</p>
+                {% endfor %}
+                </div>
+              </div>
+            </template>
+          </section>
+          {% empty %}
+            <p class="empty-state">Nenhum paciente analítico encontrado nesta remessa.</p>
+          {% endfor %}
+          {% else %}
+            <p class="follow-up-glosa-loading" role="status">Carregando detalhamento da remessa...</p>
+          {% endif %}
+          </div>
+        </div>
+      </article>
+      {% empty %}
+        <p class="empty-state">Nenhuma remessa com glosa pendente de tratamento.</p>
+      {% endfor %}
+    </div>
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer">
+      {% if pagination.has_previous %}
+      <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+      {% endif %}
+      <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}
+      <a class="page-step" href="{{ pagination.next_url }}">Próxima</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endif %}
+</section>
+<script>
+  window.followUpExpandLevel = 0;
+</script>
+{% endblock %}
