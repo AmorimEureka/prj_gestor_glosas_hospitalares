@@ -4534,8 +4534,9 @@ class CadastrarNotaTests(TestCase):
         response = self.client.get('/requisicao/emissao-nfse/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'name="solicitacao_ids"', count=1)
+        self.assertContains(response, 'name="solicitacao_ids"', count=2)
         self.assertContains(response, 'Emitir esta NFS-e', count=1)
+        self.assertContains(response, 'Tentar emitir novamente', count=1)
         self.assertContains(response, 'Emissão solicitada')
         self.assertContains(response, 'Em processamento')
         self.assertContains(response, 'NFS-e emitida')
