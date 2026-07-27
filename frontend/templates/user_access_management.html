@@ -95,7 +95,10 @@
           <span class="access-state {% if user.ativo %}is-active{% endif %}">
             {% if user.ativo %}Ativo{% else %}Inativo{% endif %}
           </span>
-          <details class="access-actions">
+          <details
+            class="access-actions"
+            name="access-user-management"
+          >
             <summary>Gerenciar</summary>
             <div>
               {% if user.perfil == 'ti' %}
