@@ -21,9 +21,12 @@ from .services import (
 
 class ApiSessionMiddleware:
     public_paths = {
+        "/login",
         "/login/",
+        "/esqueci-senha",
         "/logout/",
         "/esqueci-senha/",
+        "/redefinir-senha",
         "/redefinir-senha/",
         "/autenticacao/redefinir-senha",
         "/autenticacao/redefinir-senha/",

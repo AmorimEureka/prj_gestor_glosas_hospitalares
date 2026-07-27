@@ -55,6 +55,8 @@
 .access-permissions-heading strong { color: var(--ink); font-size: 11px; }
 .access-permissions-heading small { color: var(--muted); font-size: 10px; line-height: 1.35; }
 .access-permission-groups { display: grid; gap: 10px; }
+.access-permission-groups--create { max-height: min(42vh, 390px); padding-right: 6px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.access-permission-groups--create:focus-visible { border-radius: 8px; outline: 2px solid rgba(31, 111, 134, .35); outline-offset: 3px; }
 .access-permission-groups--manage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .access-permission-groups fieldset { display: grid; gap: 7px; min-width: 0; margin: 0; padding: 10px; border: 1px solid #e3eaee; border-radius: 9px; background: #fff; }
 .access-permission-groups legend { float: none; width: auto; margin: 0 0 2px; color: var(--primary-dark); font-size: 10px; font-weight: 800; }

@@ -15,7 +15,7 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .access import SCREEN_KEYS, build_screen_groups
+from .access import SCREEN_KEYS, build_screen_groups, first_allowed_url
 from .services import (
     ApiError,
     api_authenticate,
@@ -198,6 +198,12 @@ def _safe_login_redirect(request):
     return "/"
 
 
+def _successful_login_redirect(user, next_url):
+    if urlsplit(next_url).path in {"/", "/login", "/login/"}:
+        return first_allowed_url(user)
+    return next_url
+
+
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     next_url = _safe_login_redirect(request)
@@ -225,7 +231,9 @@ def login_view(request):
                     request.session.set_expiry(settings.SESSION_COOKIE_AGE)
                 else:
                     request.session.set_expiry(0)
-                return redirect(next_url)
+                return redirect(
+                    _successful_login_redirect(user, next_url)
+                )
             except ApiError as exc:
                 if exc.status_code == 401:
                     error = "E-mail ou senha incorretos."
