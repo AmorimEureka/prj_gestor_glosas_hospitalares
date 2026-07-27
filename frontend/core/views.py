@@ -908,7 +908,10 @@ def _carregar_emissoes_nfse(request, filtros=None):
         )
         solicitacao["status_label"] = status_label
         solicitacao["status_classe"] = status_classe
-        solicitacao["pode_emitir"] = status == "VALIDADA"
+        solicitacao["pode_emitir"] = status in {
+            "VALIDADA",
+            "ERRO_EMISSAO",
+        }
         status_emissao = str(
             solicitacao.get("status_emissao") or ""
         ).strip()
