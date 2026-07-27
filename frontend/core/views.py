@@ -12,10 +12,18 @@ from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
+from django.urls import Resolver404, resolve
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .access import SCREEN_KEYS, build_screen_groups, first_allowed_url
+from .access import (
+    ROUTE_PERMISSIONS,
+    SCREEN_KEYS,
+    build_screen_groups,
+    can_access_screen,
+    first_allowed_url,
+    is_ti,
+)
 from .services import (
     ApiError,
     api_authenticate,
@@ -199,7 +207,31 @@ def _safe_login_redirect(request):
 
 
 def _successful_login_redirect(user, next_url):
-    if urlsplit(next_url).path in {"/", "/login", "/login/"}:
+    split_url = urlsplit(next_url)
+    query = urlencode(
+        [
+            (key, value)
+            for key, value in parse_qsl(
+                split_url.query,
+                keep_blank_values=True,
+            )
+            if key != "acesso_negado"
+        ]
+    )
+    next_url = urlunsplit(split_url._replace(query=query))
+    path = split_url.path
+    if path in {"/", "/login", "/login/"}:
+        return first_allowed_url(user)
+
+    try:
+        route_name = resolve(path).url_name
+    except Resolver404:
+        return next_url
+
+    if route_name == "user_access_management" and not is_ti(user):
+        return first_allowed_url(user)
+    screen_key = ROUTE_PERMISSIONS.get(route_name)
+    if screen_key and not can_access_screen(user, screen_key):
         return first_allowed_url(user)
     return next_url
 
