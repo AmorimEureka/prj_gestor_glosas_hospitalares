@@ -888,6 +888,79 @@ class LoginFlowTests(TestCase):
 
     @patch('core.views.api_get')
     @patch('core.views.api_authenticate')
+    def test_login_nao_redireciona_para_tela_sem_permissao(
+        self,
+        authenticate,
+        api_get,
+    ):
+        authenticate.return_value = {
+            'access_token': 'token-seguro',
+            'token_type': 'Bearer',
+        }
+        api_get.return_value = {
+            'id': 10,
+            'nome': 'Solicitante',
+            'email': 'solicitante@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': ['solicitar_nota'],
+        }
+
+        response = self.client.post(
+            '/login/',
+            {
+                'email': 'solicitante@teste.com',
+                'password': 'senha',
+                'next': '/acompanhamento/',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/solicitacao-nota/',
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn('acesso_negado', response.url)
+
+    @patch('core.views.api_get')
+    @patch('core.views.api_authenticate')
+    def test_login_remove_alerta_antigo_da_tela_permitida(
+        self,
+        authenticate,
+        api_get,
+    ):
+        authenticate.return_value = {
+            'access_token': 'token-seguro',
+            'token_type': 'Bearer',
+        }
+        api_get.return_value = {
+            'id': 10,
+            'nome': 'Solicitante',
+            'email': 'solicitante@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': ['solicitar_nota'],
+        }
+
+        response = self.client.post(
+            '/login/',
+            {
+                'email': 'solicitante@teste.com',
+                'password': 'senha',
+                'next': (
+                    '/requisicao/solicitacao-nota/'
+                    '?acesso_negado=1&origem=login'
+                ),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/solicitacao-nota/?origem=login',
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn('acesso_negado', response.url)
+
+    @patch('core.views.api_get')
+    @patch('core.views.api_authenticate')
     def test_login_rejeita_redirecionamento_externo(self, authenticate, api_get):
         authenticate.return_value = {'access_token': 'token-seguro'}
         api_get.return_value = {
