@@ -13,7 +13,18 @@
 }
 
 /* Gestão de acessos */
-.access-admin-page { display: grid; gap: 20px; }
+.access-admin-page {
+  display: grid;
+  flex: 1;
+  gap: 20px;
+  min-height: 0;
+  padding-right: 4px;
+  padding-bottom: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
 .access-admin-intro { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .access-admin-intro > div { display: grid; gap: 4px; }
 .access-admin-intro strong { color: var(--ink); font-size: 16px; }

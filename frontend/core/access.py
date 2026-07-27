@@ -123,7 +123,12 @@ ROUTE_PERMISSIONS = {
     "conciliacoes_financeiras": "consultar_conciliacoes",
     "workflow_solicitacoes": "follow_up_solicitacoes",
     "emissao_nfse": "emissao_nfse",
-    "emissao_nfse_pdf": "emissao_nfse",
+    "emissao_nfse_pdf": (
+        "emissao_nfse",
+        "solicitacoes_cadastradas",
+        "solicitar_nota",
+        "follow_up_solicitacoes",
+    ),
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
     "consultar_atendimento_nota": "solicitar_nota",
@@ -150,6 +155,18 @@ def allowed_screen_keys(user):
 
 def can_access_screen(user, screen_key):
     return screen_key in allowed_screen_keys(user)
+
+
+def can_access_route(user, route_name):
+    required_screens = ROUTE_PERMISSIONS.get(route_name)
+    if not required_screens:
+        return True
+    if isinstance(required_screens, str):
+        required_screens = (required_screens,)
+    return any(
+        can_access_screen(user, screen_key)
+        for screen_key in required_screens
+    )
 
 
 def first_allowed_url(user):

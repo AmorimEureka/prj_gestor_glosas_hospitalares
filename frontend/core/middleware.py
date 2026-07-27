@@ -6,8 +6,7 @@ from django.urls import Resolver404, resolve
 from django.utils.cache import patch_cache_control
 
 from .access import (
-    ROUTE_PERMISSIONS,
-    can_access_screen,
+    can_access_route,
     first_allowed_url,
     is_ti,
 )
@@ -65,8 +64,7 @@ class ApiSessionMiddleware:
                 return redirect(
                     f"{first_allowed_url(user)}?acesso_negado=1"
                 )
-            screen_key = ROUTE_PERMISSIONS.get(route_name)
-            if screen_key and not can_access_screen(user, screen_key):
+            if not can_access_route(user, route_name):
                 return redirect(
                     f"{first_allowed_url(user)}?acesso_negado=1"
                 )

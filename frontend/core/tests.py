@@ -1084,6 +1084,63 @@ class LoginFlowTests(TestCase):
             '<span class="nav-label">Administrativo</span>',
         )
 
+    @patch('core.views.api_get_stream')
+    def test_usuario_das_solicitacoes_visualiza_pdf_emitido(
+        self,
+        api_get_stream,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Solicitante',
+            'perfil': 'usuario',
+            'telas_permitidas': ['solicitacoes_cadastradas'],
+        }
+        session.save()
+        upstream = Mock()
+        upstream.headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'inline; filename="nfse-42.pdf"',
+        }
+        upstream.iter_content.return_value = [b'%PDF-1.4']
+        api_get_stream.return_value = upstream
+
+        response = self.client.get(
+            '/requisicao/emissao-nfse/itens/42/pdf/?download=false'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.streaming)
+        self.assertNotIn('Location', response)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'%PDF-1.4',
+        )
+        api_get_stream.assert_called_once_with(
+            '/app_glosas/requisicoes/emissoes-nfse/itens/42/pdf',
+            {'download': 'false'},
+        )
+
+    def test_permissao_do_pdf_nao_libera_tela_de_emissao(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Solicitante',
+            'perfil': 'usuario',
+            'telas_permitidas': ['solicitacoes_cadastradas'],
+        }
+        session.save()
+
+        response = self.client.get('/requisicao/emissao-nfse/')
+
+        self.assertRedirects(
+            response,
+            '/requisicao/solicitacoes-cadastradas/?acesso_negado=1',
+            fetch_redirect_response=False,
+        )
+
     def test_usuario_sem_telas_recebe_orientacao(self):
         session = self.client.session
         session['api_access_token'] = 'token-seguro'
@@ -1149,12 +1206,26 @@ class LoginFlowTests(TestCase):
             response,
             'aria-label="Telas disponíveis para o novo usuário"',
         )
+        self.assertContains(response, 'Criar acesso')
+        self.assertContains(
+            response,
+            'name="access-user-management"',
+            count=1,
+        )
         self.assertContains(response, 'Salvar telas visíveis')
         self.assertContains(
             response,
             'value="conciliacao_manual"',
         )
         self.assertContains(response, 'Gestão de acessos')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.access-admin-page {\n'
+            '  display: grid;\n'
+            '  flex: 1;',
+            css,
+        )
+        self.assertIn('  overflow-y: auto;', css)
 
     @patch('core.views.api_patch')
     def test_ti_salva_telas_visiveis_do_usuario(self, api_patch):
@@ -1455,7 +1526,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260727-acessos-scroll-login-36',
+            '?v=20260727-acessos-pdf-acordeao-37',
             base_template.read_text(),
         )
 
