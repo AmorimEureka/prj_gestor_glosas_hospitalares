@@ -419,6 +419,11 @@ class DashboardIndicadoresTests(TestCase):
     def test_dashboard_e_acompanhamento_compartilham_cache_de_glosas(self):
         self.assertEqual(ACOMPANHAMENTO_GLOSAS_CACHE_KEY, DASHBOARD_GLOSAS_CACHE_KEY)
 
+    def test_limite_do_dashboard_comporta_dataset_consolidado(self):
+        from .views import DASHBOARD_GLOSAS_LIMIT
+
+        self.assertGreaterEqual(DASHBOARD_GLOSAS_LIMIT, 17166)
+
     def test_acoes_dos_filtros_permanecem_dentro_do_painel(self):
         css = Path(finders.find('css/app.css')).read_text()
 
@@ -1526,7 +1531,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260727-acessos-pdf-acordeao-37',
+            '?v=20260727-conciliacao-financeira-39',
             base_template.read_text(),
         )
 
@@ -1890,6 +1895,7 @@ class ConciliacaoFaturamentoTests(TestCase):
                     '[{"nfse_row_hash": "hash-1", '
                     '"valor_bruto_remessa": "100.00", '
                     '"sn_glosado": true, "valor_glosado": "20.00", '
+                    '"valor_impostos": "5.00", '
                     '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
             }
@@ -1898,13 +1904,14 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertEqual(payload['cd_remessa'], 10)
         self.assertEqual(payload['processo_recebimento'], 'PROC-1')
         self.assertEqual(payload['notas'][0]['nfse_row_hash'], 'hash-1')
-        self.assertEqual(payload['notas'][0]['valor_alocado'], '80.00')
+        self.assertEqual(payload['notas'][0]['valor_alocado'], '75.00')
+        self.assertEqual(payload['notas'][0]['valor_impostos'], '5.00')
         self.assertNotIn('valor_bruto_remessa', payload['notas'][0])
 
     def test_impede_glosa_igual_ou_maior_que_parcela_da_remessa(self):
         with self.assertRaisesRegex(
             ValueError,
-            'valor glosado deve ser menor',
+            'soma da glosa e das retenções deve ser menor',
         ):
             build_conciliacao_faturamento_payload(
                 {
@@ -2286,6 +2293,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                     'valor_remessa': '140.00',
                     'quantidade_nfses_sem_recebimento': 2,
                     'valor_total_glosas': '20.00',
+                    'valor_total_impostos': '15.00',
+                    'valor_liquido': '120.00',
                     'valor_recebido': '50.00',
                     'valor_pendente': '70.00',
                     'situacao': 'recebimento_parcial',
@@ -2454,20 +2463,44 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertContains(response, 'NF-101')
         self.assertContains(response, 'Convênio Teste')
         self.assertContains(response, 'PROC-100')
-        self.assertContains(response, 'RECEBIMENTO PARCIAL')
-        self.assertContains(response, 'EM ATRASO · 3 DIAS')
         self.assertContains(response, '<small>Remessa</small>')
         self.assertContains(response, '<strong>987</strong>')
         self.assertContains(response, '<small>NFS-e pendentes</small>')
         self.assertContains(response, '<strong>2</strong>')
-        self.assertLess(
-            content.index('<small>Valor remessa</small>'),
-            content.index('<small>Valor recebido</small>'),
+        summary_start = content.index('class="finance-pending-summary"')
+        summary_end = content.index('</button>', summary_start)
+        summary_content = content[summary_start:summary_end]
+        summary_labels = (
+            'Remessa',
+            'Competência',
+            'Convênio',
+            'NFS-e pendentes',
+            'Valor remessa',
+            'Valor glosa',
+            'Total das retenções',
+            'Valor líquido',
         )
-        self.assertLess(
-            content.index('<small>Valor recebido</small>'),
-            content.index('<small>Valor pendente</small>'),
+        summary_positions = [
+            summary_content.index(f'<small>{label}</small>')
+            for label in summary_labels
+        ]
+        self.assertEqual(summary_positions, sorted(summary_positions))
+        self.assertNotIn('Valor recebido', summary_content)
+        self.assertNotIn('Valor pendente', summary_content)
+        self.assertNotIn('finance-pending-statuses', summary_content)
+        self.assertContains(response, '<strong>R$ 20,00</strong>')
+        self.assertContains(response, '<strong>R$ 15,00</strong>')
+        self.assertContains(response, '<strong>R$ 120,00</strong>')
+        self.assertContains(
+            response,
+            'finance-pending-meta finance-pending-meta--process',
         )
+        self.assertContains(
+            response,
+            '<small>Processo de recebimento</small>',
+        )
+        self.assertNotContains(response, '<small>CNPJ do convênio</small>')
+        self.assertNotContains(response, '<small>Total de glosas</small>')
         self.assertContains(response, 'R$ 100,00')
         self.assertContains(
             response,
@@ -2499,7 +2532,6 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertNotContains(response, 'readonly aria-readonly="true"')
         self.assertContains(response, '@input="updateMoney($event)"')
         self.assertNotContains(response, 'Valor já recebido')
-        self.assertNotContains(response, '<small>Valor glosa</small>')
         self.assertNotContains(response, '<small>Tipo</small>')
         self.assertNotContains(response, '<small>Valor do recebimento</small>')
         self.assertNotContains(response, 'Recebimentos financeiros anteriores')
@@ -2516,10 +2548,10 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             combined_row,
         )
         combined_content = content[combined_row:receipt_edit_form]
-        for label in (
+        detail_labels = (
             'NFS-e',
-            'Previsão',
             'Valor NFS-e',
+            'Previsão',
             'Valor conciliado',
             'Valor recebido',
             'Saldo financeiro',
@@ -2528,8 +2560,14 @@ class ConciliacoesSemRecebimentoTests(TestCase):
             'CONTA PLANO CONTAS',
             'CONTA CENTRO CUSTO',
             'LANÇAMENTO FINANCEIRO',
-        ):
+        )
+        for label in detail_labels:
             self.assertIn(f'<small>{label}</small>', combined_content)
+        detail_positions = [
+            combined_content.index(f'<small>{label}</small>')
+            for label in detail_labels
+        ]
+        self.assertEqual(detail_positions, sorted(detail_positions))
         self.assertContains(response, '<small>RECEBIMENTO</small>', count=3)
         self.assertContains(response, '<small>CONTA BANCÁRIA</small>', count=3)
         self.assertContains(response, '<small>CONTA PLANO CONTAS</small>', count=3)
@@ -2549,12 +2587,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertContains(response, 'CC-10')
         self.assertContains(response, 'Crédito NFS-e NF-100')
         self.assertNotContains(response, 'RECEBIDA FINANCEIRAMENTE')
-        self.assertContains(
-            response,
-            'class="finance-pending-statuses"',
-            count=1,
-        )
-        self.assertNotIn('finance-pending-statuses', combined_content)
+        self.assertNotContains(response, 'class="finance-pending-statuses"')
         self.assertContains(response, '<small>Saldo financeiro</small>')
         self.assertContains(response, 'name="form_action" value="editar_recebimento"')
         self.assertContains(response, 'name="form_action" value="excluir_recebimento"')
@@ -2687,6 +2720,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                 'data_previsao_recebimento': '2026-08-15',
                 'cd_remessa': ['987'],
                 'valor_glosado_987': 'R$ 10,00',
+                'valor_impostos_987': 'R$ 5,00',
                 'valor_recebido_987': 'R$ 90,00',
             }
         )
@@ -2702,6 +2736,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                 {
                     'cd_remessa': 987,
                     'valor_glosado': '10.00',
+                    'valor_impostos': '5.00',
                     'valor_recebido': '90.00',
                 }
             ],
@@ -2793,6 +2828,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                 'data_previsao_recebimento': '2026-08-15',
                 'cd_remessa': '987',
                 'valor_glosado_987': 'R$ 10,00',
+                'valor_impostos_987': 'R$ 5,00',
                 'valor_recebido_987': 'R$ 90,00',
             },
         )
@@ -2811,6 +2847,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                     {
                         'cd_remessa': 987,
                         'valor_glosado': '10.00',
+                        'valor_impostos': '5.00',
                         'valor_recebido': '90.00',
                     }
                 ],
@@ -2832,6 +2869,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                         'valor_remessa': '100.00',
                         'quantidade_nfses_sem_recebimento': 1,
                         'valor_total_glosas': '10.00',
+                        'valor_total_impostos': '5.00',
+                        'valor_liquido': '85.00',
                         'valor_recebido': '0.00',
                         'valor_pendente': '90.00',
                         'situacao': 'sem_recebimento',
@@ -2846,8 +2885,9 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                                 'data_criacao': '2026-07-01T10:00:00',
                                 'valor_nfse': '100.00',
                                 'valor_vinculado_remessa': '100.00',
+                                'valor_impostos': '5.00',
                                 'valor_glosado': '10.00',
-                                'valor_pendente': '90.00',
+                                'valor_pendente': '85.00',
                                 'situacao': 'sem_recebimento',
                                 'em_atraso': False,
                                 'dias_em_atraso': 0,
@@ -2880,11 +2920,15 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertNotContains(response, 'Editar conciliação</button>')
         self.assertNotContains(response, 'Inativar conciliação')
         self.assertContains(response, 'Valor glosa *')
-        self.assertContains(response, 'Valor recebido *', count=2)
+        self.assertContains(response, 'Total das retenções *')
+        self.assertContains(response, 'Valor líquido conciliado *')
+        self.assertContains(response, 'Valor recebido *', count=1)
         self.assertContains(response, 'name="valor_glosado_987"')
         self.assertContains(response, 'value="R$ 10,00"')
+        self.assertContains(response, 'name="valor_impostos_987"')
+        self.assertContains(response, 'value="R$ 5,00"')
         self.assertContains(response, 'name="valor_recebido_987"')
-        self.assertContains(response, 'value="R$ 90,00"')
+        self.assertContains(response, 'value="R$ 85,00"')
 
     @patch('core.views.clear_filter_caches')
     @patch('core.views.api_delete')
