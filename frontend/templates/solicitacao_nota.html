@@ -541,7 +541,12 @@
 
     const loadAttendance = async () => {
       const code = codeInput.value.trim();
-      if (!code || Number(code) <= 0) {
+      const numericCode = Number(code);
+      if (
+        !/^\d+$/.test(code)
+        || !Number.isSafeInteger(numericCode)
+        || numericCode <= 0
+      ) {
         clearPatient();
         setStatus('Informe um código de atendimento válido.', 'error');
         codeInput.focus();
@@ -553,14 +558,31 @@
       clearPatient();
       searchButton.disabled = true;
       setStatus('Consultando atendimento no MV...', 'loading');
+      let failureMessage = (
+        'Não foi possível consultar o atendimento agora. '
+        + 'Tente novamente em instantes.'
+      );
       try {
         const response = await fetch(
           urlTemplate.replace('/0/', `/${encodeURIComponent(code)}/`),
           { headers: { Accept: 'application/json' } }
         );
-        const payload = await response.json();
+        const payload = await response.json().catch(() => null);
+        if (response.redirected && response.url.includes('/login')) {
+          failureMessage = (
+            'Sua sessão expirou. Atualize a página e entre novamente.'
+          );
+          throw new Error('session-expired');
+        }
         if (!response.ok) {
-          throw new Error(payload.detail || 'Atendimento não encontrado.');
+          failureMessage = (
+            payload?.detail
+            || 'Atendimento não encontrado. Confira o código informado.'
+          );
+          throw new Error('attendance-not-found');
+        }
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          throw new Error('invalid-attendance-response');
         }
         if (currentSequence !== requestSequence) return;
         fields.forEach((field) => {
@@ -575,10 +597,10 @@
         loadedCode = String(payload.codigo_atendimento);
         submitButton.disabled = false;
         setStatus('Atendimento encontrado. Confira os dados abaixo.', 'success');
-      } catch (error) {
+      } catch {
         if (currentSequence !== requestSequence) return;
         clearPatient();
-        setStatus(error.message || 'Não foi possível consultar o atendimento.', 'error');
+        setStatus(failureMessage, 'error');
       } finally {
         if (currentSequence === requestSequence) searchButton.disabled = false;
       }

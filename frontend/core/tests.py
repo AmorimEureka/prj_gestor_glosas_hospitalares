@@ -3350,6 +3350,26 @@ class CadastrarNotaTests(TestCase):
             css,
         )
 
+    def test_consulta_atendimento_exibe_erros_amigaveis(self):
+        response = self.client.get('/requisicao/solicitacao-nota/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Number.isSafeInteger(numericCode)')
+        self.assertContains(response, 'response.json().catch(() => null)')
+        self.assertContains(
+            response,
+            'Não foi possível consultar o atendimento agora.',
+        )
+        self.assertContains(
+            response,
+            'Sua sessão expirou. Atualize a página e entre novamente.',
+        )
+        self.assertContains(
+            response,
+            'Atendimento não encontrado. Confira o código informado.',
+        )
+        self.assertNotContains(response, 'setStatus(error.message')
+
     def test_campos_monetarios_livres_usam_mascara_compartilhada(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
         fields = (
