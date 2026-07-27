@@ -48,7 +48,13 @@
           <small x-show="profile === 'usuario'">Marque as telas liberadas para este usuário.</small>
           <small x-show="profile === 'ti'" x-cloak>Administradores de TI possuem acesso integral.</small>
         </div>
-        <div class="access-permission-groups" :class="{ 'is-full-access': profile === 'ti' }">
+        <div
+          class="access-permission-groups access-permission-groups--create"
+          :class="{ 'is-full-access': profile === 'ti' }"
+          role="region"
+          aria-label="Telas disponíveis para o novo usuário"
+          tabindex="0"
+        >
           {% for group in screen_groups %}
           <fieldset>
             <legend>{{ group.label }}</legend>

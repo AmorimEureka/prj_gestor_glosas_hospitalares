@@ -806,6 +806,18 @@ class LoginFlowTests(TestCase):
             fetch_redirect_response=False,
         )
 
+    def test_login_sem_barra_nao_e_tratado_como_tela_restrita(self):
+        response = self.client.get('/login')
+
+        self.assertRedirects(
+            response,
+            '/login/',
+            status_code=301,
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn('acesso_negado', response.url)
+        self.assertNotIn('next=', response.url)
+
     @patch('core.views.api_get')
     @patch('core.views.api_authenticate')
     def test_login_armazena_token_e_usuario(self, authenticate, api_get):
@@ -838,6 +850,41 @@ class LoginFlowTests(TestCase):
             'Usuário Teste',
         )
         api_get.assert_called_once_with('/usuarios/me', token='token-seguro')
+
+    @patch('core.views.api_get')
+    @patch('core.views.api_authenticate')
+    def test_login_abre_primeira_tela_permitida_sem_alerta_falso(
+        self,
+        authenticate,
+        api_get,
+    ):
+        authenticate.return_value = {
+            'access_token': 'token-seguro',
+            'token_type': 'Bearer',
+        }
+        api_get.return_value = {
+            'id': 10,
+            'nome': 'Solicitante',
+            'email': 'solicitante@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': ['solicitar_nota'],
+        }
+
+        response = self.client.post(
+            '/login/',
+            {
+                'email': 'solicitante@teste.com',
+                'password': 'senha',
+                'next': '/',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/solicitacao-nota/',
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn('acesso_negado', response.url)
 
     @patch('core.views.api_get')
     @patch('core.views.api_authenticate')
@@ -1021,6 +1068,14 @@ class LoginFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Novo acesso')
         self.assertContains(response, 'Telas visíveis')
+        self.assertContains(
+            response,
+            'access-permission-groups--create',
+        )
+        self.assertContains(
+            response,
+            'aria-label="Telas disponíveis para o novo usuário"',
+        )
         self.assertContains(response, 'Salvar telas visíveis')
         self.assertContains(
             response,
@@ -1327,7 +1382,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260726-permissoes-telas-35',
+            '?v=20260727-acessos-scroll-login-36',
             base_template.read_text(),
         )
 
