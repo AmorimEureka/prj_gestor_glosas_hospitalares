@@ -108,25 +108,14 @@
           <span><small>Convênio</small><strong>{{ remessa.convenio }}</strong></span>
           <span><small>NFS-e pendentes</small><strong>{{ remessa.quantidade_nfses_sem_recebimento }}</strong></span>
           <span><small>Valor remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
-          <span><small>Valor recebido</small><strong>R$ {{ remessa.valor_recebido|br_currency }}</strong></span>
-          <span><small>Valor pendente</small><strong>R$ {{ remessa.valor_pendente|br_currency }}</strong></span>
-          <span class="finance-pending-statuses">
-            {% if remessa.situacao == "recebimento_parcial" %}
-              <span class="finance-pending-status is-partial">RECEBIMENTO PARCIAL</span>
-            {% else %}
-              <span class="finance-pending-status">SEM RECEBIMENTO</span>
-            {% endif %}
-            {% if remessa.em_atraso %}
-              <span class="finance-pending-status is-overdue">EM ATRASO · {{ remessa.dias_em_atraso }} DIA{{ remessa.dias_em_atraso|pluralize:"S" }}</span>
-            {% endif %}
-          </span>
+          <span><small>Valor glosa</small><strong>R$ {{ remessa.valor_total_glosas|br_currency }}</strong></span>
+          <span><small>Total das retenções</small><strong>R$ {{ remessa.valor_total_impostos|br_currency }}</strong></span>
+          <span><small>Valor líquido</small><strong>R$ {{ remessa.valor_liquido|br_currency }}</strong></span>
         </button>
 
         <div class="finance-pending-details" x-show="open" x-cloak>
-          <div class="finance-pending-meta">
+          <div class="finance-pending-meta finance-pending-meta--process">
             <span><small>Processo de recebimento</small><strong>{{ remessa.processo_recebimento }}</strong></span>
-            <span><small>CNPJ do convênio</small><strong>{{ remessa.cnpj_convenio }}</strong></span>
-            <span><small>Total de glosas</small><strong>R$ {{ remessa.valor_total_glosas|br_currency }}</strong></span>
           </div>
           <div class="finance-pending-remittances">
             <strong>NFS-e pendentes de recebimento nesta remessa</strong>
@@ -137,8 +126,8 @@
                 <div class="finance-previous-receipt-item" x-data="recebimentoPendenteForm('{{ nota.valor_pendente|escapejs }}', '{{ recebimento.valor_recebido|escapejs }}', '{{ recebimento.data_recebimento|escapejs }}', '{{ recebimento.conta_bancaria_id }}', '{{ recebimento.lancamento_extrato_id|default:"" }}', '{{ recebimento.lancamento_extrato.descricao|default:"Lançamento financeiro"|escapejs }}')">
                   <div class="finance-pending-remittance finance-pending-invoice finance-pending-invoice--history">
                     <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
-                    <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
                     <span><small>Valor NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
+                    <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
                     <span><small>Valor conciliado</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
                     <span><small>Valor recebido</small><strong>R$ {{ recebimento.valor_recebido|br_currency }}</strong></span>
                     <span><small>Saldo financeiro</small><strong>R$ {{ recebimento.saldo_financeiro|br_currency }}</strong></span>
@@ -204,8 +193,8 @@
               {% else %}
               <div class="finance-pending-remittance finance-pending-invoice finance-pending-invoice--history">
                 <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
-                <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
                 <span><small>Valor NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
+                <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
                 <span><small>Valor conciliado</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
                 <span><small>Valor recebido</small><strong>R$ {{ nota.valor_recebido|br_currency }}</strong></span>
                 <span><small>Saldo financeiro</small><strong>R$ {{ nota.valor_pendente|br_currency }}</strong></span>
@@ -248,7 +237,7 @@
                   <div class="finance-conciliation-edit-values">
                     <div>
                       <strong>Valores da remessa nesta NFS-e</strong>
-                      <span>O valor recebido corresponde ao valor líquido conciliado da nota.</span>
+                      <span>O valor líquido, as retenções e a glosa compõem o total conciliado da remessa.</span>
                     </div>
                     <div class="finance-conciliation-edit-remittance">
                       <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
@@ -258,7 +247,11 @@
                         <input class="form-control finance-money-input" type="text" name="valor_glosado_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_glosado|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
                       </label>
                       <label>
-                        <span>Valor recebido *</span>
+                        <span>Total das retenções *</span>
+                        <input class="form-control finance-money-input" type="text" name="valor_impostos_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_impostos|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
+                      </label>
+                      <label>
+                        <span>Valor líquido conciliado *</span>
                         <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_pendente|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
                       </label>
                     </div>

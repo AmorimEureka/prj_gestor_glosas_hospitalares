@@ -6432,7 +6432,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 /* Financeiro · Conciliação Financeira */
 .finance-pending-summary {
   display: grid;
-  grid-template-columns: 18px minmax(85px, 0.55fr) minmax(105px, 0.7fr) minmax(180px, 1.4fr) minmax(90px, 0.55fr) repeat(3, minmax(115px, 0.8fr)) minmax(220px, 1.2fr);
+  grid-template-columns: 18px minmax(75px, 0.5fr) minmax(100px, 0.65fr) minmax(165px, 1.3fr) minmax(90px, 0.55fr) repeat(4, minmax(110px, 0.75fr));
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -6533,6 +6533,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   gap: 8px;
 }
 
+.finance-pending-meta--process {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .finance-pending-meta,
 .finance-pending-value {
   padding: 9px 10px;
@@ -6598,7 +6602,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .finance-pending-invoice.finance-pending-invoice--history {
-  grid-template-columns: minmax(65px, 0.45fr) minmax(80px, 0.55fr) repeat(4, minmax(88px, 0.65fr)) minmax(85px, 0.6fr) minmax(165px, 1.25fr) repeat(2, minmax(105px, 0.75fr)) minmax(130px, 0.9fr) 190px;
+  grid-template-columns: minmax(65px, 0.45fr) minmax(100px, 0.7fr) minmax(80px, 0.55fr) repeat(3, minmax(95px, 0.65fr)) minmax(85px, 0.6fr) minmax(165px, 1.25fr) repeat(2, minmax(105px, 0.75fr)) minmax(130px, 0.9fr) 190px;
   width: 100%;
   min-width: 0;
 }
@@ -6769,7 +6773,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-template-columns: repeat(3, minmax(140px, 1fr));
   }
 
-  .finance-pending-invoice-actions {
+  .finance-pending-invoice.finance-pending-invoice--history {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
+  .finance-pending-invoice-actions,
+  .finance-previous-receipt-actions {
     grid-column: 1 / -1;
   }
 }
@@ -6804,7 +6813,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-column: auto;
   }
 
-  .finance-pending-invoice-actions {
+  .finance-pending-invoice-actions,
+  .finance-previous-receipt-actions {
     grid-column: auto;
     justify-content: stretch;
   }
@@ -7315,16 +7325,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .finance-nfse-result {
-  grid-template-columns: minmax(90px, .65fr) minmax(120px, .8fr) minmax(145px, .9fr) minmax(145px, .9fr) 30px;
+  grid-template-columns: minmax(85px, .6fr) minmax(110px, .75fr) repeat(4, minmax(125px, .85fr)) 30px;
 }
 
 .finance-selected-nfse .finance-selected-main {
-  grid-template-columns: minmax(90px, .65fr) minmax(120px, .8fr) repeat(2, minmax(145px, .9fr)) 32px;
+  grid-template-columns: minmax(85px, .6fr) minmax(110px, .75fr) repeat(4, minmax(125px, .85fr)) 32px;
 }
 
 .finance-nfse-allocation-grid {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) max-content minmax(190px, 1fr) minmax(190px, 1fr) minmax(190px, 1fr);
+  grid-template-columns: minmax(170px, 1fr) max-content repeat(4, minmax(160px, 1fr));
   align-items: end;
   gap: 10px;
   padding: 12px;
@@ -7913,7 +7923,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .finance-conciliation-edit-remittance {
   display: grid;
-  grid-template-columns: minmax(90px, 0.35fr) repeat(2, minmax(180px, 1fr));
+  grid-template-columns: minmax(90px, 0.35fr) repeat(3, minmax(160px, 1fr));
   align-items: end;
   gap: 10px;
   padding-top: 8px;
