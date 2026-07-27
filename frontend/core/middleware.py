@@ -2,8 +2,21 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.shortcuts import redirect
+from django.urls import Resolver404, resolve
+from django.utils.cache import patch_cache_control
 
-from .services import reset_request_api_token, set_request_api_token
+from .access import (
+    ROUTE_PERMISSIONS,
+    can_access_screen,
+    first_allowed_url,
+    is_ti,
+)
+from .services import (
+    ApiError,
+    api_get,
+    reset_request_api_token,
+    set_request_api_token,
+)
 
 
 class ApiSessionMiddleware:
@@ -30,8 +43,47 @@ class ApiSessionMiddleware:
             query = urlencode({"next": request.get_full_path()})
             return redirect(f"/login/?{query}")
 
+        if not is_public and access_token:
+            user = request.session.get("api_user") or {}
+            if "telas_permitidas" not in user:
+                try:
+                    user = api_get(
+                        "/usuarios/me",
+                        token=access_token,
+                    )
+                    request.session["api_user"] = user
+                except ApiError:
+                    pass
+            try:
+                route_name = resolve(request.path_info).url_name
+            except Resolver404:
+                route_name = None
+            if route_name == "user_access_management" and not is_ti(user):
+                return redirect(
+                    f"{first_allowed_url(user)}?acesso_negado=1"
+                )
+            screen_key = ROUTE_PERMISSIONS.get(route_name)
+            if screen_key and not can_access_screen(user, screen_key):
+                return redirect(
+                    f"{first_allowed_url(user)}?acesso_negado=1"
+                )
+
         context_token = set_request_api_token(access_token)
         try:
-            return self.get_response(request)
+            response = self.get_response(request)
+            content_type = response.headers.get("Content-Type", "")
+            if (
+                not is_public
+                and access_token
+                and content_type.startswith("text/html")
+            ):
+                patch_cache_control(
+                    response,
+                    no_cache=True,
+                    no_store=True,
+                    must_revalidate=True,
+                    private=True,
+                )
+            return response
         finally:
             reset_request_api_token(context_token)

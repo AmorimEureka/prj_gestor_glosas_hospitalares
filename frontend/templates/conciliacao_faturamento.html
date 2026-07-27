@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro{% endblock %}
+{% block page_title %}Conciliação Manual{% endblock %}
+{% block content %}
+<section class="finance-reconciliation-page">
+  <form method="get" class="panel filter-panel finance-search-bar">
+    <label class="filter-group">
+      <span>NFS-e</span>
+      <input class="form-control" type="search" name="numero_nfse" value="{{ filtros.numero_nfse }}" placeholder="Número da NFS-e">
+    </label>
+    <label class="filter-group">
+      <span>Remessa</span>
+      <input class="form-control" type="search" name="cd_remessa" value="{{ filtros.cd_remessa }}" placeholder="Código da remessa">
+    </label>
+    <label class="filter-group">
+      <span>Convênio</span>
+      <select class="form-select" name="convenio">
+        <option value="">Todos</option>
+        {% for convenio in convenios %}
+        <option value="{{ convenio }}" {% if filtros.convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Pesquisar</button>
+      {% if filtros.numero_nfse or filtros.cd_remessa or filtros.convenio %}<a class="btn btn-outline-secondary" href="{% url 'conciliacao_faturamento' %}">Limpar</a>{% endif %}
+    </div>
+  </form>
+
+  <section class="panel finance-results-panel">
+    <div class="panel-header">
+      <div class="results-heading finance-list-heading">
+        <div>
+          <span class="panel-title">Remessas pendentes de conciliação fiscal</span>
+          <span class="results-subtitle">Expanda uma remessa para consultar o histórico e vincular uma ou mais NFS-e do convênio.</span>
+        </div>
+        {% if remessas %}
+        <div class="collapse-actions">
+          <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-fiscal-reconciliations'))">Expandir</button>
+          <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-fiscal-reconciliations'))">Colapsar todos</button>
+        </div>
+        {% endif %}
+      </div>
+      <div class="results-toolbar finance-results-toolbar">
+        <div class="results-totals">
+          <span class="result-total"><span>TOTAL REMESSAS</span><strong>{{ total_remessas }}</strong></span>
+          <span class="result-total result-total--treated"><span>TOTAL CONCILIADO</span><strong>R$ {{ valor_total_conciliado|br_currency }}</strong></span>
+          <span class="result-total result-total--value"><span>SALDO NÃO CONCILIADO</span><strong>R$ {{ valor_total_pendente|br_currency }}</strong></span>
+        </div>
+        {% if pagination.total %}
+        <div class="pagination-control">
+          {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+          <form method="get" class="page-select-form">
+            {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+            <label for="finance-page-select">Pagina</label>
+            <select id="finance-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+              {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+            </select>
+            <span>de {{ pagination.total_pages }}</span>
+          </form>
+          {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Proxima</a>{% else %}<span class="page-step page-step--disabled">Proxima</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="finance-note-list finance-remittance-card-list">
+      {% for remessa in remessas %}
+      <article
+        class="finance-note-card finance-remittance-card"
+        x-data="conciliacaoRemessaCard('{{ remessa.cd_remessa }}', '{{ remessa.valor_disponivel_conciliacao|escapejs }}', '{{ remessa.processo_recebimento|default:''|escapejs }}')"
+        :class="{ 'is-open': open }"
+        @expand-all-fiscal-reconciliations.window="open = true"
+        @collapse-all-fiscal-reconciliations.window="open = false"
+      >
+        <button type="button" class="finance-note-summary finance-remittance-summary" @click="open = !open" :aria-expanded="open">
+          <span class="finance-note-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
+          <span><small>Número remessa</small><strong>{{ remessa.cd_remessa }}</strong></span>
+          <span><small>Data competência</small><strong>{{ remessa.data_competencia|api_date }}</strong></span>
+          <span class="finance-note-convenio"><small>Convênio</small><strong>{{ remessa.convenio }}</strong></span>
+          <span><small>Valor da remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
+          <span><small>Valor conciliado</small><strong>R$ {{ remessa.valor_conciliado|br_currency }}</strong></span>
+          <span><small>Valor não conciliado</small><strong>R$ {{ remessa.valor_nao_conciliado|br_currency }}</strong></span>
+        </button>
+
+        <form method="post" class="finance-note-form" x-show="open" x-cloak novalidate @submit="validateBeforeSubmit($event)">
+          {% csrf_token %}
+          <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
+          <input type="hidden" name="notas_json" :value="JSON.stringify(notasPayload)">
+
+          <section class="finance-receipt-section">
+            <div class="finance-section-title">
+              <div>
+                <strong>Processo da remessa</strong>
+                <span>O mesmo processo de recebimento será utilizado em todas as NFS-e desta remessa.</span>
+              </div>
+            </div>
+            <div class="finance-process-grid">
+              <label>
+                <span>Processo Recebimento *</span>
+                <input class="form-control" type="text" name="processo_recebimento" x-model="processoRecebimento" maxlength="255" required {% if remessa.processo_recebimento %}readonly{% endif %}>
+              </label>
+              <div class="finance-process-position">
+                <span><small>RECURSO DISPONÍVEL</small><strong>R$ {{ remessa.valor_recurso_disponivel|br_currency }}</strong></span>
+                <span><small>VALOR ACATADO</small><strong>R$ {{ remessa.valor_acatado|br_currency }}</strong></span>
+                <span><small>DISPONÍVEL PARA ESTA CONCILIAÇÃO</small><strong>R$ {{ remessa.valor_disponivel_conciliacao|br_currency }}</strong></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="finance-remittance-section finance-history-section">
+            <div class="finance-section-title">
+              <div><strong>Conciliações anteriores da remessa</strong><span>As NFS-e já utilizadas permanecem visíveis para conferência do saldo e do recebimento.</span></div>
+            </div>
+            <div class="finance-history-list">
+              {% for historico in remessa.historico %}
+              <div class="finance-history-row">
+                <span><small>NFS-e</small><strong>{{ historico.numero_nfse }}</strong></span>
+                <span><small>Emissão</small><strong>{{ historico.data_emissao|api_date }}</strong></span>
+                <span><small>Valor alocado</small><strong>R$ {{ historico.valor_alocado|br_currency }}</strong></span>
+                <span><small>Valor glosado</small><strong>R$ {{ historico.valor_glosado|br_currency }}</strong></span>
+                <span><small>Previsão</small><strong>{{ historico.data_previsao_recebimento|api_date }}</strong></span>
+                <span><small>Recebimento</small><strong>{% if historico.data_recebimento %}{{ historico.data_recebimento|api_date }}{% else %}PENDENTE{% endif %}</strong></span>
+              </div>
+              {% empty %}
+              <p class="finance-empty-remittance">Esta remessa ainda não possui NFS-e conciliada.</p>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="finance-remittance-section">
+            <div class="finance-section-title finance-section-title--remittance">
+              <div><strong>Adicionar NFS-e</strong><span>Somente notas do convênio e com saldo fiscal disponível serão exibidas.</span></div>
+            </div>
+            <div class="finance-remittance-search">
+              <label>
+                <span>Pesquisar NFS-e</span>
+                <input class="form-control" type="search" x-model="searchTerm" @input.debounce.350ms="searchNotas" placeholder="Número da NFS-e">
+              </label>
+              <button class="btn btn-primary" type="button" @click="searchNotas" :disabled="loadingNotas">
+                <span x-show="!loadingNotas">Pesquisar</span><span x-show="loadingNotas">Consultando...</span>
+              </button>
+            </div>
+            <p class="finance-inline-error" x-show="searchError" x-text="searchError"></p>
+
+            <div class="finance-remittance-results finance-nfse-results" x-show="notaResults.length">
+              <template x-for="nota in notaResults" :key="nota.row_hash">
+                <button type="button" class="finance-remittance-result finance-nfse-result" @click="addNota(nota)" :disabled="isSelected(nota.row_hash)">
+                  <span><small>NFS-e</small><strong x-text="nota.numero_nfse"></strong></span>
+                  <span><small>Data emissão</small><strong x-text="formatDate(nota.data_emissao)"></strong></span>
+                  <span><small>Valor da NFS-e</small><strong x-text="formatMoney(nota.valor_nfse)"></strong></span>
+                  <span><small>Saldo disponível</small><strong x-text="formatMoney(nota.saldo_nfse)"></strong></span>
+                  <b aria-label="Adicionar NFS-e">+</b>
+                </button>
+              </template>
+            </div>
+
+            <div class="finance-selected-remittances finance-selected-nfses">
+              <template x-for="(nota, index) in selectedNotas" :key="nota.row_hash">
+                <section class="finance-selected-remittance finance-selected-nfse">
+                  <div class="finance-selected-main">
+                    <span><small>NFS-e</small><strong x-text="nota.numero_nfse"></strong></span>
+                    <span><small>Emissão</small><strong x-text="formatDate(nota.data_emissao)"></strong></span>
+                    <span><small>Valor NFS-e</small><strong x-text="formatMoney(nota.valor_nfse)"></strong></span>
+                    <span><small>Saldo antes da alocação</small><strong x-text="formatMoney(nota.saldo_nfse)"></strong></span>
+                    <button type="button" class="finance-remove-remittance" @click="removeNota(index)" title="Remover NFS-e">×</button>
+                  </div>
+
+                  <div class="finance-nfse-allocation-grid">
+                    <label>
+                      <span>Valor da remessa nesta NFS-e *</span>
+                      <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(nota.valor_bruto_remessa)" @input="updateMoney(nota, 'valor_bruto_remessa', $event)" @blur="$event.target.value = formatMoney(nota.valor_bruto_remessa)">
+                    </label>
+                    <label class="finance-glosa-check finance-glosa-toggle"><input type="checkbox" x-model="nota.sn_glosado" @change="glosaChanged(nota)"> <span>GLOSAR?</span></label>
+                    <label x-show="nota.sn_glosado" x-cloak>
+                      <span>Valor glosado *</span>
+                      <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(nota.valor_glosado)" @input="updateMoney(nota, 'valor_glosado', $event)" @blur="$event.target.value = formatMoney(nota.valor_glosado)">
+                    </label>
+                    <label>
+                      <span>Data previsão recebimento *</span>
+                      <input class="form-control" type="date" x-model="nota.data_previsao_recebimento">
+                    </label>
+                    <label>
+                      <span>Data recebimento</span>
+                      <input class="form-control" type="date" x-model="nota.data_recebimento" @change="recebimentoChanged(nota)">
+                    </label>
+                  </div>
+
+                  <div class="finance-bank-grid" x-show="Boolean(nota.data_recebimento)" x-cloak>
+                    <label>
+                      <span>Conta bancária do recebimento *</span>
+                      <select class="form-select" x-model="nota.conta_bancaria_id" @change="loadLancamentos(nota)">
+                        <option value="">Selecione agência e conta</option>
+                        {% for conta in contas_bancarias %}<option value="{{ conta.id }}">{{ conta.banco }} · Ag. {{ conta.agencia }}{% if conta.digito_agencia %}-{{ conta.digito_agencia }}{% endif %} · C/C {{ conta.conta }}{% if conta.digito %}-{{ conta.digito }}{% endif %}</option>{% endfor %}
+                      </select>
+                    </label>
+                    <label><span>Conta do plano de contas</span><input class="form-control" type="text" x-model="nota.conta_plano_contas" maxlength="255"></label>
+                    <label><span>Conta do centro de custo</span><input class="form-control" type="text" x-model="nota.conta_centro_custo" maxlength="255"></label>
+                    <label class="finance-bank-launch-field">
+                      <span>Lançamento no extrato bancário</span>
+                      <select class="form-select" x-model="nota.lancamento_extrato_id" :disabled="nota.loadingLancamentos || !nota.conta_bancaria_id">
+                        <option value="" x-text="nota.loadingLancamentos ? 'Carregando lançamentos...' : 'Selecione um lançamento'"></option>
+                        <template x-for="lancamento in nota.lancamentos" :key="lancamento.id"><option :value="lancamento.id" x-text="lancamentoLabel(lancamento)"></option></template>
+                      </select>
+                    </label>
+                  </div>
+                </section>
+              </template>
+              <p class="finance-empty-remittance" x-show="!selectedNotas.length">Pesquise e adicione ao menos uma NFS-e.</p>
+            </div>
+          </section>
+
+          <footer class="finance-reconciliation-footer">
+            <div class="finance-total-box"><small>NFS-e líquidas</small><strong x-text="formatMoney(totalAlocado)"></strong></div>
+            <span class="finance-total-operator">+</span>
+            <div class="finance-total-box"><small>Novas glosas</small><strong x-text="formatMoney(totalGlosado)"></strong></div>
+            <span class="finance-total-operator">=</span>
+            <div class="finance-total-box" :class="{ 'is-invalid': totalComprometido > valorDisponivel + 0.005 }"><small>Valor tratado nesta operação</small><strong x-text="formatMoney(totalComprometido)"></strong></div>
+            <div class="finance-total-box"><small>Saldo disponível após conciliação</small><strong x-text="formatMoney(saldoAposConciliacao)"></strong></div>
+            <div class="finance-submit-area">
+              <p class="finance-inline-error" role="alert" aria-live="assertive" x-show="validationError" x-text="validationError"></p>
+              <button class="btn btn-primary" type="submit">Conciliar remessa</button>
+            </div>
+          </footer>
+        </form>
+      </article>
+      {% empty %}
+      <div class="finance-empty-state"><strong>Nenhuma remessa pendente de conciliação.</strong><span>Remessas integralmente conciliadas ou encerradas por acato deixam esta lista.</span></div>
+      {% endfor %}
+    </div>
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer">
+      {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
+      <span>Pagina {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Proxima</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+</section>
+
+<script>
+  window.conciliacaoRemessaCard = function (cdRemessa, valorDisponivel, processoAtual) {
+    return {
+      open: false,
+      cdRemessa: Number(cdRemessa),
+      valorDisponivel: Number(valorDisponivel || 0),
+      processoRecebimento: processoAtual || '',
+      searchTerm: '',
+      loadingNotas: false,
+      searchRequestId: 0,
+      notaResults: [],
+      selectedNotas: [],
+      searchError: '',
+      validationError: '',
+
+      formatMoney(value) {
+        return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      },
+      formatDate(value) {
+        if (!value) return '-';
+        const date = String(value).slice(0, 10).split('-');
+        return date.length === 3 ? `${date[2]}/${date[1]}/${date[0]}` : value;
+      },
+      get totalAlocado() {
+        return this.selectedNotas.reduce((total, nota) => total + this.valorLiquidoNota(nota), 0);
+      },
+      get totalGlosado() {
+        return this.selectedNotas.reduce((total, nota) => total + (nota.sn_glosado ? Number(nota.valor_glosado || 0) : 0), 0);
+      },
+      get totalComprometido() {
+        return this.totalAlocado + this.totalGlosado;
+      },
+      get saldoAposConciliacao() {
+        return Math.max(this.valorDisponivel - this.totalComprometido, 0);
+      },
+      valorGlosadoNota(nota) {
+        return nota.sn_glosado ? Number(nota.valor_glosado || 0) : 0;
+      },
+      valorLiquidoNota(nota) {
+        return Math.max(Number(nota.valor_bruto_remessa || 0) - this.valorGlosadoNota(nota), 0);
+      },
+      get notasPayload() {
+        return this.selectedNotas.map((nota) => ({
+          nfse_row_hash: nota.row_hash,
+          valor_bruto_remessa: Number(nota.valor_bruto_remessa || 0).toFixed(2),
+          sn_glosado: Boolean(nota.sn_glosado),
+          valor_glosado: nota.sn_glosado ? Number(nota.valor_glosado || 0).toFixed(2) : '0.00',
+          data_previsao_recebimento: nota.data_previsao_recebimento || null,
+          data_recebimento: nota.data_recebimento || null,
+          conta_bancaria_id: nota.conta_bancaria_id ? Number(nota.conta_bancaria_id) : null,
+          conta_plano_contas: nota.conta_plano_contas || null,
+          conta_centro_custo: nota.conta_centro_custo || null,
+          lancamento_extrato_id: nota.lancamento_extrato_id ? Number(nota.lancamento_extrato_id) : null
+        }));
+      },
+      isSelected(rowHash) {
+        return this.selectedNotas.some((nota) => nota.row_hash === rowHash);
+      },
+      addNota(nota) {
+        if (this.isSelected(nota.row_hash)) return;
+        const restante = Math.max(this.valorDisponivel - this.totalComprometido, 0);
+        this.selectedNotas.push({
+          ...nota,
+          valor_nfse: Number(nota.valor_nfse || 0),
+          saldo_nfse: Number(nota.saldo_nfse || 0),
+          valor_bruto_remessa: Math.min(Number(nota.valor_sugerido || nota.saldo_nfse || 0), restante),
+          sn_glosado: false,
+          valor_glosado: 0,
+          data_previsao_recebimento: '',
+          data_recebimento: '',
+          conta_bancaria_id: '',
+          conta_plano_contas: '',
+          conta_centro_custo: '',
+          lancamento_extrato_id: '',
+          lancamentos: [],
+          loadingLancamentos: false
+        });
+        this.notaResults = this.notaResults.filter((item) => item.row_hash !== nota.row_hash);
+        this.searchTerm = '';
+        this.searchError = '';
+        this.validationError = '';
+      },
+      removeNota(index) {
+        this.selectedNotas.splice(index, 1);
+      },
+      updateMoney(nota, field, event) {
+        const digits = event.target.value.replace(/\D/g, '');
+        nota[field] = digits ? Number(digits) / 100 : 0;
+        event.target.value = this.formatMoney(nota[field]);
+        this.validationError = '';
+      },
+      glosaChanged(nota) {
+        if (!nota.sn_glosado) nota.valor_glosado = 0;
+      },
+      async searchNotas() {
+        const requestId = ++this.searchRequestId;
+        this.loadingNotas = true;
+        this.searchError = '';
+        try {
+          const templateUrl = '{% url "conciliacao_faturamento_notas" 0 %}';
+          const url = new URL(templateUrl.replace('/0/', `/${this.cdRemessa}/`), window.location.origin);
+          if (this.searchTerm.trim()) url.searchParams.set('q', this.searchTerm.trim());
+          const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const payload = await response.json();
+          if (requestId !== this.searchRequestId) return;
+          if (!response.ok) throw new Error(payload.detail || 'Não foi possível consultar as NFS-e.');
+          this.notaResults = (payload.notas || []).filter((nota) => !this.isSelected(nota.row_hash));
+          if (!this.notaResults.length) this.searchError = payload.message || 'Nenhuma NFS-e disponível para esta remessa.';
+        } catch (error) {
+          if (requestId !== this.searchRequestId) return;
+          this.notaResults = [];
+          this.searchError = error.message;
+        } finally {
+          if (requestId === this.searchRequestId) this.loadingNotas = false;
+        }
+      },
+      recebimentoChanged(nota) {
+        if (!nota.data_recebimento) {
+          nota.conta_bancaria_id = '';
+          nota.lancamento_extrato_id = '';
+          nota.lancamentos = [];
+        } else if (nota.conta_bancaria_id) {
+          this.loadLancamentos(nota);
+        }
+      },
+      async loadLancamentos(nota) {
+        nota.lancamento_extrato_id = '';
+        nota.lancamentos = [];
+        if (!nota.conta_bancaria_id || !nota.data_recebimento) return;
+        nota.loadingLancamentos = true;
+        try {
+          const url = new URL('{% url "conciliacao_faturamento_lancamentos" %}', window.location.origin);
+          url.searchParams.set('conta_bancaria_id', nota.conta_bancaria_id);
+          url.searchParams.set('data_recebimento', nota.data_recebimento);
+          const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || 'Não foi possível consultar o extrato.');
+          nota.lancamentos = payload.lancamentos || [];
+        } catch (error) {
+          this.validationError = error.message;
+        } finally {
+          nota.loadingLancamentos = false;
+        }
+      },
+      lancamentoLabel(lancamento) {
+        return `${lancamento.data_lancamento} · ${this.formatMoney(lancamento.valor)} · ${lancamento.descricao || lancamento.documento || 'Lançamento bancário'}`;
+      },
+      showValidationError(message) {
+        this.validationError = message;
+        if (typeof window.showOperationMessage === 'function') {
+          window.showOperationMessage({ ok: false, tag: 'error', title: 'Operação Não Permitida', message });
+        } else {
+          window.alert(`Operação Não Permitida\n\n${message}`);
+        }
+      },
+      validateConciliation(form) {
+        this.validationError = '';
+        if (!this.processoRecebimento.trim()) {
+          this.showValidationError('Informe o Processo Recebimento da remessa.');
+          return false;
+        }
+        if (!this.selectedNotas.length) {
+          this.showValidationError('Adicione ao menos uma NFS-e para conciliar a remessa.');
+          return false;
+        }
+        for (const nota of this.selectedNotas) {
+          const valorBruto = Number(nota.valor_bruto_remessa || 0);
+          const valorGlosado = this.valorGlosadoNota(nota);
+          const valorLiquido = this.valorLiquidoNota(nota);
+          if (valorBruto <= 0) {
+            this.showValidationError(`O valor da remessa conciliado com a NFS-e ${nota.numero_nfse} deve ser maior que zero.`);
+            return false;
+          }
+          if (!nota.data_previsao_recebimento) {
+            this.showValidationError(`Informe a data de previsão de recebimento da NFS-e ${nota.numero_nfse}.`);
+            return false;
+          }
+          if (nota.sn_glosado && Number(nota.valor_glosado || 0) <= 0) {
+            this.showValidationError(`Informe um valor glosado maior que zero para a NFS-e ${nota.numero_nfse}.`);
+            return false;
+          }
+          if (nota.sn_glosado && valorGlosado >= valorBruto) {
+            this.showValidationError(`O valor glosado da NFS-e ${nota.numero_nfse} deve ser menor que o valor da remessa conciliado com a nota.`);
+            return false;
+          }
+          if (valorLiquido > Number(nota.saldo_nfse)) {
+            this.showValidationError(`O valor líquido utilizado da NFS-e ${nota.numero_nfse} não pode exceder o saldo da nota.`);
+            return false;
+          }
+          if (nota.data_recebimento && !nota.conta_bancaria_id) {
+            this.showValidationError(`Selecione a conta bancária do recebimento da NFS-e ${nota.numero_nfse}.`);
+            return false;
+          }
+        }
+        if (this.totalComprometido > this.valorDisponivel + 0.005) {
+          this.showValidationError('A soma das parcelas conciliadas excede o saldo disponível da remessa.');
+          return false;
+        }
+        return form.checkValidity();
+      },
+      validateBeforeSubmit(event) {
+        if (!this.validateConciliation(event.currentTarget)) event.preventDefault();
+      }
+    };
+  };
+</script>
+{% endblock %}

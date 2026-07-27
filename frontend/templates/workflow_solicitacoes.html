@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Financeiro{% endblock %}
+{% block page_title %}Follow-Up Solicitações{% endblock %}
+{% block content %}
+<section class="panel results-summary-panel workflow-request-panel">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Solicitações aguardando validação</span>
+        {% if pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
+        {% else %}
+        <span class="results-subtitle">Nenhuma solicitação aguardando validação.</span>
+        {% endif %}
+      </div>
+      {% if solicitacoes %}
+      <div class="collapse-actions">
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-workflow-requests'))">Expandir</button>
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-workflow-requests'))">Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+    <div class="results-toolbar workflow-request-toolbar">
+      <span class="note-request-results-total">
+        <span>Pendentes</span>
+        <strong>{{ pagination.total }}</strong>
+      </span>
+      {% include "_workflow_pagination.html" with pagination_id="workflow-page-select" %}
+    </div>
+  </div>
+  {% include "_workflow_solicitacao_cards.html" with workflow_mode="validacao" %}
+</section>
+{% endblock %}

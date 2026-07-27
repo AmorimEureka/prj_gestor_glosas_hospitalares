@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Financeiro{% endblock %}
+{% block page_title %}Emissão NFS-e{% endblock %}
+{% block content %}
+<div
+  class="workflow-emission-page"
+  x-data="{
+    selectedCount: 0,
+    updateSelection() {
+      this.selectedCount = document.querySelectorAll('[form=batch-emission-form]:checked').length
+    },
+    markSelectedProcessing() {
+      const ids = Array.from(document.querySelectorAll('[form=batch-emission-form]:checked')).map((input) => Number(input.value))
+      window.dispatchEvent(new CustomEvent('mark-emission-processing', { detail: ids }))
+    }
+  }"
+  @change="updateSelection()"
+>
+  <section class="panel filter-panel">
+    <form method="get" class="note-emission-filters">
+      <div class="filter-group">
+        <label>Nome do paciente</label>
+        <input name="nome_paciente" value="{{ filtros.nome_paciente }}" class="form-control" placeholder="Nome parcial">
+      </div>
+      <div class="filter-group">
+        <label>CPF</label>
+        <input name="cpf" value="{{ filtros.cpf }}" class="form-control" placeholder="Número do CPF">
+      </div>
+      <div class="filter-group">
+        <label>CNPJ emissor</label>
+        <select name="cnpj_emissor" class="form-select">
+          <option value="">Todos</option>
+          {% for empresa in empresas_emissoras %}
+          <option value="{{ empresa.cnpj }}" {% if filtros.cnpj_emissor == empresa.cnpj %}selected{% endif %}>
+            {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}{% if not empresa.ativo %} (inativa){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Tipo do atendimento</label>
+        <select name="tipo_atendimento" class="form-select">
+          <option value="">Todos</option>
+          {% for tipo in tipos_atendimento %}
+          <option value="{{ tipo }}" {% if filtros.tipo_atendimento == tipo %}selected{% endif %}>{{ tipo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Local</label>
+        <select name="local" class="form-select">
+          <option value="">Todos</option>
+          {% for value, label in locais %}
+          <option value="{{ value }}" {% if filtros.local == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary">Filtrar</button>
+        <a href="{% url 'emissao_nfse' %}" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel results-summary-panel workflow-request-panel">
+    <div class="panel-header">
+      <div class="results-heading">
+        <div>
+          <span class="panel-title">Solicitações e emissões de NFS-e</span>
+          {% if pagination.total %}
+          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} solicitações exibidas</span>
+          {% else %}
+          <span class="results-subtitle">Nenhuma solicitação de NFS-e encontrada.</span>
+          {% endif %}
+        </div>
+        {% if solicitacoes %}
+        <div class="collapse-actions">
+          <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-workflow-requests'))">Expandir</button>
+          <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-workflow-requests'))">Colapsar todos</button>
+        </div>
+        {% endif %}
+      </div>
+      <div class="results-toolbar workflow-request-toolbar">
+        <form method="post" id="batch-emission-form" class="workflow-batch-form" @submit="markSelectedProcessing()">
+          {% csrf_token %}
+          <button type="submit" class="workflow-action workflow-action--issue" :disabled="selectedCount === 0">
+            Emitir selecionadas
+            <span x-show="selectedCount > 0" x-text="'(' + selectedCount + ')'"></span>
+          </button>
+        </form>
+        {% include "_workflow_pagination.html" with pagination_id="emission-page-select" %}
+      </div>
+    </div>
+    {% include "_workflow_solicitacao_cards.html" with workflow_mode="emissao" %}
+  </section>
+</div>
+{% if ha_emissoes_processando %}
+<script>
+  window.setTimeout(() => window.location.reload(), 5000);
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,395 @@
+{% load core_extras %}
+{% if solicitacoes %}
+<div class="results-list workflow-request-list">
+  {% for solicitacao in solicitacoes %}
+  <article
+    class="workflow-request-card workflow-request-card--{{ workflow_mode }}"
+    x-data="{
+      open: false,
+      recusar: false,
+      requestId: {{ solicitacao.id }},
+      processing: {% if solicitacao.emissao_processando %}true{% else %}false{% endif %}
+    }"
+    @expand-all-workflow-requests.window="open = true"
+    @collapse-all-workflow-requests.window="open = false; recusar = false"
+    @mark-emission-processing.window="if ($event.detail.includes(requestId)) processing = true"
+  >
+    <div
+      class="workflow-request-header"
+      @click="open = !open"
+      :aria-expanded="open"
+      role="button"
+      tabindex="0"
+      @keydown.enter.prevent="open = !open"
+      @keydown.space.prevent="open = !open"
+    >
+      {% if workflow_mode == "emissao" and solicitacao.pode_emitir %}
+      <label class="workflow-request-selector" @click.stop>
+        <input
+          type="checkbox"
+          name="solicitacao_ids"
+          value="{{ solicitacao.id }}"
+          form="batch-emission-form"
+          aria-label="Selecionar solicitação {{ solicitacao.id }}"
+        >
+      </label>
+      {% elif workflow_mode == "emissao" %}
+      <span class="workflow-request-selector-placeholder" aria-hidden="true"></span>
+      {% endif %}
+      <span class="workflow-request-chevron" :class="{ 'is-open': open }">&#9654;</span>
+      <span>
+        <small>Atendimento</small>
+        <strong>{{ solicitacao.codigo_atendimento }}</strong>
+      </span>
+      <span class="is-patient">
+        <small>Paciente</small>
+        <strong>{{ solicitacao.nm_paciente }}</strong>
+      </span>
+      <span>
+        <small>CPF</small>
+        <strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong>
+      </span>
+      <span>
+        <small>Tipo atendimento</small>
+        <strong>{{ solicitacao.tipo_atendimento }}</strong>
+      </span>
+      <span>
+        <small>Local</small>
+        <strong>{{ solicitacao.local_label }}</strong>
+      </span>
+      <span>
+        <small>Valor da nota</small>
+        <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
+      </span>
+      <span>
+        <small>Solicitada em</small>
+        <strong>{{ solicitacao.data_criacao_formatada }}</strong>
+      </span>
+      <span class="workflow-request-status {% if workflow_mode == 'emissao' %}workflow-request-status--{{ solicitacao.status_classe }}{% elif workflow_mode == 'recusa' %}workflow-request-status--{{ solicitacao.situacao_recusa_classe }}{% else %}workflow-request-status--{{ workflow_mode }}{% endif %}">
+        {% if workflow_mode == "emissao" %}
+        <svg class="workflow-emission-spinner" x-show="processing" x-cloak viewBox="0 0 24 24" aria-label="Emissão em processamento">
+          <path d="M12 3a9 9 0 1 1-8.6 6.3"></path>
+          <path d="M3.4 4.8v4.5h4.5"></path>
+          <path d="M12 7a5 5 0 1 1-4.7 3.3"></path>
+        </svg>
+        {% endif %}
+        {% if workflow_mode == "validacao" %}Aguardando validação{% elif workflow_mode == "recusa" %}{{ solicitacao.situacao_recusa_label }}{% elif workflow_mode == "emissao" %}{{ solicitacao.status_label }}{% else %}Aprovada{% endif %}
+      </span>
+    </div>
+
+    <div class="workflow-request-body" x-show="open" x-cloak>
+      {% if workflow_mode == "emissao" %}
+      <div class="workflow-detail-sections">
+        <section class="workflow-detail-section workflow-detail-section--issuer">
+          <h3>Empresa emissora</h3>
+          <div class="workflow-request-details">
+            <span><small>CNPJ</small><strong>{{ solicitacao.cnpj_emissor_formatado|default:"Não informado" }}</strong></span>
+            <span class="is-wide"><small>Razão social</small><strong>{{ solicitacao.razao_social_emissor|default:"Não informada" }}</strong></span>
+          </div>
+        </section>
+        <section class="workflow-detail-section">
+          <h3>Paciente e contato</h3>
+          <div class="workflow-request-details">
+            <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
+            <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
+            <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+            <span class="is-wide">
+              <small>Endereço</small>
+              <strong>
+                {{ solicitacao.ds_endereco|default:"Não informado" }}
+                {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
+                {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
+                {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
+              </strong>
+            </span>
+          </div>
+        </section>
+        <section class="workflow-detail-section">
+          <h3>Atendimento e solicitação</h3>
+          <div class="workflow-request-details">
+            <span><small>Convênio</small><strong>{{ solicitacao.convenio }}</strong></span>
+            <span><small>Solicitada por</small><strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong></span>
+            <span><small>Validada por</small><strong>{{ solicitacao.validado_por|default:"Não informado" }}</strong></span>
+            <span><small>Validada em</small><strong>{{ solicitacao.validado_em_formatada }}</strong></span>
+            <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
+          </div>
+        </section>
+        {% if solicitacao.status_emissao %}
+        <section class="workflow-detail-section">
+          <h3>Emissão da NFS-e</h3>
+          <div class="workflow-request-details">
+            <span><small>Status da emissão</small><strong>{{ solicitacao.status_emissao_label }}</strong></span>
+            <span><small>Lote de emissão</small><strong>{% if solicitacao.lote_id %}#{{ solicitacao.lote_id }}{% else %}Não informado{% endif %}</strong></span>
+            <span><small>Atualizada em</small><strong>{{ solicitacao.emissao_atualizada_em_formatada }}</strong></span>
+            {% if solicitacao.status == "EMITIDA" %}
+            <span><small>Número da NFS-e</small><strong>{{ solicitacao.numero_nfse|default:"Não informado" }}</strong></span>
+            <span><small>Protocolo</small><strong>{{ solicitacao.protocolo|default:"Não informado" }}</strong></span>
+            {% endif %}
+            {% if solicitacao.erro_emissao %}
+            <span class="is-wide workflow-emission-error"><small>Erro da emissão</small><strong>{{ solicitacao.erro_emissao }}</strong></span>
+            {% endif %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="workflow-request-details">
+        <span><small>Convênio</small><strong>{{ solicitacao.convenio }}</strong></span>
+        <span><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
+        <span><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
+        <span><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+        <span>
+          <small>Solicitada por</small>
+          <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
+        </span>
+        {% if solicitacao.validado_por and workflow_mode != "recusa" %}
+        <span>
+          <small>Validada por</small>
+          <strong>{{ solicitacao.validado_por }}</strong>
+        </span>
+        <span>
+          <small>Validada em</small>
+          <strong>{{ solicitacao.validado_em_formatada }}</strong>
+        </span>
+        {% endif %}
+        <span class="is-wide">
+          <small>Endereço</small>
+          <strong>
+            {{ solicitacao.ds_endereco|default:"Não informado" }}
+            {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
+            {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
+            {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
+          </strong>
+        </span>
+        <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
+      </div>
+      {% endif %}
+
+      {% if workflow_mode == "validacao" %}
+      {% if solicitacao.solicitacoes_anteriores %}
+      <section class="workflow-previous-requests">
+        <div class="workflow-previous-requests-heading">
+          <div>
+            <strong>Solicitações anteriores deste atendimento</strong>
+            <small>Confira o histórico antes de validar este registro.</small>
+          </div>
+          <span>{{ solicitacao.solicitacoes_anteriores|length }} anterior{% if solicitacao.solicitacoes_anteriores|length != 1 %}es{% endif %}</span>
+        </div>
+        <div class="workflow-previous-requests-list">
+          {% for anterior in solicitacao.solicitacoes_anteriores %}
+          <article class="workflow-previous-request workflow-previous-request--{{ anterior.status_classe }}">
+            <div>
+              <strong>Solicitação #{{ anterior.id }}</strong>
+              <span class="workflow-previous-request-status workflow-previous-request-status--{{ anterior.status_classe }}">{{ anterior.status_label }}</span>
+            </div>
+            <dl>
+              <div><dt>Solicitada por</dt><dd>{{ anterior.cadastrado_por|default:"Não informado" }}</dd></div>
+              <div><dt>Solicitada em</dt><dd>{{ anterior.data_criacao_formatada }}</dd></div>
+              <div><dt>Local</dt><dd>{{ anterior.local_label }}</dd></div>
+              <div><dt>Valor</dt><dd>{{ anterior.valor_nota_formatado|default:"Não informado" }}</dd></div>
+              {% if anterior.numero_nfse %}
+              <div><dt>NFS-e</dt><dd>{{ anterior.numero_nfse }}</dd></div>
+              {% endif %}
+            </dl>
+            {% if anterior.status == "RECUSADA" or not anterior.ativo %}
+            <p><strong>Motivo:</strong> {{ anterior.motivo|default:"Não informado" }}</p>
+            {% else %}
+            <p>{{ anterior.procedimento }}</p>
+            {% endif %}
+            {% if anterior.status == "EMITIDA" and anterior.arquivo_disponivel and anterior.emissao_id %}
+            <a
+              class="workflow-action workflow-action--view"
+              href="{% url 'emissao_nfse_pdf' anterior.emissao_id %}?download=false"
+              target="_blank"
+              rel="noopener"
+            >Visualizar NFS-e</a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <form
+        method="post"
+        id="workflow-approval-form-{{ solicitacao.id }}"
+        class="workflow-approval-form workflow-emitter-form"
+      >
+        {% csrf_token %}
+        <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+        <input type="hidden" name="decisao" value="VALIDADA">
+        <label>
+          <span>CNPJ emissor *</span>
+          <select name="empresa_emissora_id" class="form-select" required>
+            <option value="">Selecione a empresa emissora</option>
+            {% for empresa in empresas_emissoras %}
+            <option value="{{ empresa.id }}" {% if solicitacao.empresa_emissora_id == empresa.id %}selected{% endif %}>
+              {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}
+            </option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+
+      <section class="workflow-attendance-items">
+        <div class="workflow-attendance-items-heading">
+          <div>
+            <h3>Procedimentos e exames realizados</h3>
+            <p>Itens registrados na conta deste atendimento.</p>
+          </div>
+          {% if solicitacao.procedimentos_atendimento %}
+          <span>{{ solicitacao.procedimentos_atendimento|length }} {% if solicitacao.procedimentos_atendimento|length == 1 %}item{% else %}itens{% endif %}</span>
+          {% endif %}
+        </div>
+        {% if not solicitacao.procedimentos_atendimento_disponiveis %}
+        <p class="workflow-attendance-items-empty">
+          Não foi possível consultar os procedimentos e exames no momento.
+        </p>
+        {% elif solicitacao.procedimentos_atendimento %}
+        <div class="workflow-attendance-items-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Procedimento / exame</th>
+                <th>Grupo</th>
+                <th>Quantidade</th>
+                <th>Valor total</th>
+                <th>Realizado em</th>
+                <th>Prestador</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in solicitacao.procedimentos_atendimento %}
+              <tr>
+                <td>{{ item.codigo|default:"Não informado" }}</td>
+                <td><strong>{{ item.descricao }}</strong></td>
+                <td>{{ item.grupo|default:"Não informado" }}</td>
+                <td>{{ item.quantidade|default_if_none:"Não informada" }}</td>
+                <td>R$ {{ item.valor_total|br_currency }}</td>
+                <td>{{ item.realizado_em_formatado }}</td>
+                <td>{{ item.prestador|default:"Não informado" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="workflow-attendance-total-row">
+                <td colspan="4"><strong>Total geral</strong></td>
+                <td><strong>{{ solicitacao.valor_total_procedimentos_formatado }}</strong></td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <p class="workflow-attendance-items-empty">
+          Nenhum procedimento ou exame foi encontrado para este atendimento.
+        </p>
+        {% endif %}
+      </section>
+      <div class="workflow-validation-actions workflow-validation-actions--footer">
+        <button
+          type="submit"
+          form="workflow-approval-form-{{ solicitacao.id }}"
+          class="workflow-action workflow-action--approve"
+        >Confirmar validação</button>
+        <button
+          type="button"
+          class="workflow-action workflow-action--reject"
+          x-show="!recusar"
+          @click="recusar = true"
+        >Recusar dados</button>
+        <form method="post" class="workflow-refusal-form" x-show="recusar" x-cloak>
+          {% csrf_token %}
+          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+          <input type="hidden" name="decisao" value="RECUSADA">
+          <label>
+            <span>Motivo da recusa *</span>
+            <textarea name="motivo_recusa" rows="2" maxlength="500" required placeholder="Descreva o dado que precisa ser corrigido"></textarea>
+          </label>
+          <button type="submit" class="workflow-action workflow-action--reject">Confirmar recusa</button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if workflow_mode == "recusa" %}
+      {% if solicitacao.ativo %}
+      <div class="workflow-refusal-summary">
+        <span>
+          <small>Motivo da recusa</small>
+          <strong>{{ solicitacao.motivo_recusa|default:"Não informado" }}</strong>
+        </span>
+        <span>
+          <small>Recusada por</small>
+          <strong>{{ solicitacao.validado_por|default:"Não informado" }}</strong>
+        </span>
+        <span>
+          <small>Recusada em</small>
+          <strong>{{ solicitacao.validado_em_formatada }}</strong>
+        </span>
+      </div>
+      {% else %}
+      <div class="workflow-refusal-summary workflow-inactivation-summary">
+        <span>
+          <small>Status anterior</small>
+          <strong>{{ solicitacao.status_label }}</strong>
+        </span>
+        <span>
+          <small>Inativado por</small>
+          <strong>{{ solicitacao.inativado_por|default:"Não informado" }}</strong>
+        </span>
+        <span>
+          <small>Inativado em</small>
+          <strong>{{ solicitacao.inativado_em_formatada|default:"Não informado" }}</strong>
+        </span>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      {% if workflow_mode == "emissao" and solicitacao.pode_emitir %}
+      <div class="workflow-validation-actions">
+        <form method="post" @submit="processing = true">
+          {% csrf_token %}
+          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+          <button type="submit" class="workflow-action workflow-action--issue">Emitir esta NFS-e</button>
+        </form>
+        <button
+          type="button"
+          class="workflow-action workflow-action--reject"
+          x-show="!recusar"
+          @click="recusar = true"
+        >Reverter para recusa</button>
+        <form method="post" class="workflow-refusal-form" x-show="recusar" x-cloak>
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="recusar">
+          <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+          <label>
+            <span>Motivo da recusa *</span>
+            <textarea name="motivo_recusa" rows="2" maxlength="500" required placeholder="Informe por que a validação deve ser revertida"></textarea>
+          </label>
+          <button type="submit" class="workflow-action workflow-action--reject">Confirmar reversão</button>
+        </form>
+      </div>
+      {% elif workflow_mode == "emissao" and solicitacao.status == "EMITIDA" %}
+      <div class="workflow-validation-actions workflow-emission-actions">
+        {% if solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+        <a
+          class="workflow-action workflow-action--view"
+          href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
+          target="_blank"
+          rel="noopener"
+        >Visualizar NFS-e</a>
+        <a
+          class="workflow-action workflow-action--download"
+          href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=true"
+        >Baixar PDF</a>
+        {% else %}
+        <span class="workflow-emission-file-unavailable">PDF ainda não disponível.</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}

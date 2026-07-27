@@ -85,6 +85,7 @@ TEMPLATES = [
             "django.template.context_processors.request",
             "django.contrib.auth.context_processors.auth",
             "django.contrib.messages.context_processors.messages",
+            "core.access.screen_access_context",
         ]},
     }
 ]
@@ -124,6 +125,9 @@ API_TISS_PATH = os.getenv("API_TISS_PATH", "/app_glosas/tiss")
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "60"))
 DASHBOARD_CACHE_SECONDS = int(os.getenv("DASHBOARD_CACHE_SECONDS", "45"))
 APP_FILTER_CACHE_SECONDS = int(os.getenv("APP_FILTER_CACHE_SECONDS", str(DASHBOARD_CACHE_SECONDS)))
+SOLICITACAO_NOTA_CACHE_SECONDS = int(
+    os.getenv("SOLICITACAO_NOTA_CACHE_SECONDS", "300")
+)
 
 EMAIL_HOST = os.getenv("SMTP_HOST", "")
 EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -154,7 +158,10 @@ SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(8 * 60 * 60)))
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "glosas-frontend-cache",
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.getenv(
+            "APP_CACHE_LOCATION",
+            "/tmp/glosas-frontend-cache",
+        ),
     }
 }
