@@ -5297,23 +5297,31 @@ def build_conciliacao_faturamento_payload(data):
     for nota in notas:
         if not isinstance(nota, dict):
             raise ValueError("A lista de NFS-e informada é inválida.")
-        valor_bruto = as_float_or_none(nota.pop("valor_bruto_remessa", None))
-        if valor_bruto is None:
+        valor_liquido = as_float_or_none(
+            nota.pop("valor_liquido_nfse", None)
+        )
+        valor_bruto_legado = as_float_or_none(
+            nota.pop("valor_bruto_remessa", None)
+        )
+        if valor_liquido is None and valor_bruto_legado is None:
             continue
         valor_glosado = as_float_or_zero(nota.get("valor_glosado"))
         valor_impostos = as_float_or_zero(nota.get("valor_impostos"))
         if valor_impostos < 0:
             raise ValueError("O total das retenções não pode ser negativo.")
-        valor_liquido = round(
-            valor_bruto - valor_glosado - valor_impostos,
-            2,
-        )
+        if valor_glosado < 0:
+            raise ValueError("O valor glosado não pode ser negativo.")
+        if valor_liquido is None:
+            valor_liquido = (
+                valor_bruto_legado - valor_glosado - valor_impostos
+            )
+        valor_liquido = round(valor_liquido, 2)
         if valor_liquido <= 0:
             raise ValueError(
-                "A soma da glosa e das retenções deve ser menor que o valor "
-                "da remessa conciliado com a NFS-e."
+                "O valor líquido conciliado da NFS-e deve ser maior que zero."
             )
         nota["valor_alocado"] = f"{valor_liquido:.2f}"
+        nota["sn_glosado"] = valor_glosado > 0
     cd_remessa = as_int_or_none(data.get("cd_remessa"))
     if cd_remessa is None or cd_remessa <= 0:
         raise ValueError("Informe uma remessa válida para a conciliação.")
