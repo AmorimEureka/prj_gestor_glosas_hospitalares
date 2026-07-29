@@ -60,6 +60,11 @@ SCREEN_GROUPS = (
                 "label": "Emissão NFS-e",
                 "route_name": "emissao_nfse",
             },
+            {
+                "key": "acompanhamento_particular",
+                "label": "Acompanhamento Particular",
+                "route_name": "acompanhamento_particular",
+            },
         ),
     },
     {
@@ -125,10 +130,12 @@ ROUTE_PERMISSIONS = {
     "emissao_nfse": "emissao_nfse",
     "emissao_nfse_pdf": (
         "emissao_nfse",
+        "acompanhamento_particular",
         "solicitacoes_cadastradas",
         "solicitar_nota",
         "follow_up_solicitacoes",
     ),
+    "acompanhamento_particular": "acompanhamento_particular",
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
     "consultar_atendimento_nota": "solicitar_nota",
