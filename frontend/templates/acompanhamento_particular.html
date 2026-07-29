@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block breadcrumb_label %}Financeiro · Solicitações Notas{% endblock %}
+{% block page_title %}Acompanhamento Particular{% endblock %}
+{% block content %}
+<div class="particular-monitor-page">
+  <section class="panel particular-monitor-filter-panel">
+    <div class="particular-monitor-heading">
+      <div>
+        <span class="panel-title">Pacientes particulares por período</span>
+        <p>O período considera a data do atendimento registrada no MV.</p>
+      </div>
+      <nav class="particular-date-navigation" aria-label="Período consultado">
+        <strong>{{ periodo_formatado }}</strong>
+        <a class="particular-today-link" href="{{ hoje_url }}">Hoje</a>
+      </nav>
+    </div>
+
+    <form method="get" class="particular-monitor-filters">
+      <div class="filter-group">
+        <label>Data inicial</label>
+        <input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}" required>
+      </div>
+      <div class="filter-group">
+        <label>Data final</label>
+        <input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}" required>
+      </div>
+      <div class="filter-group">
+        <label>Atendimento</label>
+        <input class="form-control" type="search" name="codigo_atendimento" value="{{ filtros.codigo_atendimento }}" inputmode="numeric" placeholder="Código MV">
+      </div>
+      <div class="filter-group">
+        <label>Paciente</label>
+        <input class="form-control" type="search" name="nome_paciente" value="{{ filtros.nome_paciente }}" placeholder="Nome parcial">
+      </div>
+      <div class="filter-group">
+        <label>Tipo de atendimento</label>
+        <select class="form-select" name="tipo_atendimento">
+          <option value="">Todos</option>
+          {% for tipo in tipos_atendimento %}
+          <option value="{{ tipo }}" {% if filtros.tipo_atendimento == tipo %}selected{% endif %}>{{ tipo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status da nota</label>
+        <select class="form-select" name="status">
+          <option value="">Todos</option>
+          {% for value, label in status_options %}
+          <option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Filtrar</button>
+        <a class="btn btn-outline-secondary" href="{% url 'acompanhamento_particular' %}?data_inicio={{ filtros.data_inicio }}&amp;data_fim={{ filtros.data_fim }}">Limpar</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="particular-monitor-summary" aria-label="Resumo do período">
+    {% for card in resumo_cards %}
+    <article class="particular-summary-card particular-summary-card--{{ card.classe }}">
+      <span>{{ card.label }}</span>
+      <strong>{{ card.quantidade }}</strong>
+      <small>{{ card.detalhe }}</small>
+    </article>
+    {% endfor %}
+  </section>
+
+  <section class="panel particular-monitor-results">
+    <div class="panel-header">
+      <div class="results-heading">
+        <div>
+          <span class="panel-title">Situação por atendimento</span>
+          {% if pagination.total %}
+          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} atendimentos exibidos</span>
+          {% else %}
+          <span class="results-subtitle">Nenhum atendimento encontrado para os filtros informados.</span>
+          {% endif %}
+        </div>
+      </div>
+      {% include "_workflow_pagination.html" with pagination_id="particular-page-select" %}
+    </div>
+
+    {% if atendimentos %}
+    <div class="particular-monitor-table-wrap">
+      <table class="particular-monitor-table">
+        <thead>
+          <tr>
+            <th>Atendimento</th>
+            <th>Paciente</th>
+            <th>Tipo</th>
+            <th>Conta</th>
+            <th>Solicitação</th>
+            <th>Status da nota</th>
+            <th>NFS-e</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for atendimento in atendimentos %}
+          <tr>
+            <td>
+              <strong>#{{ atendimento.codigo_atendimento }}</strong>
+              <small>{{ atendimento.data_atendimento_formatada }}</small>
+            </td>
+            <td>
+              <strong>{{ atendimento.nome_paciente }}</strong>
+              <small>Paciente #{{ atendimento.codigo_paciente }} · {{ atendimento.convenio }}</small>
+            </td>
+            <td>
+              <strong>{{ atendimento.tipo_atendimento|default:"Não informado" }}</strong>
+              <small>{{ atendimento.quantidade_lancamentos }} lançamento{{ atendimento.quantidade_lancamentos|pluralize:"o,os" }}</small>
+            </td>
+            <td>
+              <strong>{{ atendimento.valor_conta_formatado }}</strong>
+              <small>Valor total</small>
+            </td>
+            <td>
+              {% if atendimento.solicitacao_id %}
+              <strong>#{{ atendimento.solicitacao_id }}</strong>
+              <small>{{ atendimento.solicitada_em_formatada }}</small>
+              {% else %}
+              <strong>Não criada</strong>
+              <small>Aguardando solicitação</small>
+              {% endif %}
+            </td>
+            <td>
+              <span class="particular-status particular-status--{{ atendimento.status_classe }}">
+                {% if atendimento.status == "PROCESSANDO" %}
+                <svg class="workflow-emission-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 1 8 8"></path></svg>
+                {% endif %}
+                {{ atendimento.status_label }}
+              </span>
+              {% if atendimento.erro_emissao %}
+              <small class="particular-status-error" title="{{ atendimento.erro_emissao }}">{{ atendimento.erro_emissao }}</small>
+              {% elif atendimento.atualizada_em %}
+              <small>Atualizado em {{ atendimento.atualizada_em_formatada }}</small>
+              {% endif %}
+            </td>
+            <td>
+              {% if atendimento.numero_nfse %}
+              <strong>{{ atendimento.numero_nfse }}</strong>
+              <small>Nota emitida</small>
+              {% else %}
+              <strong>—</strong>
+              <small>Não disponível</small>
+              {% endif %}
+            </td>
+            <td>
+              <div class="particular-row-actions">
+                {% if atendimento.status == "SEM_SOLICITACAO" or atendimento.status == "INATIVA" %}
+                  {% if screen_access.solicitar_nota %}
+                  <a class="particular-action particular-action--primary" href="{% url 'solicitacao_nota' %}?codigo_atendimento={{ atendimento.codigo_atendimento }}">Solicitar nota</a>
+                  {% endif %}
+                {% endif %}
+                {% if atendimento.solicitacao_id and screen_access.solicitacoes_cadastradas %}
+                <a class="particular-action" href="{% url 'solicitacoes_nota' %}?codigo_atendimento={{ atendimento.codigo_atendimento }}">Ver solicitação</a>
+                {% endif %}
+                {% if atendimento.arquivo_disponivel and atendimento.emissao_id %}
+                <a class="particular-action particular-action--pdf" href="{% url 'emissao_nfse_pdf' atendimento.emissao_id %}?download=false" target="_blank" rel="noopener">Ver NFS-e</a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="particular-monitor-empty">
+      <span aria-hidden="true">i</span>
+      <div>
+        <strong>Nenhum atendimento particular neste período.</strong>
+        <p>Altere o período ou remova os demais filtros para consultar outros pacientes.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer">
+      {% if pagination.has_previous %}
+      <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+      {% endif %}
+      <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}
+      <a class="page-step" href="{{ pagination.next_url }}">Próxima</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% if ha_processamento %}
+<script>
+  window.setTimeout(() => window.location.reload(), 10000);
+</script>
+{% endif %}
+{% endblock %}

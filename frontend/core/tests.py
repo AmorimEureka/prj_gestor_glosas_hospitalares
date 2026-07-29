@@ -1531,7 +1531,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260727-conciliacao-financeira-39',
+            '?v=20260729-acompanhamento-particular-1',
             base_template.read_text(),
         )
 
@@ -3502,6 +3502,102 @@ class CadastrarNotaTests(TestCase):
             'total': 2,
         }
 
+    def acompanhamento_particular_payload(self):
+        return {
+            'atendimentos': [
+                {
+                    'codigo_atendimento': 123456,
+                    'codigo_paciente': 789,
+                    'codigo_convenio': 3,
+                    'nome_paciente': 'MARIA DA SILVA',
+                    'convenio': 'PARTICULAR',
+                    'tipo_atendimento': 'Ambulatório',
+                    'data_atendimento': '2026-07-29T00:00:00',
+                    'data_alta': None,
+                    'valor_conta': '385.50',
+                    'quantidade_lancamentos': 2,
+                    'status': 'SEM_SOLICITACAO',
+                    'solicitacao_id': None,
+                    'workflow_status': None,
+                    'emissao_id': None,
+                    'emissao_status': None,
+                    'numero_nfse': None,
+                    'erro_emissao': None,
+                    'arquivo_disponivel': False,
+                    'solicitada_em': None,
+                    'atualizada_em': None,
+                },
+                {
+                    'codigo_atendimento': 123457,
+                    'codigo_paciente': 790,
+                    'codigo_convenio': 3,
+                    'nome_paciente': 'JOÃO EM PROCESSAMENTO',
+                    'convenio': 'PARTICULAR',
+                    'tipo_atendimento': 'Urgência',
+                    'data_atendimento': '2026-07-29T00:00:00',
+                    'data_alta': None,
+                    'valor_conta': '120.00',
+                    'quantidade_lancamentos': 1,
+                    'status': 'PROCESSANDO',
+                    'solicitacao_id': 18,
+                    'workflow_status': 'EMISSAO_SOLICITADA',
+                    'emissao_id': 41,
+                    'emissao_status': 'PROCESSANDO',
+                    'numero_nfse': None,
+                    'erro_emissao': None,
+                    'arquivo_disponivel': False,
+                    'solicitada_em': '2026-07-29T10:00:00',
+                    'atualizada_em': '2026-07-29T10:05:00',
+                },
+                {
+                    'codigo_atendimento': 123458,
+                    'codigo_paciente': 791,
+                    'codigo_convenio': 3,
+                    'nome_paciente': 'ANA COM NOTA',
+                    'convenio': 'PARTICULAR',
+                    'tipo_atendimento': 'Externo',
+                    'data_atendimento': '2026-07-29T00:00:00',
+                    'data_alta': None,
+                    'valor_conta': '210.00',
+                    'quantidade_lancamentos': 1,
+                    'status': 'EMITIDA',
+                    'solicitacao_id': 19,
+                    'workflow_status': 'EMITIDA',
+                    'emissao_id': 42,
+                    'emissao_status': 'EMITIDA',
+                    'numero_nfse': '98765',
+                    'erro_emissao': None,
+                    'arquivo_disponivel': True,
+                    'solicitada_em': '2026-07-29T09:00:00',
+                    'atualizada_em': '2026-07-29T09:10:00',
+                },
+            ],
+            'resumo_status': [
+                {
+                    'status': 'SEM_SOLICITACAO',
+                    'quantidade': 1,
+                    'valor_total': '385.50',
+                },
+                {
+                    'status': 'PROCESSANDO',
+                    'quantidade': 1,
+                    'valor_total': '120.00',
+                },
+                {
+                    'status': 'EMITIDA',
+                    'quantidade': 1,
+                    'valor_total': '210.00',
+                },
+            ],
+            'data_inicio': '2026-07-01',
+            'data_fim': '2026-07-29',
+            'total_periodo': 3,
+            'total': 3,
+            'valor_total_periodo': '715.50',
+            'limit': 25,
+            'offset': 0,
+        }
+
     @patch('core.views.api_get')
     def test_renderiza_novo_menu_e_formulario(self, api_get):
         response = self.client.get('/requisicao/solicitacao-nota/')
@@ -3552,6 +3648,10 @@ class CadastrarNotaTests(TestCase):
             response,
             '<span class="nav-label">Emissão NFS-e</span>',
         )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Acompanhamento Particular</span>',
+        )
         html = response.content.decode()
         self.assertLess(
             html.index('<span class="nav-label">Financeiro</span>'),
@@ -3565,6 +3665,14 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertLess(
             html.index('<span class="nav-label">Emissão NFS-e</span>'),
+            html.index(
+                '<span class="nav-label">Acompanhamento Particular</span>'
+            ),
+        )
+        self.assertLess(
+            html.index(
+                '<span class="nav-label">Acompanhamento Particular</span>'
+            ),
             html.index('<span class="nav-label">Solicitação</span>'),
         )
         self.assertLess(
@@ -3633,6 +3741,162 @@ class CadastrarNotaTests(TestCase):
             'grid-template-columns: minmax(14rem, 26rem) '
             'minmax(16rem, 1fr);',
             css,
+        )
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_particular_exibe_status_do_periodo_e_acoes(
+        self,
+        api_get,
+    ):
+        api_get.return_value = self.acompanhamento_particular_payload()
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/'
+            '?data_inicio=2026-07-01&data_fim=2026-07-29'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>Acompanhamento Particular</h1>')
+        self.assertContains(response, 'Pacientes particulares por período')
+        self.assertContains(response, '01/07/2026 a 29/07/2026')
+        self.assertContains(
+            response,
+            'O período considera a data do atendimento registrada no MV.',
+        )
+        self.assertContains(response, 'Data inicial')
+        self.assertContains(response, 'Data final')
+        self.assertContains(response, 'Atendimento')
+        self.assertContains(response, 'MARIA DA SILVA')
+        self.assertContains(response, 'JOÃO EM PROCESSAMENTO')
+        self.assertContains(response, 'ANA COM NOTA')
+        self.assertContains(response, 'Sem solicitação')
+        self.assertContains(response, 'Em processamento')
+        self.assertContains(response, 'NFS-e emitida')
+        self.assertContains(response, '98765')
+        self.assertContains(response, 'R$ 715,50')
+        self.assertContains(response, 'Solicitar nota')
+        self.assertContains(
+            response,
+            '/requisicao/solicitacao-nota/?codigo_atendimento=123456',
+        )
+        self.assertContains(
+            response,
+            '/requisicao/emissao-nfse/itens/42/pdf/?download=false',
+        )
+        self.assertContains(
+            response,
+            'window.setTimeout(() => window.location.reload(), 10000)',
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/acompanhamento-particular',
+            {
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-29',
+                'codigo_atendimento': '',
+                'nome_paciente': '',
+                'tipo_atendimento': '',
+                'status': '',
+                'limit': 25,
+                'offset': 0,
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_particular_encaminha_filtros(
+        self,
+        api_get,
+    ):
+        payload = self.acompanhamento_particular_payload()
+        payload['atendimentos'] = [payload['atendimentos'][1]]
+        payload['total'] = 1
+        api_get.return_value = payload
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-29',
+                'codigo_atendimento': '123457',
+                'nome_paciente': 'João',
+                'tipo_atendimento': 'Urgência',
+                'status': 'PROCESSANDO',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'JOÃO EM PROCESSAMENTO')
+        self.assertContains(
+            response,
+            '<option value="PROCESSANDO" selected>',
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/acompanhamento-particular',
+            {
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-29',
+                'codigo_atendimento': 123457,
+                'nome_paciente': 'João',
+                'tipo_atendimento': 'Urgência',
+                'status': 'PROCESSANDO',
+                'limit': 25,
+                'offset': 0,
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_particular_usa_paginacao_padrao_com_filtros(
+        self,
+        api_get,
+    ):
+        payload = self.acompanhamento_particular_payload()
+        payload['atendimentos'] = [payload['atendimentos'][1]]
+        payload['total'] = 51
+        payload['limit'] = 25
+        payload['offset'] = 25
+        api_get.return_value = payload
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-29',
+                'codigo_atendimento': '123457',
+                'nome_paciente': 'João',
+                'tipo_atendimento': 'Urgência',
+                'status': 'PROCESSANDO',
+                'page': '2',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="particular-page-select"')
+        self.assertContains(response, 'Página 2 de 3')
+        pagination = response.context['pagination']
+        query = (
+            'data_inicio=2026-07-01&data_fim=2026-07-29'
+            '&codigo_atendimento=123457&nome_paciente=Jo%C3%A3o'
+            '&tipo_atendimento=Urg%C3%AAncia&status=PROCESSANDO'
+        )
+        self.assertEqual(
+            pagination['previous_url'],
+            f'?{query}&page=1',
+        )
+        self.assertEqual(
+            pagination['next_url'],
+            f'?{query}&page=3',
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/acompanhamento-particular',
+            {
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-29',
+                'codigo_atendimento': 123457,
+                'nome_paciente': 'João',
+                'tipo_atendimento': 'Urgência',
+                'status': 'PROCESSANDO',
+                'limit': 25,
+                'offset': 25,
+            },
         )
 
     def test_consulta_atendimento_exibe_erros_amigaveis(self):
