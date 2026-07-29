@@ -1893,8 +1893,8 @@ class ConciliacaoFaturamentoTests(TestCase):
                 'processo_recebimento': ' PROC-1 ',
                 'notas_json': (
                     '[{"nfse_row_hash": "hash-1", '
-                    '"valor_bruto_remessa": "100.00", '
-                    '"sn_glosado": true, "valor_glosado": "20.00", '
+                    '"valor_liquido_nfse": "100.00", '
+                    '"sn_glosado": false, "valor_glosado": "20.00", '
                     '"valor_impostos": "5.00", '
                     '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
@@ -1904,14 +1904,15 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertEqual(payload['cd_remessa'], 10)
         self.assertEqual(payload['processo_recebimento'], 'PROC-1')
         self.assertEqual(payload['notas'][0]['nfse_row_hash'], 'hash-1')
-        self.assertEqual(payload['notas'][0]['valor_alocado'], '75.00')
+        self.assertEqual(payload['notas'][0]['valor_alocado'], '100.00')
         self.assertEqual(payload['notas'][0]['valor_impostos'], '5.00')
-        self.assertNotIn('valor_bruto_remessa', payload['notas'][0])
+        self.assertTrue(payload['notas'][0]['sn_glosado'])
+        self.assertNotIn('valor_liquido_nfse', payload['notas'][0])
 
-    def test_impede_glosa_igual_ou_maior_que_parcela_da_remessa(self):
+    def test_impede_valor_liquido_zerado(self):
         with self.assertRaisesRegex(
             ValueError,
-            'soma da glosa e das retenções deve ser menor',
+            'valor líquido conciliado da NFS-e deve ser maior que zero',
         ):
             build_conciliacao_faturamento_payload(
                 {
@@ -1919,8 +1920,7 @@ class ConciliacaoFaturamentoTests(TestCase):
                     'processo_recebimento': 'PROC-1',
                     'notas_json': (
                         '[{"nfse_row_hash": "hash-1", '
-                        '"valor_bruto_remessa": "20.00", '
-                        '"sn_glosado": true, '
+                        '"valor_liquido_nfse": "0.00", '
                         '"valor_glosado": "20.00"}]'
                     ),
                 }
@@ -2055,28 +2055,49 @@ class ConciliacaoFaturamentoTests(TestCase):
         self.assertContains(response, 'results-toolbar finance-results-toolbar')
         self.assertContains(response, '<small>Número remessa</small>')
         self.assertContains(response, '<small>Data competência</small>')
-        self.assertContains(response, '<small>Valor da remessa</small>')
+        self.assertContains(response, '<small>Valor remessa</small>')
         self.assertContains(response, '<small>Valor conciliado</small>')
         self.assertContains(response, '<small>Valor não conciliado</small>')
-        self.assertContains(response, '<span>GLOSAR?</span>')
+        self.assertNotContains(response, 'GLOSAR?')
+        self.assertNotContains(response, 'RECURSO DISPONÍVEL')
+        self.assertNotContains(response, 'VALOR ACATADO')
+        self.assertNotContains(response, 'DISPONÍVEL PARA ESTA CONCILIAÇÃO')
         self.assertContains(response, 'Conciliações anteriores da remessa')
-        self.assertContains(response, 'Valor da remessa nesta NFS-e *')
-        self.assertContains(response, 'Data previsão recebimento *')
-        self.assertContains(response, 'Data recebimento')
+        self.assertContains(response, '<small>Valor impostos</small>')
+        self.assertContains(response, '<small>Valor glosa</small>')
+        self.assertContains(response, 'Valor líquido NFS-e *')
+        self.assertContains(response, 'Imposto na remessa *')
+        self.assertContains(response, 'Previsão recebimento *')
+        self.assertContains(response, '<span>Recebimento</span>')
+        self.assertContains(response, 'Impostos NFS-e')
+        self.assertContains(response, 'Saldo impostos')
+        self.assertContains(
+            response,
+            'Total das retenções presente na nota fiscal.',
+        )
+        self.assertContains(
+            response,
+            'Saldo de impostos da nota disponível para esta remessa.',
+        )
         self.assertContains(response, 'finance-money-input')
         self.assertContains(
             response,
-            "updateMoney(nota, 'valor_bruto_remessa'",
+            "updateMoney(nota, 'valor_liquido_nfse'",
         )
-        self.assertContains(response, 'valorLiquidoNota(nota)')
-        self.assertContains(response, 'Saldo disponível após conciliação')
+        self.assertContains(response, 'Valor bruto NFS-e')
+        self.assertContains(response, 'Valor líquido NFS-e (conciliado)')
+        self.assertContains(response, 'Saldo após conciliação')
+        self.assertContains(response, 'normalizeOneCentExcess()')
+        self.assertContains(response, 'if (excessCents !== 1) return false;')
         self.assertContains(
             response,
-            'this.valorDisponivel - this.totalComprometido',
+            'Number(nota.saldo_nfse || 0) - '
+            'Number(nota.valor_liquido_nfse || 0)',
         )
         self.assertNotContains(
             response,
-            'this.valorNaoConciliado - this.totalComprometido',
+            'return Math.max(this.valorDisponivel - '
+            'this.totalComprometido',
         )
         self.assertContains(response, 'this.notaResults.filter(')
         self.assertContains(response, "this.searchTerm = '';")
@@ -2156,8 +2177,8 @@ class ConciliacaoFaturamentoTests(TestCase):
                 'processo_recebimento': 'PROC-1',
                 'notas_json': (
                     '[{"nfse_row_hash": "hash-1", '
-                    '"valor_bruto_remessa": "100.00", '
-                    '"sn_glosado": true, "valor_glosado": "20.00", '
+                    '"valor_liquido_nfse": "80.00", '
+                    '"sn_glosado": false, "valor_glosado": "20.00", '
                     '"data_previsao_recebimento": "2026-08-10"}]'
                 ),
             },
@@ -2309,6 +2330,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                             'data_criacao': '2026-07-01T10:00:00',
                             'valor_nfse': '100.00',
                             'valor_vinculado_remessa': '80.00',
+                            'valor_alocado_nfse': '80.00',
+                            'valor_impostos': '0.00',
                             'valor_glosado': '20.00',
                             'valor_recebido': '50.00',
                             'valor_pendente': '30.00',
@@ -2361,6 +2384,8 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                             'data_criacao': '2026-07-02T10:00:00',
                             'valor_nfse': '40.00',
                             'valor_vinculado_remessa': '40.00',
+                            'valor_alocado_nfse': '40.00',
+                            'valor_impostos': '0.00',
                             'valor_glosado': '0.00',
                             'valor_recebido': '0.00',
                             'valor_pendente': '40.00',
@@ -2490,6 +2515,22 @@ class ConciliacoesSemRecebimentoTests(TestCase):
         self.assertNotIn('finance-pending-statuses', summary_content)
         self.assertContains(response, '<strong>R$ 20,00</strong>')
         self.assertContains(response, '<strong>R$ 15,00</strong>')
+        self.assertContains(
+            response,
+            '<small>Valor conciliado</small><strong>R$ 80,00</strong>',
+            count=2,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<small>Valor recebido</small><strong>R$ 45,00</strong>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<small>Saldo financeiro</small><strong>R$ 35,00</strong>',
+            html=True,
+        )
         self.assertContains(response, '<strong>R$ 120,00</strong>')
         self.assertContains(
             response,
@@ -2885,6 +2926,7 @@ class ConciliacoesSemRecebimentoTests(TestCase):
                                 'data_criacao': '2026-07-01T10:00:00',
                                 'valor_nfse': '100.00',
                                 'valor_vinculado_remessa': '100.00',
+                                'valor_alocado_nfse': '85.00',
                                 'valor_impostos': '5.00',
                                 'valor_glosado': '10.00',
                                 'valor_pendente': '85.00',

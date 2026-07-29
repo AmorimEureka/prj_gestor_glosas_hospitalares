@@ -128,7 +128,7 @@
                     <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
                     <span><small>Valor NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
                     <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
-                    <span><small>Valor conciliado</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
+                    <span><small>Valor conciliado</small><strong>R$ {{ nota.valor_alocado_nfse|br_currency }}</strong></span>
                     <span><small>Valor recebido</small><strong>R$ {{ recebimento.valor_recebido|br_currency }}</strong></span>
                     <span><small>Saldo financeiro</small><strong>R$ {{ recebimento.saldo_financeiro|br_currency }}</strong></span>
                     <span><small>RECEBIMENTO</small><strong>{{ recebimento.data_recebimento|api_date }}</strong></span>
@@ -195,7 +195,7 @@
                 <span><small>NFS-e</small><strong>{{ nota.numero_nfse }}</strong></span>
                 <span><small>Valor NFS-e</small><strong>R$ {{ nota.valor_nfse|br_currency }}</strong></span>
                 <span><small>Previsão</small><strong>{{ nota.data_previsao_recebimento|api_date }}</strong></span>
-                <span><small>Valor conciliado</small><strong>R$ {{ nota.valor_vinculado_remessa|br_currency }}</strong></span>
+                <span><small>Valor conciliado</small><strong>R$ {{ nota.valor_alocado_nfse|br_currency }}</strong></span>
                 <span><small>Valor recebido</small><strong>R$ {{ nota.valor_recebido|br_currency }}</strong></span>
                 <span><small>Saldo financeiro</small><strong>R$ {{ nota.valor_pendente|br_currency }}</strong></span>
                 <span><small>RECEBIMENTO</small><strong>Não informado</strong></span>
@@ -252,7 +252,7 @@
                       </label>
                       <label>
                         <span>Valor líquido conciliado *</span>
-                        <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_pendente|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
+                        <input class="form-control finance-money-input" type="text" name="valor_recebido_{{ remessa.cd_remessa }}" value="R$ {{ nota.valor_alocado_nfse|default:nota.valor_pendente|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required>
                       </label>
                     </div>
                   </div>
