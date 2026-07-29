@@ -79,7 +79,7 @@
           <span><small>Número remessa</small><strong>{{ remessa.cd_remessa }}</strong></span>
           <span><small>Data competência</small><strong>{{ remessa.data_competencia|api_date }}</strong></span>
           <span class="finance-note-convenio"><small>Convênio</small><strong>{{ remessa.convenio }}</strong></span>
-          <span><small>Valor da remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
+          <span><small>Valor remessa</small><strong>R$ {{ remessa.valor_remessa|br_currency }}</strong></span>
           <span><small>Valor conciliado</small><strong>R$ {{ remessa.valor_conciliado|br_currency }}</strong></span>
           <span><small>Valor não conciliado</small><strong>R$ {{ remessa.valor_nao_conciliado|br_currency }}</strong></span>
         </button>
@@ -101,11 +101,6 @@
                 <span>Processo Recebimento *</span>
                 <input class="form-control" type="text" name="processo_recebimento" x-model="processoRecebimento" maxlength="255" required {% if remessa.processo_recebimento %}readonly{% endif %}>
               </label>
-              <div class="finance-process-position">
-                <span><small>RECURSO DISPONÍVEL</small><strong>R$ {{ remessa.valor_recurso_disponivel|br_currency }}</strong></span>
-                <span><small>VALOR ACATADO</small><strong>R$ {{ remessa.valor_acatado|br_currency }}</strong></span>
-                <span><small>DISPONÍVEL PARA ESTA CONCILIAÇÃO</small><strong>R$ {{ remessa.valor_disponivel_conciliacao|br_currency }}</strong></span>
-              </div>
             </div>
           </section>
 
@@ -118,10 +113,10 @@
               <div class="finance-history-row">
                 <span><small>NFS-e</small><strong>{{ historico.numero_nfse }}</strong></span>
                 <span><small>Emissão</small><strong>{{ historico.data_emissao|api_date }}</strong></span>
-                <span><small>Valor alocado</small><strong>R$ {{ historico.valor_alocado|br_currency }}</strong></span>
-                <span><small>Valor glosado</small><strong>R$ {{ historico.valor_glosado|br_currency }}</strong></span>
                 <span><small>Previsão</small><strong>{{ historico.data_previsao_recebimento|api_date }}</strong></span>
-                <span><small>Recebimento</small><strong>{% if historico.data_recebimento %}{{ historico.data_recebimento|api_date }}{% else %}PENDENTE{% endif %}</strong></span>
+                <span><small>Valor conciliado</small><strong>R$ {{ historico.valor_alocado|br_currency }}</strong></span>
+                <span><small>Valor impostos</small><strong>R$ {{ historico.valor_impostos|br_currency }}</strong></span>
+                <span><small>Valor glosa</small><strong>R$ {{ historico.valor_glosado|br_currency }}</strong></span>
               </div>
               {% empty %}
               <p class="finance-empty-remittance">Esta remessa ainda não possui NFS-e conciliada.</p>
@@ -146,15 +141,21 @@
 
             <div class="finance-remittance-results finance-nfse-results" x-show="notaResults.length">
               <template x-for="nota in notaResults" :key="nota.row_hash">
-                <button type="button" class="finance-remittance-result finance-nfse-result" @click="addNota(nota)" :disabled="isSelected(nota.row_hash)">
+                <div class="finance-remittance-result finance-nfse-result">
                   <span><small>NFS-e</small><strong x-text="nota.numero_nfse"></strong></span>
                   <span><small>Data emissão</small><strong x-text="formatDate(nota.data_emissao)"></strong></span>
-                  <span><small>Valor da NFS-e</small><strong x-text="formatMoney(nota.valor_nfse)"></strong></span>
-                  <span><small>Saldo disponível</small><strong x-text="formatMoney(nota.saldo_nfse)"></strong></span>
-                  <span><small>Total das retenções</small><strong x-text="formatMoney(nota.impostos)"></strong></span>
-                  <span><small>Saldo das retenções</small><strong x-text="formatMoney(nota.saldo_impostos)"></strong></span>
-                  <b aria-label="Adicionar NFS-e">+</b>
-                </button>
+                  <span><small>Valor NFS-e</small><strong x-text="formatMoney(valorBrutoNota(nota))"></strong></span>
+                  <span><small>Saldo NFS-e</small><strong x-text="formatMoney(nota.saldo_nfse)"></strong></span>
+                  <span>
+                    <small class="finance-field-label">Impostos NFS-e <i class="help-tip help-tip--below" tabindex="0" aria-label="Ajuda sobre impostos da NFS-e" data-tooltip="Total das retenções presente na nota fiscal.">?</i></small>
+                    <strong x-text="formatMoney(nota.impostos)"></strong>
+                  </span>
+                  <span>
+                    <small class="finance-field-label">Saldo impostos <i class="help-tip help-tip--below" tabindex="0" aria-label="Ajuda sobre saldo de impostos" data-tooltip="Saldo de impostos da nota disponível para esta remessa.">?</i></small>
+                    <strong x-text="formatMoney(nota.saldo_impostos)"></strong>
+                  </span>
+                  <button type="button" class="finance-add-remittance" aria-label="Adicionar NFS-e" @click="addNota(nota)" :disabled="isSelected(nota.row_hash)">+</button>
+                </div>
               </template>
             </div>
 
@@ -164,33 +165,32 @@
                   <div class="finance-selected-main">
                     <span><small>NFS-e</small><strong x-text="nota.numero_nfse"></strong></span>
                     <span><small>Emissão</small><strong x-text="formatDate(nota.data_emissao)"></strong></span>
-                    <span><small>Valor NFS-e</small><strong x-text="formatMoney(nota.valor_nfse)"></strong></span>
-                    <span><small>Saldo antes da alocação</small><strong x-text="formatMoney(nota.saldo_nfse)"></strong></span>
-                    <span><small>Total das retenções</small><strong x-text="formatMoney(nota.impostos)"></strong></span>
-                    <span><small>Saldo das retenções</small><strong x-text="formatMoney(nota.saldo_impostos)"></strong></span>
+                    <span><small>Valor NFS-e</small><strong x-text="formatMoney(valorBrutoNota(nota))"></strong></span>
+                    <span><small>Saldo NFS-e</small><strong x-text="formatMoney(nota.saldo_nfse)"></strong></span>
+                    <span><small>Impostos NFS-e</small><strong x-text="formatMoney(nota.impostos)"></strong></span>
+                    <span><small>Saldo impostos</small><strong x-text="formatMoney(nota.saldo_impostos)"></strong></span>
                     <button type="button" class="finance-remove-remittance" @click="removeNota(index)" title="Remover NFS-e">×</button>
                   </div>
 
                   <div class="finance-nfse-allocation-grid">
                     <label>
-                      <span>Valor da remessa nesta NFS-e *</span>
-                      <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(nota.valor_bruto_remessa)" @input="updateMoney(nota, 'valor_bruto_remessa', $event)" @blur="$event.target.value = formatMoney(nota.valor_bruto_remessa)">
+                      <span>Valor líquido NFS-e *</span>
+                      <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(nota.valor_liquido_nfse)" @input="updateMoney(nota, 'valor_liquido_nfse', $event)" @blur="$event.target.value = formatMoney(nota.valor_liquido_nfse)">
                     </label>
-                    <label class="finance-glosa-check finance-glosa-toggle"><input type="checkbox" x-model="nota.sn_glosado" @change="glosaChanged(nota)"> <span>GLOSAR?</span></label>
-                    <label x-show="nota.sn_glosado" x-cloak>
-                      <span>Valor glosado *</span>
+                    <label>
+                      <span>Valor glosado</span>
                       <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(nota.valor_glosado)" @input="updateMoney(nota, 'valor_glosado', $event)" @blur="$event.target.value = formatMoney(nota.valor_glosado)">
                     </label>
                     <label>
-                      <span>Retenções nesta remessa *</span>
+                      <span>Imposto na remessa *</span>
                       <input class="form-control finance-money-input" type="text" inputmode="numeric" :value="formatMoney(nota.valor_impostos)" @input="updateMoney(nota, 'valor_impostos', $event)" @blur="$event.target.value = formatMoney(nota.valor_impostos)">
                     </label>
                     <label>
-                      <span>Data previsão recebimento *</span>
+                      <span>Previsão recebimento *</span>
                       <input class="form-control" type="date" x-model="nota.data_previsao_recebimento">
                     </label>
                     <label>
-                      <span>Data recebimento</span>
+                      <span>Recebimento</span>
                       <input class="form-control" type="date" x-model="nota.data_recebimento" @change="recebimentoChanged(nota)">
                     </label>
                   </div>
@@ -220,14 +220,11 @@
           </section>
 
           <footer class="finance-reconciliation-footer">
-            <div class="finance-total-box"><small>NFS-e líquidas</small><strong x-text="formatMoney(totalAlocado)"></strong></div>
-            <span class="finance-total-operator">+</span>
-            <div class="finance-total-box"><small>Total das retenções</small><strong x-text="formatMoney(totalImpostos)"></strong></div>
-            <span class="finance-total-operator">+</span>
+            <div class="finance-total-box"><small>Valor bruto NFS-e</small><strong x-text="formatMoney(totalValorBrutoNfse)"></strong></div>
+            <div class="finance-total-box"><small>Imposto na remessa</small><strong x-text="formatMoney(totalImpostos)"></strong></div>
             <div class="finance-total-box"><small>Novas glosas</small><strong x-text="formatMoney(totalGlosado)"></strong></div>
-            <span class="finance-total-operator">=</span>
-            <div class="finance-total-box" :class="{ 'is-invalid': totalComprometido > valorDisponivel + 0.005 }"><small>Valor tratado nesta operação</small><strong x-text="formatMoney(totalComprometido)"></strong></div>
-            <div class="finance-total-box"><small>Saldo disponível após conciliação</small><strong x-text="formatMoney(saldoAposConciliacao)"></strong></div>
+            <div class="finance-total-box" :class="{ 'is-invalid': totalComprometido > valorDisponivel + 0.005 }"><small>Valor líquido NFS-e (conciliado)</small><strong x-text="formatMoney(totalAlocado)"></strong></div>
+            <div class="finance-total-box"><small>Saldo após conciliação</small><strong x-text="formatMoney(saldoAposConciliacao)"></strong></div>
             <div class="finance-submit-area">
               <p class="finance-inline-error" role="alert" aria-live="assertive" x-show="validationError" x-text="validationError"></p>
               <button class="btn btn-primary" type="submit">Conciliar remessa</button>
@@ -272,11 +269,19 @@
         const date = String(value).slice(0, 10).split('-');
         return date.length === 3 ? `${date[2]}/${date[1]}/${date[0]}` : value;
       },
+      valorBrutoNota(nota) {
+        return Number(nota.valor_bruto_nfse || 0) || (
+          Number(nota.valor_nfse || 0) + Number(nota.impostos || 0)
+        );
+      },
       get totalAlocado() {
-        return this.selectedNotas.reduce((total, nota) => total + this.valorLiquidoNota(nota), 0);
+        return this.selectedNotas.reduce((total, nota) => total + Number(nota.valor_liquido_nfse || 0), 0);
+      },
+      get totalValorBrutoNfse() {
+        return this.selectedNotas.reduce((total, nota) => total + this.valorBrutoNota(nota), 0);
       },
       get totalGlosado() {
-        return this.selectedNotas.reduce((total, nota) => total + (nota.sn_glosado ? Number(nota.valor_glosado || 0) : 0), 0);
+        return this.selectedNotas.reduce((total, nota) => total + Number(nota.valor_glosado || 0), 0);
       },
       get totalImpostos() {
         return this.selectedNotas.reduce((total, nota) => total + Number(nota.valor_impostos || 0), 0);
@@ -284,22 +289,32 @@
       get totalComprometido() {
         return this.totalAlocado + this.totalImpostos + this.totalGlosado;
       },
+      normalizeOneCentExcess() {
+        const excessCents = Math.round(this.totalComprometido * 100)
+          - Math.round(this.valorDisponivel * 100);
+        if (excessCents !== 1) return false;
+        for (let index = this.selectedNotas.length - 1; index >= 0; index -= 1) {
+          const nota = this.selectedNotas[index];
+          const glosaCents = Math.round(Number(nota.valor_glosado || 0) * 100);
+          if (glosaCents < 1) continue;
+          nota.valor_glosado = (glosaCents - 1) / 100;
+          return true;
+        }
+        return false;
+      },
       get saldoAposConciliacao() {
-        return Math.max(this.valorDisponivel - this.totalComprometido, 0);
-      },
-      valorGlosadoNota(nota) {
-        return nota.sn_glosado ? Number(nota.valor_glosado || 0) : 0;
-      },
-      valorLiquidoNota(nota) {
-        return Math.max(Number(nota.valor_bruto_remessa || 0) - this.valorGlosadoNota(nota) - Number(nota.valor_impostos || 0), 0);
+        return this.selectedNotas.reduce(
+          (total, nota) => total + Math.max(Number(nota.saldo_nfse || 0) - Number(nota.valor_liquido_nfse || 0), 0),
+          0
+        );
       },
       get notasPayload() {
         return this.selectedNotas.map((nota) => ({
           nfse_row_hash: nota.row_hash,
-          valor_bruto_remessa: Number(nota.valor_bruto_remessa || 0).toFixed(2),
+          valor_liquido_nfse: Number(nota.valor_liquido_nfse || 0).toFixed(2),
           valor_impostos: Number(nota.valor_impostos || 0).toFixed(2),
-          sn_glosado: Boolean(nota.sn_glosado),
-          valor_glosado: nota.sn_glosado ? Number(nota.valor_glosado || 0).toFixed(2) : '0.00',
+          sn_glosado: Number(nota.valor_glosado || 0) > 0,
+          valor_glosado: Number(nota.valor_glosado || 0).toFixed(2),
           data_previsao_recebimento: nota.data_previsao_recebimento || null,
           data_recebimento: nota.data_recebimento || null,
           conta_bancaria_id: nota.conta_bancaria_id ? Number(nota.conta_bancaria_id) : null,
@@ -316,14 +331,14 @@
         const restante = Math.max(this.valorDisponivel - this.totalComprometido, 0);
         this.selectedNotas.push({
           ...nota,
+          valor_bruto_nfse: this.valorBrutoNota(nota),
           valor_nfse: Number(nota.valor_nfse || 0),
           saldo_nfse: Number(nota.saldo_nfse || 0),
           impostos: Number(nota.impostos || 0),
           impostos_utilizados: Number(nota.impostos_utilizados || 0),
           saldo_impostos: Number(nota.saldo_impostos || 0),
-          valor_bruto_remessa: Math.min(Number(nota.valor_sugerido || nota.saldo_nfse || 0), restante),
+          valor_liquido_nfse: Math.min(Number(nota.valor_sugerido || nota.saldo_nfse || 0), restante),
           valor_impostos: 0,
-          sn_glosado: false,
           valor_glosado: 0,
           data_previsao_recebimento: '',
           data_recebimento: '',
@@ -345,11 +360,9 @@
       updateMoney(nota, field, event) {
         const digits = event.target.value.replace(/\D/g, '');
         nota[field] = digits ? Number(digits) / 100 : 0;
+        this.normalizeOneCentExcess();
         event.target.value = this.formatMoney(nota[field]);
         this.validationError = '';
-      },
-      glosaChanged(nota) {
-        if (!nota.sn_glosado) nota.valor_glosado = 0;
       },
       async searchNotas() {
         const requestId = ++this.searchRequestId;
@@ -422,29 +435,25 @@
           this.showValidationError('Adicione ao menos uma NFS-e para conciliar a remessa.');
           return false;
         }
+        this.normalizeOneCentExcess();
         for (const nota of this.selectedNotas) {
-          const valorBruto = Number(nota.valor_bruto_remessa || 0);
-          const valorGlosado = this.valorGlosadoNota(nota);
+          const valorLiquido = Number(nota.valor_liquido_nfse || 0);
+          const valorGlosado = Number(nota.valor_glosado || 0);
           const valorImpostos = Number(nota.valor_impostos || 0);
-          const valorLiquido = this.valorLiquidoNota(nota);
-          if (valorBruto <= 0) {
-            this.showValidationError(`O valor da remessa conciliado com a NFS-e ${nota.numero_nfse} deve ser maior que zero.`);
+          if (valorLiquido <= 0) {
+            this.showValidationError(`O valor líquido conciliado da NFS-e ${nota.numero_nfse} deve ser maior que zero.`);
             return false;
           }
           if (!nota.data_previsao_recebimento) {
             this.showValidationError(`Informe a data de previsão de recebimento da NFS-e ${nota.numero_nfse}.`);
             return false;
           }
-          if (nota.sn_glosado && Number(nota.valor_glosado || 0) <= 0) {
-            this.showValidationError(`Informe um valor glosado maior que zero para a NFS-e ${nota.numero_nfse}.`);
+          if (valorGlosado < 0) {
+            this.showValidationError(`O valor glosado da NFS-e ${nota.numero_nfse} não pode ser negativo.`);
             return false;
           }
           if (valorImpostos < 0 || valorImpostos > Number(nota.saldo_impostos || 0) + 0.005) {
             this.showValidationError(`As retenções da NFS-e ${nota.numero_nfse} não podem exceder o saldo de retenções disponível.`);
-            return false;
-          }
-          if (valorGlosado + valorImpostos >= valorBruto) {
-            this.showValidationError(`A soma da glosa e das retenções da NFS-e ${nota.numero_nfse} deve ser menor que o valor da remessa conciliado com a nota.`);
             return false;
           }
           if (valorLiquido > Number(nota.saldo_nfse)) {
@@ -460,6 +469,8 @@
           this.showValidationError('A soma das parcelas conciliadas excede o saldo disponível da remessa.');
           return false;
         }
+        const notasInput = form.querySelector('input[name="notas_json"]');
+        if (notasInput) notasInput.value = JSON.stringify(this.notasPayload);
         return form.checkValidity();
       },
       validateBeforeSubmit(event) {
