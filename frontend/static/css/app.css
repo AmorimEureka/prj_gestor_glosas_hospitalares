@@ -10964,6 +10964,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: block;
   min-height: 5rem;
   padding: 0.42rem;
+  border-width: 2px;
 }
 
 .particular-calendar-day-number {
@@ -10990,7 +10991,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-calendar-day.is-selected {
-  border: 2px solid #e38a16;
+  border: 3px solid #e38a16;
   background: #fff8ed;
   box-shadow:
     0 0 0 1px rgb(227 138 22 / 14%),

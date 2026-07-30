@@ -1574,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-paginacao-particular-8',
+            '?v=20260730-paginacao-bordas-9',
             base_template.read_text(),
         )
 
@@ -4147,8 +4147,18 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertIn(
             '.particular-calendar-day.is-selected {\n'
-            '  border: 2px solid #e38a16;\n'
+            '  border: 3px solid #e38a16;\n'
             '  background: #fff8ed;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.particular-calendar-day {\n'
+            '  position: relative;\n'
+            '  display: block;\n'
+            '  min-height: 5rem;\n'
+            '  padding: 0.42rem;\n'
+            '  border-width: 2px;',
             css,
         )
         self.assertIn(
