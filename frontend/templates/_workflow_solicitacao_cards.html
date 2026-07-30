@@ -60,7 +60,7 @@
         <strong>{{ solicitacao.local_label }}</strong>
       </span>
       <span class="workflow-request-field workflow-request-field--value">
-        <small>Valor da nota</small>
+        <small>{% if workflow_mode == "acompanhamento" %}Valor{% else %}Valor da nota{% endif %}</small>
         <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
       </span>
       {% if workflow_mode != "acompanhamento" %}
