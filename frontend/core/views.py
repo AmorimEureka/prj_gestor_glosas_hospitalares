@@ -65,6 +65,9 @@ WORKFLOW_SOLICITACOES_PATH = (
     f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/workflow"
 )
 EMISSOES_NFSE_PATH = f"{REQUISICOES_NOTA_PATH}/emissoes-nfse"
+ACOMPANHAMENTO_PARTICULAR_PATH = (
+    f"{REQUISICOES_NOTA_PATH}/acompanhamento-particular"
+)
 EMPRESAS_EMISSORAS_PATH = f"{REQUISICOES_NOTA_PATH}/empresas-emissoras"
 LOCAIS_SOLICITACAO_NOTA = {
     "Clinica 1": "Clínica 1",
@@ -84,6 +87,17 @@ STATUS_EMISSAO_NFSE = {
     "PROCESSANDO": "Em processamento",
     "EMITIDA": "NFS-e emitida",
     "ERRO": "Erro na emissão",
+}
+STATUS_ACOMPANHAMENTO_PARTICULAR = {
+    "SEM_SOLICITACAO": ("Sem solicitação", "sem-solicitacao"),
+    "PENDENTE_VALIDACAO": ("Pendente de validação", "pendente"),
+    "RECUSADA": ("Solicitação recusada", "recusada"),
+    "VALIDADA": ("Validada para emissão", "validada"),
+    "PENDENTE_EMISSAO": ("Aguardando emissão", "emissao"),
+    "PROCESSANDO": ("Em processamento", "processando"),
+    "EMITIDA": ("NFS-e emitida", "emitida"),
+    "ERRO_EMISSAO": ("Erro na emissão", "erro"),
+    "INATIVA": ("Solicitação inativa", "inativa"),
 }
 
 
@@ -1055,6 +1069,253 @@ def solicitacoes_recusas(request):
     if redirect_url := context.get("redirect_url"):
         return redirect(redirect_url)
     return render(request, "solicitacoes_recusas.html", context)
+
+
+@require_http_methods(["GET"])
+def acompanhamento_particular(request):
+    hoje = date.today()
+    data_inicio_raw = (
+        request.GET.get("data_inicio") or hoje.isoformat()
+    ).strip()
+    data_fim_raw = (
+        request.GET.get("data_fim") or hoje.isoformat()
+    ).strip()
+    try:
+        data_inicio = date.fromisoformat(data_inicio_raw)
+    except ValueError:
+        data_inicio = hoje
+        messages.error(
+            request,
+            "Informe uma data inicial válida.",
+        )
+    try:
+        data_fim = date.fromisoformat(data_fim_raw)
+    except ValueError:
+        data_fim = hoje
+        messages.error(
+            request,
+            "Informe uma data final válida.",
+        )
+    if data_fim < data_inicio:
+        data_fim = data_inicio
+        messages.error(
+            request,
+            "A data final deve ser igual ou posterior à data inicial.",
+        )
+
+    codigo_raw = (
+        request.GET.get("codigo_atendimento") or ""
+    ).strip()
+    codigo_atendimento = ""
+    if codigo_raw:
+        codigo_atendimento = as_int_or_zero(codigo_raw)
+        if codigo_atendimento <= 0:
+            codigo_atendimento = ""
+            messages.error(
+                request,
+                "Informe um código de atendimento válido.",
+            )
+
+    filtros = {
+        "data_inicio": data_inicio.isoformat(),
+        "data_fim": data_fim.isoformat(),
+        "codigo_atendimento": codigo_atendimento,
+        "nome_paciente": (
+            request.GET.get("nome_paciente") or ""
+        ).strip(),
+        "tipo_atendimento": (
+            request.GET.get("tipo_atendimento") or ""
+        ).strip(),
+        "status": (request.GET.get("status") or "").strip(),
+    }
+    if filtros["tipo_atendimento"] not in TIPOS_ATENDIMENTO:
+        filtros["tipo_atendimento"] = ""
+    if filtros["status"] not in STATUS_ACOMPANHAMENTO_PARTICULAR:
+        filtros["status"] = ""
+
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 25
+    offset = (page - 1) * limit
+    api_params = {
+        **filtros,
+        "limit": limit,
+        "offset": offset,
+    }
+    atendimentos = []
+    resumo_api = []
+    total = 0
+    total_periodo = 0
+    valor_total_periodo = 0
+    try:
+        payload = api_get(
+            ACOMPANHAMENTO_PARTICULAR_PATH,
+            api_params,
+        )
+        atendimentos = payload.get("atendimentos") or []
+        resumo_api = payload.get("resumo_status") or []
+        total = as_int_or_zero(payload.get("total"))
+        total_periodo = as_int_or_zero(payload.get("total_periodo"))
+        valor_total_periodo = payload.get("valor_total_periodo") or 0
+        limit = as_positive_int(payload.get("limit"), limit)
+        offset = as_int_or_zero(payload.get("offset"))
+    except ApiError as exc:
+        messages.error(
+            request,
+            "Acompanhamento particular: "
+            f"{extract_api_error_message(exc)}",
+        )
+
+    for atendimento in atendimentos:
+        status = str(atendimento.get("status") or "")
+        status_label, status_classe = (
+            STATUS_ACOMPANHAMENTO_PARTICULAR.get(
+                status,
+                ("Status não informado", "pendente"),
+            )
+        )
+        atendimento["status_label"] = status_label
+        atendimento["status_classe"] = status_classe
+        atendimento["data_atendimento_formatada"] = format_api_date(
+            atendimento.get("data_atendimento")
+        )
+        atendimento["solicitada_em_formatada"] = format_api_datetime(
+            atendimento.get("solicitada_em")
+        )
+        atendimento["atualizada_em_formatada"] = format_api_datetime(
+            atendimento.get("atualizada_em")
+        )
+        atendimento["valor_conta_formatado"] = (
+            format_brl_input(atendimento.get("valor_conta"))
+            or "R$ 0,00"
+        )
+
+    resumo_por_status = {
+        str(item.get("status") or ""): item
+        for item in resumo_api
+    }
+
+    def quantidade_status(*status):
+        return sum(
+            as_int_or_zero(
+                (resumo_por_status.get(item) or {}).get("quantidade")
+            )
+            for item in status
+        )
+
+    resumo_cards = [
+        {
+            "label": "Atendimentos no período",
+            "quantidade": total_periodo,
+            "detalhe": (
+                format_brl_input(valor_total_periodo) or "R$ 0,00"
+            ),
+            "classe": "total",
+        },
+        {
+            "label": "Sem solicitação",
+            "quantidade": quantidade_status("SEM_SOLICITACAO"),
+            "detalhe": "Aguardam cadastro",
+            "classe": "sem-solicitacao",
+        },
+        {
+            "label": "Aguardando fluxo",
+            "quantidade": quantidade_status(
+                "PENDENTE_VALIDACAO",
+                "VALIDADA",
+            ),
+            "detalhe": "Validação ou seleção",
+            "classe": "pendente",
+        },
+        {
+            "label": "Em emissão",
+            "quantidade": quantidade_status(
+                "PENDENTE_EMISSAO",
+                "PROCESSANDO",
+            ),
+            "detalhe": "Fila do Airflow",
+            "classe": "emissao",
+        },
+        {
+            "label": "Notas emitidas",
+            "quantidade": quantidade_status("EMITIDA"),
+            "detalhe": "Concluídas",
+            "classe": "emitida",
+        },
+        {
+            "label": "Requer atenção",
+            "quantidade": quantidade_status(
+                "RECUSADA",
+                "ERRO_EMISSAO",
+                "INATIVA",
+            ),
+            "detalhe": "Recusa, erro ou inativa",
+            "classe": "erro",
+        },
+    ]
+
+    base_query = {
+        key: value for key, value in filtros.items() if value
+    }
+    total_pages = max(ceil(total / limit), 1)
+    if page > total_pages:
+        return redirect(
+            f"{request.path}?"
+            f"{urlencode({**base_query, 'page': total_pages})}"
+        )
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "start": offset + 1 if atendimentos and total else 0,
+        "end": min(offset + len(atendimentos), total),
+        "total": total,
+        "query": base_query,
+    }
+    hoje_url = "?" + urlencode({
+        "data_inicio": hoje.isoformat(),
+        "data_fim": hoje.isoformat(),
+    })
+    periodo_formatado = data_inicio.strftime("%d/%m/%Y")
+    if data_fim != data_inicio:
+        periodo_formatado += " a " + data_fim.strftime("%d/%m/%Y")
+    return render(
+        request,
+        "acompanhamento_particular.html",
+        {
+            "atendimentos": atendimentos,
+            "filtros": filtros,
+            "tipos_atendimento": TIPOS_ATENDIMENTO,
+            "status_options": [
+                (status, label)
+                for status, (label, _classe)
+                in STATUS_ACOMPANHAMENTO_PARTICULAR.items()
+            ],
+            "resumo_cards": resumo_cards,
+            "pagination": pagination,
+            "periodo_formatado": periodo_formatado,
+            "hoje_url": hoje_url,
+            "ha_processamento": any(
+                atendimento.get("status")
+                in {"PENDENTE_EMISSAO", "PROCESSANDO"}
+                for atendimento in atendimentos
+            ),
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])
