@@ -1574,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-calendario-quantidade-6',
+            '?v=20260730-layout-fiel-particular-7',
             base_template.read_text(),
         )
 
@@ -3906,6 +3906,11 @@ class CadastrarNotaTests(TestCase):
             'Procedimentos e exames realizados',
         )
         self.assertContains(response, 'Atendimento')
+        self.assertContains(response, '<small>Valor</small>')
+        self.assertNotContains(
+            response,
+            '<small>Valor da nota</small>',
+        )
         self.assertContains(response, 'MARIA DA SILVA')
         self.assertContains(response, 'JOÃO EM PROCESSAMENTO')
         self.assertContains(response, 'ANA COM NOTA')
@@ -4170,9 +4175,9 @@ class CadastrarNotaTests(TestCase):
         self.assertIn(
             '.particular-dashboard-page--daily\n'
             '  .particular-queue-panel .results-heading {\n'
+            '  display: grid;\n'
             '  width: 100%;\n'
-            '  align-items: center;\n'
-            '  flex-direction: row;',
+            '  grid-template-columns: minmax(0, 1fr) auto;',
             css,
         )
         self.assertIn(
@@ -4180,12 +4185,23 @@ class CadastrarNotaTests(TestCase):
             '  .particular-queue-panel .collapse-actions {\n'
             '  align-items: center;\n'
             '  flex-direction: row;\n'
-            '  margin-left: auto;',
+            '  justify-self: end;',
             css,
         )
         self.assertIn(
-            '"chevron attendance patient patient status"\n'
-            '    "chevron type location value status";',
+            '"chevron attendance patient type location value status";',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-details {\n'
+            '  grid-template-columns: repeat(7, minmax(0, 1fr));',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .workflow-request-details > span.is-wide {\n'
+            '  grid-column: span 1;',
             css,
         )
         self.assertIn(
