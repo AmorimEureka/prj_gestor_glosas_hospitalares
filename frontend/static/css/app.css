@@ -10960,28 +10960,51 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .particular-calendar-day {
-  grid-template-rows: auto auto minmax(1.2rem, auto);
-  align-content: start;
-  min-height: 4.35rem;
+  position: relative;
+  display: block;
+  min-height: 5rem;
+  padding: 0.42rem;
 }
 
 .particular-calendar-day-number {
-  justify-self: start;
+  position: absolute;
+  top: 0.36rem;
+  left: 0.42rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-total {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: #153f51;
+  font-size: 1.48rem;
+  font-weight: 900;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-total.is-empty {
+  color: #b2c0c6;
 }
 
 .particular-calendar-day.is-selected {
-  border-color: #176f88;
-  background: #e7f5f8;
+  border: 2px solid #e38a16;
+  background: #fff8ed;
   box-shadow:
-    inset 0 0 0 1px #176f88,
-    0 0.24rem 0.55rem rgb(23 111 136 / 15%);
+    0 0 0 1px rgb(227 138 22 / 14%),
+    0 0.24rem 0.55rem rgb(176 98 8 / 18%);
 }
 
 .particular-patient-bubbles {
+  position: absolute;
+  bottom: 0.3rem;
+  left: 0.4rem;
   display: flex;
   align-items: center;
   min-height: 1.3rem;
-  padding-left: 0.12rem;
+  padding-left: 0;
 }
 
 .particular-patient-bubble {
