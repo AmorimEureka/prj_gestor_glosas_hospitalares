@@ -2,20 +2,28 @@
 {% block breadcrumb_label %}Financeiro · Solicitações Notas{% endblock %}
 {% block page_title %}Acompanhamento Particular{% endblock %}
 {% block content %}
-<div class="particular-monitor-page">
-  <section class="panel particular-monitor-filter-panel">
-    <div class="particular-monitor-heading">
+<div class="particular-dashboard-page">
+  <section class="panel particular-dashboard-toolbar">
+    <div class="particular-dashboard-heading">
       <div>
-        <span class="panel-title">Pacientes particulares por período</span>
-        <p>O período considera a data do atendimento registrada no MV.</p>
+        <span class="panel-title">Painel de emissão particular</span>
+        <p>Visão operacional dos atendimentos particulares pela data registrada no MV.</p>
+      </div>
+      <div class="particular-period-switch" aria-label="Visão temporal">
+        <a href="{{ visao_urls.mes }}" class="{% if visao == 'mes' %}is-active{% endif %}">Mês</a>
+        <a href="{{ visao_urls.semana }}" class="{% if visao == 'semana' %}is-active{% endif %}">Semana</a>
+        <a href="{{ visao_urls.dia }}" class="{% if visao == 'dia' %}is-active{% endif %}">Dia</a>
       </div>
       <nav class="particular-date-navigation" aria-label="Período consultado">
+        <a href="{{ anterior_url }}" aria-label="Período anterior">&#8249;</a>
         <strong>{{ periodo_formatado }}</strong>
+        <a href="{{ proxima_url }}" aria-label="Próximo período">&#8250;</a>
         <a class="particular-today-link" href="{{ hoje_url }}">Hoje</a>
       </nav>
     </div>
 
     <form method="get" class="particular-monitor-filters">
+      <input type="hidden" name="visao" value="periodo">
       <div class="filter-group">
         <label>Data inicial</label>
         <input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}" required>
@@ -52,7 +60,7 @@
       </div>
       <div class="filter-actions">
         <button class="btn btn-primary" type="submit">Filtrar</button>
-        <a class="btn btn-outline-secondary" href="{% url 'acompanhamento_particular' %}?data_inicio={{ filtros.data_inicio }}&amp;data_fim={{ filtros.data_fim }}">Limpar</a>
+        <a class="btn btn-outline-secondary" href="{{ visao_urls.mes }}">Limpar</a>
       </div>
     </form>
   </section>
@@ -67,13 +75,69 @@
     {% endfor %}
   </section>
 
-  <section class="panel particular-monitor-results">
+  <section class="particular-panorama-grid">
+    <article class="panel particular-calendar-panel">
+      <header class="particular-section-head">
+        <div>
+          <span class="panel-title">Mapa diário do período</span>
+          <small>Clique em um dia para abrir a posição detalhada.</small>
+        </div>
+        <span class="particular-period-chip">{{ periodo_formatado }}</span>
+      </header>
+      {% if visao != "dia" %}<div class="particular-calendar-weekdays" aria-hidden="true">
+        {% for label in weekday_labels %}<span>{{ label }}</span>{% endfor %}
+      </div>{% endif %}
+      <div class="particular-calendar-grid particular-calendar-grid--{{ visao }}">
+        {% for dia in dias_grade %}
+        <a
+          href="{{ dia.url }}"
+          class="particular-calendar-day{% if dia.fora_periodo %} is-outside{% endif %}{% if dia.hoje %} is-today{% endif %}{% if dia.referencia %} is-reference{% endif %}"
+          title="{{ dia.data_formatada }} · {{ dia.total }} atendimentos"
+        >
+          <span>{{ dia.dia }}</span>
+          {% if dia.total %}
+          <strong>{{ dia.total }} atend.</strong>
+          <div class="particular-day-progress" aria-label="{{ dia.emitidas }} emitidas de {{ dia.total }}">
+            <i style="width: {% widthratio dia.emitidas dia.total 100 %}%"></i>
+          </div>
+          <small><b>{{ dia.emitidas }}</b> emit. · <em>{{ dia.pendentes }}</em> pend.</small>
+          {% else %}
+          <small>Sem atendimentos</small>
+          {% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="panel particular-pipeline-panel">
+      <header class="particular-section-head">
+        <div>
+          <span class="panel-title">Posição da emissão</span>
+          <small>Distribuição dos pacientes dentro do fluxo fiscal.</small>
+        </div>
+      </header>
+      <div class="particular-pipeline-list">
+        {% for item in pipeline_status %}
+        <div class="particular-pipeline-item particular-pipeline-item--{{ item.classe }}">
+          <span class="particular-pipeline-position">{{ item.posicao }}</span>
+          <div>
+            <strong>{{ item.label }}</strong>
+            <div class="particular-pipeline-track"><i style="width: {{ item.percentual }}%"></i></div>
+          </div>
+          <span><b>{{ item.quantidade }}</b><small>{{ item.percentual }}%</small></span>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+
+  <section class="panel particular-queue-panel">
     <div class="panel-header">
       <div class="results-heading">
         <div>
-          <span class="panel-title">Situação por atendimento</span>
+          <span class="panel-title">Fila de atendimentos particulares</span>
           {% if pagination.total %}
-          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} atendimentos exibidos</span>
+          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} registros exibidos</span>
           {% else %}
           <span class="results-subtitle">Nenhum atendimento encontrado para os filtros informados.</span>
           {% endif %}
@@ -83,116 +147,55 @@
     </div>
 
     {% if atendimentos %}
-    <div class="particular-monitor-table-wrap">
-      <table class="particular-monitor-table">
-        <thead>
-          <tr>
-            <th>Atendimento</th>
-            <th>Paciente</th>
-            <th>Tipo</th>
-            <th>Conta</th>
-            <th>Solicitação</th>
-            <th>Status da nota</th>
-            <th>NFS-e</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for atendimento in atendimentos %}
-          <tr>
-            <td>
-              <strong>#{{ atendimento.codigo_atendimento }}</strong>
-              <small>{{ atendimento.data_atendimento_formatada }}</small>
-            </td>
-            <td>
-              <strong>{{ atendimento.nome_paciente }}</strong>
-              <small>Paciente #{{ atendimento.codigo_paciente }} · {{ atendimento.convenio }}</small>
-            </td>
-            <td>
-              <strong>{{ atendimento.tipo_atendimento|default:"Não informado" }}</strong>
-              <small>{{ atendimento.quantidade_lancamentos }} lançamento{{ atendimento.quantidade_lancamentos|pluralize:"o,os" }}</small>
-            </td>
-            <td>
-              <strong>{{ atendimento.valor_conta_formatado }}</strong>
-              <small>Valor total</small>
-            </td>
-            <td>
-              {% if atendimento.solicitacao_id %}
-              <strong>#{{ atendimento.solicitacao_id }}</strong>
-              <small>{{ atendimento.solicitada_em_formatada }}</small>
-              {% else %}
-              <strong>Não criada</strong>
-              <small>Aguardando solicitação</small>
-              {% endif %}
-            </td>
-            <td>
-              <span class="particular-status particular-status--{{ atendimento.status_classe }}">
-                {% if atendimento.status == "PROCESSANDO" %}
-                <svg class="workflow-emission-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 1 8 8"></path></svg>
-                {% endif %}
-                {{ atendimento.status_label }}
-              </span>
-              {% if atendimento.erro_emissao %}
-              <small class="particular-status-error" title="{{ atendimento.erro_emissao }}">{{ atendimento.erro_emissao }}</small>
-              {% elif atendimento.atualizada_em %}
-              <small>Atualizado em {{ atendimento.atualizada_em_formatada }}</small>
-              {% endif %}
-            </td>
-            <td>
-              {% if atendimento.numero_nfse %}
-              <strong>{{ atendimento.numero_nfse }}</strong>
-              <small>Nota emitida</small>
-              {% else %}
-              <strong>—</strong>
-              <small>Não disponível</small>
-              {% endif %}
-            </td>
-            <td>
-              <div class="particular-row-actions">
-                {% if atendimento.status == "SEM_SOLICITACAO" or atendimento.status == "INATIVA" %}
-                  {% if screen_access.solicitar_nota %}
-                  <a class="particular-action particular-action--primary" href="{% url 'solicitacao_nota' %}?codigo_atendimento={{ atendimento.codigo_atendimento }}">Solicitar nota</a>
-                  {% endif %}
-                {% endif %}
-                {% if atendimento.solicitacao_id and screen_access.solicitacoes_cadastradas %}
-                <a class="particular-action" href="{% url 'solicitacoes_nota' %}?codigo_atendimento={{ atendimento.codigo_atendimento }}">Ver solicitação</a>
-                {% endif %}
-                {% if atendimento.arquivo_disponivel and atendimento.emissao_id %}
-                <a class="particular-action particular-action--pdf" href="{% url 'emissao_nfse_pdf' atendimento.emissao_id %}?download=false" target="_blank" rel="noopener">Ver NFS-e</a>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="particular-queue-scroll">
+      {% for atendimento in atendimentos %}
+      <article class="particular-queue-card" x-data="{ open: false }">
+        <button class="particular-queue-card-head" type="button" @click="open = !open" :aria-expanded="open">
+          <span class="pac-chevron" :class="{ 'pac-chevron--open': open }">&#9654;</span>
+          <span class="particular-queue-patient">
+            <strong>{{ atendimento.nome_paciente }}</strong>
+            <small>Paciente #{{ atendimento.codigo_paciente }} · {{ atendimento.convenio }}</small>
+          </span>
+          <span class="mpill mpill--dim">Atend. #{{ atendimento.codigo_atendimento }}</span>
+          <span class="mpill mpill--dim">{{ atendimento.data_atendimento_formatada }}</span>
+          <span class="particular-status particular-status--{{ atendimento.status_classe }}">{{ atendimento.status_label }}</span>
+          <span class="mpill mpill--valor">{{ atendimento.valor_conta_formatado }}</span>
+        </button>
+        <div class="particular-queue-card-body" x-show="open" x-cloak>
+          <dl>
+            <div><dt>Tipo</dt><dd>{{ atendimento.tipo_atendimento|default:"Não informado" }}</dd></div>
+            <div><dt>Lançamentos</dt><dd>{{ atendimento.quantidade_lancamentos }}</dd></div>
+            <div><dt>Solicitação</dt><dd>{% if atendimento.solicitacao_id %}#{{ atendimento.solicitacao_id }} · {{ atendimento.solicitada_em_formatada }}{% else %}Não criada{% endif %}</dd></div>
+            <div><dt>NFS-e</dt><dd>{{ atendimento.numero_nfse|default:"Não disponível" }}</dd></div>
+            <div><dt>Atualização</dt><dd>{{ atendimento.atualizada_em_formatada|default:"Não informada" }}</dd></div>
+          </dl>
+          {% if atendimento.erro_emissao %}<p class="particular-status-error">{{ atendimento.erro_emissao }}</p>{% endif %}
+          <div class="particular-row-actions">
+            {% if atendimento.status == "SEM_SOLICITACAO" or atendimento.status == "INATIVA" %}
+              {% if screen_access.solicitar_nota %}<a class="particular-action particular-action--primary" href="{% url 'solicitacao_nota' %}?codigo_atendimento={{ atendimento.codigo_atendimento }}">Solicitar nota</a>{% endif %}
+            {% endif %}
+            {% if atendimento.solicitacao_id and screen_access.solicitacoes_cadastradas %}<a class="particular-action" href="{% url 'solicitacoes_nota' %}?codigo_atendimento={{ atendimento.codigo_atendimento }}">Ver solicitação</a>{% endif %}
+            {% if atendimento.arquivo_disponivel and atendimento.emissao_id %}<a class="particular-action particular-action--pdf" href="{% url 'emissao_nfse_pdf' atendimento.emissao_id %}?download=false" target="_blank" rel="noopener">Ver NFS-e</a>{% endif %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
     </div>
     {% else %}
     <div class="particular-monitor-empty">
       <span aria-hidden="true">i</span>
-      <div>
-        <strong>Nenhum atendimento particular neste período.</strong>
-        <p>Altere o período ou remova os demais filtros para consultar outros pacientes.</p>
-      </div>
+      <div><strong>Nenhum atendimento particular neste período.</strong><p>Altere o período ou remova os demais filtros.</p></div>
     </div>
     {% endif %}
 
     {% if pagination.total_pages > 1 %}
     <div class="pagination-footer">
-      {% if pagination.has_previous %}
-      <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
-      {% endif %}
+      {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
       <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
-      {% if pagination.has_next %}
-      <a class="page-step" href="{{ pagination.next_url }}">Próxima</a>
-      {% endif %}
+      {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}
     </div>
     {% endif %}
   </section>
 </div>
-{% if ha_processamento %}
-<script>
-  window.setTimeout(() => window.location.reload(), 10000);
-</script>
-{% endif %}
+{% if ha_processamento %}<script>window.setTimeout(() => window.location.reload(), 10000);</script>{% endif %}
 {% endblock %}

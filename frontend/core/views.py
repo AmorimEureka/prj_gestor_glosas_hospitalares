@@ -1,6 +1,6 @@
 from calendar import monthrange
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import json
 from math import ceil, log10
@@ -1074,34 +1074,63 @@ def solicitacoes_recusas(request):
 @require_http_methods(["GET"])
 def acompanhamento_particular(request):
     hoje = date.today()
-    data_inicio_raw = (
-        request.GET.get("data_inicio") or hoje.isoformat()
-    ).strip()
-    data_fim_raw = (
-        request.GET.get("data_fim") or hoje.isoformat()
+    referencia_raw = (
+        request.GET.get("data_referencia")
+        or request.GET.get("data_fim")
+        or hoje.isoformat()
     ).strip()
     try:
-        data_inicio = date.fromisoformat(data_inicio_raw)
+        data_referencia = date.fromisoformat(referencia_raw)
     except ValueError:
-        data_inicio = hoje
+        data_referencia = hoje
         messages.error(
             request,
-            "Informe uma data inicial válida.",
+            "Informe uma data de referência válida.",
         )
-    try:
-        data_fim = date.fromisoformat(data_fim_raw)
-    except ValueError:
-        data_fim = hoje
-        messages.error(
-            request,
-            "Informe uma data final válida.",
+
+    visao = (request.GET.get("visao") or "").strip().lower()
+    if visao not in {"mes", "semana", "dia", "periodo"}:
+        visao = (
+            "periodo"
+            if request.GET.get("data_inicio") or request.GET.get("data_fim")
+            else "mes"
         )
-    if data_fim < data_inicio:
-        data_fim = data_inicio
-        messages.error(
-            request,
-            "A data final deve ser igual ou posterior à data inicial.",
+
+    if visao == "mes":
+        data_inicio = data_referencia.replace(day=1)
+        data_fim = data_referencia.replace(
+            day=monthrange(data_referencia.year, data_referencia.month)[1]
         )
+    elif visao == "semana":
+        data_inicio = data_referencia - timedelta(
+            days=(data_referencia.weekday() + 1) % 7
+        )
+        data_fim = data_inicio + timedelta(days=6)
+    elif visao == "dia":
+        data_inicio = data_fim = data_referencia
+    else:
+        data_inicio_raw = (
+            request.GET.get("data_inicio") or data_referencia.isoformat()
+        ).strip()
+        data_fim_raw = (
+            request.GET.get("data_fim") or data_referencia.isoformat()
+        ).strip()
+        try:
+            data_inicio = date.fromisoformat(data_inicio_raw)
+        except ValueError:
+            data_inicio = data_referencia
+            messages.error(request, "Informe uma data inicial válida.")
+        try:
+            data_fim = date.fromisoformat(data_fim_raw)
+        except ValueError:
+            data_fim = data_referencia
+            messages.error(request, "Informe uma data final válida.")
+        if data_fim < data_inicio:
+            data_fim = data_inicio
+            messages.error(
+                request,
+                "A data final deve ser igual ou posterior à data inicial.",
+            )
 
     codigo_raw = (
         request.GET.get("codigo_atendimento") or ""
@@ -1143,6 +1172,7 @@ def acompanhamento_particular(request):
     }
     atendimentos = []
     resumo_api = []
+    resumo_diario_api = []
     total = 0
     total_periodo = 0
     valor_total_periodo = 0
@@ -1153,6 +1183,7 @@ def acompanhamento_particular(request):
         )
         atendimentos = payload.get("atendimentos") or []
         resumo_api = payload.get("resumo_status") or []
+        resumo_diario_api = payload.get("resumo_diario") or []
         total = as_int_or_zero(payload.get("total"))
         total_periodo = as_int_or_zero(payload.get("total_periodo"))
         valor_total_periodo = payload.get("valor_total_periodo") or 0
@@ -1202,9 +1233,12 @@ def acompanhamento_particular(request):
             for item in status
         )
 
+    emitidas = quantidade_status("EMITIDA")
+    faltam_emitir = max(total_periodo - emitidas, 0)
+    taxa_emissao = round((emitidas / total_periodo) * 100) if total_periodo else 0
     resumo_cards = [
         {
-            "label": "Atendimentos no período",
+            "label": "Atendimentos particulares",
             "quantidade": total_periodo,
             "detalhe": (
                 format_brl_input(valor_total_periodo) or "R$ 0,00"
@@ -1212,49 +1246,134 @@ def acompanhamento_particular(request):
             "classe": "total",
         },
         {
-            "label": "Sem solicitação",
-            "quantidade": quantidade_status("SEM_SOLICITACAO"),
-            "detalhe": "Aguardam cadastro",
-            "classe": "sem-solicitacao",
-        },
-        {
-            "label": "Aguardando fluxo",
-            "quantidade": quantidade_status(
-                "PENDENTE_VALIDACAO",
-                "VALIDADA",
-            ),
-            "detalhe": "Validação ou seleção",
-            "classe": "pendente",
-        },
-        {
-            "label": "Em emissão",
-            "quantidade": quantidade_status(
-                "PENDENTE_EMISSAO",
-                "PROCESSANDO",
-            ),
-            "detalhe": "Fila do Airflow",
-            "classe": "emissao",
-        },
-        {
             "label": "Notas emitidas",
-            "quantidade": quantidade_status("EMITIDA"),
-            "detalhe": "Concluídas",
+            "quantidade": emitidas,
+            "detalhe": "Concluídas no período",
             "classe": "emitida",
         },
         {
-            "label": "Requer atenção",
-            "quantidade": quantidade_status(
-                "RECUSADA",
-                "ERRO_EMISSAO",
-                "INATIVA",
-            ),
-            "detalhe": "Recusa, erro ou inativa",
-            "classe": "erro",
+            "label": "Faltam emitir",
+            "quantidade": faltam_emitir,
+            "detalhe": "Todos os status não concluídos",
+            "classe": "pendente",
+        },
+        {
+            "label": "Taxa de conclusão",
+            "quantidade": f"{taxa_emissao}%",
+            "detalhe": f"{emitidas} de {total_periodo} atendimentos",
+            "classe": "emissao",
         },
     ]
 
+    pipeline_config = [
+        ("Sem solicitação", ("SEM_SOLICITACAO",), "sem-solicitacao"),
+        ("Em validação", ("PENDENTE_VALIDACAO",), "pendente"),
+        ("Recusadas", ("RECUSADA",), "erro"),
+        ("Validadas", ("VALIDADA",), "validada"),
+        ("Na fila de emissão", ("PENDENTE_EMISSAO",), "emissao"),
+        ("Processando", ("PROCESSANDO",), "processando"),
+        ("NFS-e emitidas", ("EMITIDA",), "emitida"),
+        ("Com atenção", ("ERRO_EMISSAO", "INATIVA"), "erro"),
+    ]
+    pipeline_status = [
+        {
+            "posicao": indice,
+            "label": label,
+            "quantidade": quantidade_status(*status),
+            "percentual": round(
+                (quantidade_status(*status) / total_periodo) * 100
+            ) if total_periodo else 0,
+            "classe": classe,
+        }
+        for indice, (label, status, classe) in enumerate(
+            pipeline_config,
+            start=1,
+        )
+    ]
+
+    resumo_diario = {
+        str(item.get("data")): item for item in resumo_diario_api
+    }
+    if visao != "dia":
+        inicio_grade = data_inicio - timedelta(
+            days=(data_inicio.weekday() + 1) % 7
+        )
+        fim_grade = data_fim + timedelta(
+            days=(5 - data_fim.weekday()) % 7
+        )
+    else:
+        inicio_grade = data_inicio
+        fim_grade = data_fim
+    dias_grade = []
+    cursor = inicio_grade
+    while cursor <= fim_grade:
+        resumo_dia = resumo_diario.get(cursor.isoformat()) or {}
+        total_dia = as_int_or_zero(resumo_dia.get("total"))
+        emitidas_dia = as_int_or_zero(resumo_dia.get("emitidas"))
+        dias_grade.append({
+            "data": cursor,
+            "dia": cursor.day,
+            "data_formatada": cursor.strftime("%d/%m/%Y"),
+            "fora_periodo": cursor < data_inicio or cursor > data_fim,
+            "hoje": cursor == hoje,
+            "referencia": cursor == data_referencia,
+            "total": total_dia,
+            "emitidas": emitidas_dia,
+            "pendentes": max(total_dia - emitidas_dia, 0),
+            "valor_total": (
+                format_brl_input(resumo_dia.get("valor_total"))
+                or "R$ 0,00"
+            ),
+        })
+        cursor += timedelta(days=1)
+
+    filtros_navegacao = {
+        key: value
+        for key, value in filtros.items()
+        if key not in {"data_inicio", "data_fim"} and value
+    }
+    if visao == "mes":
+        mes_anterior = data_referencia.replace(day=1) - timedelta(days=1)
+        proximo_mes = (
+            data_referencia.replace(day=monthrange(
+                data_referencia.year,
+                data_referencia.month,
+            )[1]) + timedelta(days=1)
+        )
+        referencia_anterior = mes_anterior
+        referencia_proxima = proximo_mes
+    else:
+        passo = 7 if visao == "semana" else 1
+        if visao == "periodo":
+            passo = (data_fim - data_inicio).days + 1
+        referencia_anterior = data_referencia - timedelta(days=passo)
+        referencia_proxima = data_referencia + timedelta(days=passo)
+
+    def url_visao(tipo, referencia):
+        parametros = {
+            **filtros_navegacao,
+            "visao": tipo,
+            "data_referencia": referencia.isoformat(),
+        }
+        if tipo == "periodo":
+            deslocamento = referencia - data_referencia
+            parametros.update({
+                "data_inicio": (
+                    data_inicio + deslocamento
+                ).isoformat(),
+                "data_fim": (
+                    data_fim + deslocamento
+                ).isoformat(),
+            })
+        return "?" + urlencode(parametros)
+
+    for dia_grade in dias_grade:
+        dia_grade["url"] = url_visao("dia", dia_grade["data"])
+
     base_query = {
-        key: value for key, value in filtros.items() if value
+        **{key: value for key, value in filtros.items() if value},
+        "visao": visao,
+        "data_referencia": data_referencia.isoformat(),
     }
     total_pages = max(ceil(total / limit), 1)
     if page > total_pages:
@@ -1286,10 +1405,6 @@ def acompanhamento_particular(request):
         "total": total,
         "query": base_query,
     }
-    hoje_url = "?" + urlencode({
-        "data_inicio": hoje.isoformat(),
-        "data_fim": hoje.isoformat(),
-    })
     periodo_formatado = data_inicio.strftime("%d/%m/%Y")
     if data_fim != data_inicio:
         periodo_formatado += " a " + data_fim.strftime("%d/%m/%Y")
@@ -1306,9 +1421,20 @@ def acompanhamento_particular(request):
                 in STATUS_ACOMPANHAMENTO_PARTICULAR.items()
             ],
             "resumo_cards": resumo_cards,
+            "pipeline_status": pipeline_status,
+            "dias_grade": dias_grade,
             "pagination": pagination,
             "periodo_formatado": periodo_formatado,
-            "hoje_url": hoje_url,
+            "visao": visao,
+            "data_referencia": data_referencia.isoformat(),
+            "visao_urls": {
+                tipo: url_visao(tipo, data_referencia)
+                for tipo in ("mes", "semana", "dia")
+            },
+            "anterior_url": url_visao(visao, referencia_anterior),
+            "proxima_url": url_visao(visao, referencia_proxima),
+            "hoje_url": url_visao(visao, hoje),
+            "weekday_labels": ("Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"),
             "ha_processamento": any(
                 atendimento.get("status")
                 in {"PENDENTE_EMISSAO", "PROCESSANDO"}
