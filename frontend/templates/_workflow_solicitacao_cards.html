@@ -37,31 +37,31 @@
       <span class="workflow-request-selector-placeholder" aria-hidden="true"></span>
       {% endif %}
       <span class="workflow-request-chevron" :class="{ 'is-open': open }">&#9654;</span>
-      <span>
+      <span class="workflow-request-field workflow-request-field--attendance">
         <small>Atendimento</small>
         <strong>{{ solicitacao.codigo_atendimento }}</strong>
       </span>
-      <span class="is-patient">
+      <span class="workflow-request-field workflow-request-field--patient is-patient">
         <small>Paciente</small>
         <strong>{{ solicitacao.nm_paciente }}</strong>
       </span>
-      <span>
+      <span class="workflow-request-field workflow-request-field--cpf">
         <small>CPF</small>
         <strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong>
       </span>
-      <span>
+      <span class="workflow-request-field workflow-request-field--type">
         <small>Tipo atendimento</small>
         <strong>{{ solicitacao.tipo_atendimento }}</strong>
       </span>
-      <span>
+      <span class="workflow-request-field workflow-request-field--location">
         <small>Local</small>
         <strong>{{ solicitacao.local_label }}</strong>
       </span>
-      <span>
+      <span class="workflow-request-field workflow-request-field--value">
         <small>Valor da nota</small>
         <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
       </span>
-      <span>
+      <span class="workflow-request-field workflow-request-field--requested">
         <small>Solicitada em</small>
         <strong>{{ solicitacao.data_criacao_formatada|default:"Não informada" }}</strong>
       </span>
@@ -151,24 +151,6 @@
           <small>Validada em</small>
           <strong>{{ solicitacao.validado_em_formatada }}</strong>
         </span>
-        {% endif %}
-        {% if workflow_mode == "acompanhamento" %}
-        <span>
-          <small>Data do atendimento</small>
-          <strong>{{ solicitacao.data_atendimento_formatada|default:"Não informada" }}</strong>
-        </span>
-        {% if solicitacao.numero_nfse %}
-        <span>
-          <small>Número da NFS-e</small>
-          <strong>{{ solicitacao.numero_nfse }}</strong>
-        </span>
-        {% endif %}
-        {% if solicitacao.erro_emissao %}
-        <span class="is-wide workflow-emission-error">
-          <small>Erro da emissão</small>
-          <strong>{{ solicitacao.erro_emissao }}</strong>
-        </span>
-        {% endif %}
         {% endif %}
         <span class="is-wide">
           <small>Endereço</small>

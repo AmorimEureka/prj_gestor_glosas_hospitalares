@@ -1,5 +1,6 @@
 from datetime import date
 from pathlib import Path
+from threading import Barrier
 from unittest.mock import Mock, call, patch
 
 from django.contrib.staticfiles import finders
@@ -1573,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-calendario-particular-3',
+            '?v=20260730-layout-particular-4',
             base_template.read_text(),
         )
 
@@ -3877,9 +3878,22 @@ class CadastrarNotaTests(TestCase):
         self.assertNotContains(response, 'Posição da emissão')
         self.assertContains(response, 'Fila de atendimentos particulares')
         self.assertContains(response, 'particular-patient-bubble')
+        self.assertContains(response, 'particular-patient-bubble--cor-')
         self.assertContains(response, '>M</span>')
         self.assertContains(response, '>J</span>')
         self.assertContains(response, '>A</span>')
+        dia_selecionado = next(
+            dia
+            for dia in response.context['dias_grade']
+            if dia['selecionado']
+        )
+        self.assertEqual(
+            len({
+                paciente['cor']
+                for paciente in dia_selecionado['pacientes']
+            }),
+            3,
+        )
         self.assertContains(
             response,
             'workflow-request-card--acompanhamento',
@@ -3894,8 +3908,15 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Pendente de validação')
         self.assertContains(response, 'Em processamento')
         self.assertContains(response, 'NFS-e emitida')
-        self.assertContains(response, '98765')
         self.assertContains(response, 'R$ 715,50')
+        self.assertNotContains(
+            response,
+            '<small>Data do atendimento</small>',
+        )
+        self.assertNotContains(
+            response,
+            '<small>Número da NFS-e</small>',
+        )
         self.assertContains(
             response,
             '/requisicao/emissao-nfse/itens/42/pdf/?download=false',
@@ -3914,7 +3935,7 @@ class CadastrarNotaTests(TestCase):
             '?data_referencia=2026-08-01'
             '&data_selecionada=2026-08-29',
         )
-        self.assertEqual(
+        self.assertCountEqual(
             api_get.call_args_list,
             [
                 call(
@@ -3980,8 +4001,7 @@ class CadastrarNotaTests(TestCase):
             response,
             '<option value="PROCESSANDO" selected>',
         )
-        self.assertEqual(
-            api_get.call_args_list[:2],
+        api_get.assert_has_calls(
             [
                 call(
                     '/app_glosas/requisicoes/'
@@ -4012,6 +4032,7 @@ class CadastrarNotaTests(TestCase):
                     },
                 ),
             ],
+            any_order=True,
         )
 
     @patch('core.views.api_get')
@@ -4034,11 +4055,75 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'aria-label="Mês anterior"')
         self.assertContains(response, 'aria-label="Próximo mês"')
+        self.assertContains(response, 'rel="prev"')
+        self.assertContains(response, 'rel="next"')
         self.assertContains(response, '07/2026')
         self.assertContains(response, '>Dom</span>')
         self.assertContains(response, '>Sáb</span>')
         self.assertContains(response, '>+2</span>')
         self.assertContains(response, 'aria-current="date"')
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_particular_consulta_mes_e_dia_em_paralelo(
+        self,
+        api_get,
+    ):
+        payload = self.acompanhamento_particular_payload()
+        barreira = Barrier(3)
+
+        def responder(path, _params=None):
+            barreira.wait(timeout=1)
+            if path == '/app_glosas/requisicoes/empresas-emissoras':
+                return self.empresas_payload()
+            return payload
+
+        api_get.side_effect = responder
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'data_referencia': '2026-07-15',
+                'data_selecionada': '2026-07-29',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '07/2026')
+
+    def test_acompanhamento_particular_ajusta_cards_sem_scroll_horizontal(
+        self,
+    ):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn('margin-left: -0.42rem;', css)
+        self.assertIn('.particular-patient-bubble--cor-8 {', css)
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.particular-queue-scroll {\n'
+            '  overflow-x: hidden;\n'
+            '  overflow-y: auto;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-card {\n'
+            '  width: 100%;\n'
+            '  min-width: 0;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .workflow-attendance-items-table table {\n'
+            '  min-width: 0;\n'
+            '  table-layout: fixed;',
+            css,
+        )
+        self.assertNotIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-list {\n'
+            '  min-width: 68rem;',
+            css,
+        )
 
     @patch('core.views.api_get')
     def test_acompanhamento_particular_usa_paginacao_padrao_com_filtros(
@@ -4083,8 +4168,7 @@ class CadastrarNotaTests(TestCase):
             pagination['next_url'],
             f'?{query}&page=3',
         )
-        self.assertEqual(
-            api_get.call_args_list[1],
+        self.assertIn(
             call(
                 '/app_glosas/requisicoes/acompanhamento-particular',
                 {
@@ -4098,6 +4182,7 @@ class CadastrarNotaTests(TestCase):
                     'offset': 10,
                 },
             ),
+            api_get.call_args_list,
         )
 
     @patch('core.views.api_post')

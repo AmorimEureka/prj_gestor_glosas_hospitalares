@@ -66,9 +66,9 @@
           <small>Selecione um dia para atualizar os indicadores e a fila.</small>
         </div>
         <nav class="particular-month-navigation" aria-label="Navegação entre meses">
-          <a href="{{ anterior_url }}" aria-label="Mês anterior" title="Mês anterior">&#8249;</a>
+          <a href="{{ anterior_url }}" rel="prev" aria-label="Mês anterior" title="Mês anterior">&#8249;</a>
           <strong>{{ periodo_formatado }}</strong>
-          <a href="{{ proxima_url }}" aria-label="Próximo mês" title="Próximo mês">&#8250;</a>
+          <a href="{{ proxima_url }}" rel="next" aria-label="Próximo mês" title="Próximo mês">&#8250;</a>
         </nav>
       </header>
       <div class="particular-calendar-weekdays" aria-hidden="true">
@@ -88,7 +88,7 @@
           <div class="particular-patient-bubbles" aria-label="Pacientes do dia">
             {% for paciente in dia.pacientes %}
             <span
-              class="particular-patient-bubble particular-patient-bubble--{{ paciente.classe }}"
+              class="particular-patient-bubble particular-patient-bubble--{{ paciente.classe }} particular-patient-bubble--{{ paciente.cor }}"
               title="{{ paciente.nome }}"
             >{{ paciente.inicial }}</span>
             {% endfor %}
