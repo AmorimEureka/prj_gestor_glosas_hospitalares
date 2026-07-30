@@ -1,4 +1,6 @@
 from calendar import monthrange
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -128,6 +130,10 @@ def _carregar_empresas_emissoras(request, incluir_inativas=False):
             request,
             f"Empresas emissoras: {extract_api_error_message(exc)}",
         )
+    return _preparar_empresas_emissoras(empresas)
+
+
+def _preparar_empresas_emissoras(empresas):
     for empresa in empresas:
         empresa["cnpj_formatado"] = format_cnpj(empresa.get("cnpj"))
         empresa["data_atualizacao_formatada"] = format_api_datetime(
@@ -1213,17 +1219,48 @@ def acompanhamento_particular(request):
     total = 0
     total_periodo = 0
     valor_total_periodo = 0
+    empresas_emissoras = []
     try:
-        payload_calendario = api_get(
-            ACOMPANHAMENTO_PARTICULAR_PATH,
-            api_params_calendario,
-        )
+        contexto_calendario = copy_context()
+        contexto_dia = copy_context()
+        contexto_empresas = copy_context()
+        with ThreadPoolExecutor(
+            max_workers=3,
+            thread_name_prefix="acompanhamento-particular",
+        ) as executor:
+            consulta_calendario = executor.submit(
+                contexto_calendario.run,
+                api_get,
+                ACOMPANHAMENTO_PARTICULAR_PATH,
+                api_params_calendario,
+            )
+            consulta_dia = executor.submit(
+                contexto_dia.run,
+                api_get,
+                ACOMPANHAMENTO_PARTICULAR_PATH,
+                api_params_dia,
+            )
+            consulta_empresas = executor.submit(
+                contexto_empresas.run,
+                api_get,
+                EMPRESAS_EMISSORAS_PATH,
+                None,
+            )
+            payload_calendario = consulta_calendario.result()
+            payload_dia = consulta_dia.result()
+            try:
+                payload_empresas = consulta_empresas.result()
+                empresas_emissoras = _preparar_empresas_emissoras(
+                    payload_empresas.get("empresas") or []
+                )
+            except ApiError as exc:
+                messages.error(
+                    request,
+                    "Empresas emissoras: "
+                    f"{extract_api_error_message(exc)}",
+                )
         resumo_diario_api = (
             payload_calendario.get("resumo_diario") or []
-        )
-        payload_dia = api_get(
-            ACOMPANHAMENTO_PARTICULAR_PATH,
-            api_params_dia,
         )
         atendimentos = payload_dia.get("atendimentos") or []
         resumo_api = payload_dia.get("resumo_status") or []
@@ -1405,6 +1442,7 @@ def acompanhamento_particular(request):
         total_dia = as_int_or_zero(resumo_dia.get("total"))
         emitidas_dia = as_int_or_zero(resumo_dia.get("emitidas"))
         pacientes_dia = []
+        cores_pacientes = set()
         for paciente in resumo_dia.get("pacientes") or []:
             status_paciente = str(paciente.get("status") or "")
             _label, classe_paciente = (
@@ -1413,9 +1451,27 @@ def acompanhamento_particular(request):
                     ("Status não informado", "pendente"),
                 )
             )
+            nome_paciente = str(
+                paciente.get("nome")
+                or paciente.get("inicial")
+                or ""
+            )
+            indice_cor = (
+                int(
+                    sha256(
+                        nome_paciente.upper().encode("utf-8")
+                    ).hexdigest()[:2],
+                    16,
+                )
+                % 8
+            ) + 1
+            while indice_cor in cores_pacientes:
+                indice_cor = (indice_cor % 8) + 1
+            cores_pacientes.add(indice_cor)
             pacientes_dia.append({
                 **paciente,
                 "classe": classe_paciente,
+                "cor": f"cor-{indice_cor}",
             })
         dias_grade.append({
             "data": cursor,
@@ -1513,14 +1569,11 @@ def acompanhamento_particular(request):
         "query": base_query,
     }
     periodo_formatado = data_referencia.strftime("%m/%Y")
-    empresas_emissoras = (
-        _carregar_empresas_emissoras(request)
-        if any(
-            solicitacao["pode_validar"]
-            for solicitacao in solicitacoes_acompanhamento
-        )
-        else []
-    )
+    if not any(
+        solicitacao["pode_validar"]
+        for solicitacao in solicitacoes_acompanhamento
+    ):
+        empresas_emissoras = []
     return render(
         request,
         "acompanhamento_particular.html",
