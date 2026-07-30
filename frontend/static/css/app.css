@@ -11111,16 +11111,18 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .particular-dashboard-page--daily
   .particular-queue-panel .results-heading {
+  display: grid;
   width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
   align-items: center;
-  flex-direction: row;
 }
 
 .particular-dashboard-page--daily
   .particular-queue-panel .collapse-actions {
   align-items: center;
   flex-direction: row;
-  margin-left: auto;
+  justify-self: end;
 }
 
 .particular-dashboard-page--daily .particular-queue-scroll {
@@ -11141,11 +11143,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .particular-dashboard-page--daily .workflow-request-header {
   grid-template-areas:
-    "chevron attendance patient patient status"
-    "chevron type location value status";
+    "chevron attendance patient type location value status";
   grid-template-columns:
-    1.1rem minmax(5rem, 0.72fr) minmax(6.5rem, 1fr)
-    minmax(6.5rem, 1fr) minmax(6.4rem, auto);
+    1.1rem minmax(4.5rem, 0.7fr) minmax(8rem, 1.6fr)
+    minmax(5.5rem, 0.9fr) minmax(5rem, 0.8fr)
+    minmax(5rem, 0.8fr) minmax(6.4rem, auto);
   gap: 0.48rem 0.58rem;
 }
 
@@ -11188,15 +11190,19 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .workflow-request-details {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .particular-dashboard-page--daily
   .workflow-request-details > span.is-wide {
-  grid-column: span 3;
+  grid-column: span 1;
 }
 
-.particular-dashboard-page--daily .workflow-approval-form,
+.particular-dashboard-page--daily .workflow-approval-form {
+  width: min(38rem, 100%);
+  min-width: 0;
+}
+
 .particular-dashboard-page--daily .workflow-approval-form label,
 .particular-dashboard-page--daily .workflow-refusal-form {
   width: 100%;
