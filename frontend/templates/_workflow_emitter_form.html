@@ -1,0 +1,20 @@
+<form
+  method="post"
+  id="workflow-approval-form-{{ solicitacao.id }}"
+  class="workflow-approval-form workflow-emitter-form"
+>
+  {% csrf_token %}
+  <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
+  <input type="hidden" name="decisao" value="VALIDADA">
+  <label>
+    <span>CNPJ emissor *</span>
+    <select name="empresa_emissora_id" class="form-select" required>
+      <option value="">Selecione a empresa emissora</option>
+      {% for empresa in empresas_emissoras %}
+      <option value="{{ empresa.id }}" {% if solicitacao.empresa_emissora_id == empresa.id %}selected{% endif %}>
+        {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+</form>

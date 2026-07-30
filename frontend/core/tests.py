@@ -3633,12 +3633,19 @@ class CadastrarNotaTests(TestCase):
                     'solicitacao_id': 19,
                     'workflow_status': 'EMITIDA',
                     'emissao_id': 42,
+                    'lote_id': 25,
                     'emissao_status': 'EMITIDA',
                     'numero_nfse': '98765',
+                    'protocolo': 'PROTOCOLO-98765',
+                    'cnpj_emissor': '08711085000128',
+                    'razao_social_emissor': (
+                        'PRONTOCARDIO SERVICOS MEDICOS HOSPITALARES LTDA'
+                    ),
                     'erro_emissao': None,
                     'arquivo_disponivel': True,
                     'solicitada_em': '2026-07-29T09:00:00',
                     'atualizada_em': '2026-07-29T09:10:00',
+                    'emissao_atualizada_em': '2026-07-29T09:10:00',
                     'solicitacao': solicitacao_emitida,
                 },
             ],
@@ -3901,6 +3908,8 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Confirmar validação')
         self.assertContains(response, 'Recusar dados')
         self.assertContains(response, 'CNPJ emissor *')
+        self.assertContains(response, 'Paciente e atendimento')
+        self.assertContains(response, 'Dados da solicitação')
         self.assertContains(
             response,
             'Procedimentos e exames realizados',
@@ -3917,6 +3926,22 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Pendente de validação')
         self.assertContains(response, 'Em processamento')
         self.assertContains(response, 'NFS-e emitida')
+        self.assertContains(response, 'Empresa emissora')
+        self.assertContains(
+            response,
+            'workflow-detail-sections--emitted',
+        )
+        self.assertContains(response, 'Paciente e contato')
+        self.assertContains(response, 'Atendimento e solicitação')
+        self.assertContains(response, 'Emissão da NFS-e')
+        self.assertContains(response, '08.711.085/0001-28')
+        self.assertContains(
+            response,
+            'PRONTOCARDIO SERVICOS MEDICOS HOSPITALARES LTDA',
+        )
+        self.assertContains(response, '#25')
+        self.assertContains(response, '98765')
+        self.assertContains(response, 'PROTOCOLO-98765')
         self.assertContains(response, 'R$ 715,50')
         self.assertNotContains(response, '<small>CPF</small>')
         self.assertNotContains(
@@ -3927,7 +3952,7 @@ class CadastrarNotaTests(TestCase):
             response,
             '<small>Data do atendimento</small>',
         )
-        self.assertNotContains(
+        self.assertContains(
             response,
             '<small>Número da NFS-e</small>',
         )
@@ -3940,6 +3965,21 @@ class CadastrarNotaTests(TestCase):
             'window.setTimeout(() => window.location.reload(), 10000)',
         )
         html = response.content.decode()
+        paciente_inicio = html.index('<h3>Paciente e atendimento</h3>')
+        paciente_fim = html.index('</section>', paciente_inicio)
+        dados_inicio = html.index('<h3>Dados da solicitação</h3>')
+        dados_fim = html.index('</section>', dados_inicio)
+        paciente_html = html[paciente_inicio:paciente_fim]
+        dados_html = html[dados_inicio:dados_fim]
+        self.assertIn('<small>Convênio</small>', paciente_html)
+        self.assertIn('<small>CEP</small>', paciente_html)
+        self.assertIn('<small>Telefone / Celular</small>', paciente_html)
+        self.assertIn('<small>E-mail</small>', paciente_html)
+        self.assertIn('<small>Endereço</small>', paciente_html)
+        self.assertIn('<small>Procedimento</small>', paciente_html)
+        self.assertIn('<small>Solicitada por</small>', dados_html)
+        self.assertIn('CNPJ emissor *', dados_html)
+        self.assertLess(paciente_inicio, dados_inicio)
         self.assertLess(
             html.index('CNPJ emissor *'),
             html.index('Procedimentos e exames realizados'),
@@ -4157,6 +4197,69 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '07/2026')
 
+    @patch('core.views.api_get')
+    def test_acompanhamento_particular_reutiliza_resumo_ao_trocar_dia(
+        self,
+        api_get,
+    ):
+        self.configurar_api_acompanhamento(api_get)
+        url = '/requisicao/acompanhamento-particular/'
+
+        primeira_resposta = self.client.get(
+            url,
+            {
+                'data_referencia': '2026-07-15',
+                'data_selecionada': '2026-07-29',
+            },
+        )
+        self.assertEqual(primeira_resposta.status_code, 200)
+
+        api_get.reset_mock()
+        segunda_resposta = self.client.get(
+            url,
+            {
+                'data_referencia': '2026-07-15',
+                'data_selecionada': '2026-07-30',
+            },
+        )
+
+        self.assertEqual(segunda_resposta.status_code, 200)
+        self.assertEqual(api_get.call_count, 2)
+        self.assertNotIn(
+            call(
+                '/app_glosas/requisicoes/'
+                'acompanhamento-particular',
+                {
+                    'data_inicio': '2026-07-01',
+                    'data_fim': '2026-07-31',
+                    'codigo_atendimento': '',
+                    'nome_paciente': '',
+                    'tipo_atendimento': '',
+                    'status': '',
+                    'limit': 1,
+                    'offset': 0,
+                },
+            ),
+            api_get.call_args_list,
+        )
+        self.assertIn(
+            call(
+                '/app_glosas/requisicoes/'
+                'acompanhamento-particular',
+                {
+                    'data_inicio': '2026-07-30',
+                    'data_fim': '2026-07-30',
+                    'codigo_atendimento': '',
+                    'nome_paciente': '',
+                    'tipo_atendimento': '',
+                    'status': '',
+                    'limit': 10,
+                    'offset': 0,
+                },
+            ),
+            api_get.call_args_list,
+        )
+
     def test_acompanhamento_particular_ajusta_cards_sem_scroll_horizontal(
         self,
     ):
@@ -4176,7 +4279,8 @@ class CadastrarNotaTests(TestCase):
             '.particular-dashboard-page--daily\n'
             '  .particular-calendar-day-count > span {\n'
             '  color: #718791;\n'
-            '  font-size: 0.44rem;',
+            '  font-size: 0.58rem;\n'
+            '  font-weight: 850;',
             css,
         )
         self.assertIn(
@@ -4240,6 +4344,25 @@ class CadastrarNotaTests(TestCase):
             '.particular-dashboard-page--daily '
             '.workflow-request-details {\n'
             '  grid-template-columns: repeat(7, minmax(0, 1fr));',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .workflow-particular-patient-details {\n'
+            '  grid-template-columns: repeat(4, minmax(0, 1fr));',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .workflow-particular-request-details {\n'
+            '  grid-template-columns: repeat(3, minmax(0, 1fr));',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .workflow-detail-sections--emitted '
+            '.workflow-request-details {\n'
+            '  grid-template-columns: repeat(6, minmax(0, 1fr));',
             css,
         )
         self.assertIn(
