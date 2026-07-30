@@ -1574,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-cards-particular-5',
+            '?v=20260730-calendario-quantidade-6',
             base_template.read_text(),
         )
 
@@ -4090,6 +4090,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, '07/2026')
         self.assertContains(response, '>Dom</span>')
         self.assertContains(response, '>Sáb</span>')
+        self.assertContains(
+            response,
+            'class="particular-calendar-day-total"',
+        )
+        self.assertContains(response, 'aria-label="3 atendimentos"')
         self.assertContains(response, '>+2</span>')
         self.assertContains(response, 'aria-current="date"')
 
@@ -4127,6 +4132,27 @@ class CadastrarNotaTests(TestCase):
 
         self.assertIn('margin-left: -0.42rem;', css)
         self.assertIn('.particular-patient-bubble--cor-8 {', css)
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .particular-calendar-day-total {\n'
+            '  position: absolute;\n'
+            '  top: 50%;\n'
+            '  left: 50%;',
+            css,
+        )
+        self.assertIn(
+            '.particular-calendar-day.is-selected {\n'
+            '  border: 2px solid #e38a16;\n'
+            '  background: #fff8ed;',
+            css,
+        )
+        self.assertIn(
+            '.particular-patient-bubbles {\n'
+            '  position: absolute;\n'
+            '  bottom: 0.3rem;\n'
+            '  left: 0.4rem;',
+            css,
+        )
         self.assertIn(
             '.particular-dashboard-page--daily '
             '.particular-queue-scroll {\n'
