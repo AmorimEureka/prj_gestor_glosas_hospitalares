@@ -1606,6 +1606,10 @@ def acompanhamento_particular(request):
                 dia_equivalente_no_mes(referencia_proxima),
             ),
             "hoje_url": url_calendario(hoje, hoje),
+            "limpar_url": "?" + urlencode({
+                "data_referencia": hoje.isoformat(),
+                "data_selecionada": hoje.isoformat(),
+            }),
             "empresas_emissoras": empresas_emissoras,
             "weekday_labels": ("Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"),
             "ha_processamento": any(
