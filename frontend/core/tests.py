@@ -4036,6 +4036,32 @@ class CadastrarNotaTests(TestCase):
             response,
             '<option value="PROCESSANDO" selected>',
         )
+        hoje = date.today().isoformat()
+        self.assertEqual(
+            response.context['limpar_url'],
+            f'?data_referencia={hoje}&data_selecionada={hoje}',
+        )
+        self.assertNotIn(
+            'codigo_atendimento',
+            response.context['limpar_url'],
+        )
+        self.assertNotIn(
+            'nome_paciente',
+            response.context['limpar_url'],
+        )
+        self.assertNotIn(
+            'tipo_atendimento',
+            response.context['limpar_url'],
+        )
+        self.assertNotIn(
+            'status',
+            response.context['limpar_url'],
+        )
+        self.assertContains(
+            response,
+            f'href="?data_referencia={hoje}&amp;'
+            f'data_selecionada={hoje}">Limpar</a>',
+        )
         api_get.assert_has_calls(
             [
                 call(
