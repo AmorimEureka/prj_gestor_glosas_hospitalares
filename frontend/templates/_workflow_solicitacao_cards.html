@@ -3,11 +3,11 @@
 <div class="results-list workflow-request-list">
   {% for solicitacao in solicitacoes %}
   <article
-    class="workflow-request-card workflow-request-card--{{ workflow_mode }}"
+    class="workflow-request-card workflow-request-card--{{ workflow_mode }}{% if workflow_mode == 'acompanhamento' %} workflow-request-card--{{ solicitacao.status_classe }}{% endif %}"
     x-data="{
       open: false,
       recusar: false,
-      requestId: {{ solicitacao.id }},
+      requestId: {{ solicitacao.id|default:0 }},
       processing: {% if solicitacao.emissao_processando %}true{% else %}false{% endif %}
     }"
     @expand-all-workflow-requests.window="open = true"
@@ -63,9 +63,9 @@
       </span>
       <span>
         <small>Solicitada em</small>
-        <strong>{{ solicitacao.data_criacao_formatada }}</strong>
+        <strong>{{ solicitacao.data_criacao_formatada|default:"Não informada" }}</strong>
       </span>
-      <span class="workflow-request-status {% if workflow_mode == 'emissao' %}workflow-request-status--{{ solicitacao.status_classe }}{% elif workflow_mode == 'recusa' %}workflow-request-status--{{ solicitacao.situacao_recusa_classe }}{% else %}workflow-request-status--{{ workflow_mode }}{% endif %}">
+      <span class="workflow-request-status {% if workflow_mode == 'emissao' or workflow_mode == 'acompanhamento' %}workflow-request-status--{{ solicitacao.status_classe }}{% elif workflow_mode == 'recusa' %}workflow-request-status--{{ solicitacao.situacao_recusa_classe }}{% else %}workflow-request-status--{{ workflow_mode }}{% endif %}">
         {% if workflow_mode == "emissao" %}
         <svg class="workflow-emission-spinner" x-show="processing" x-cloak viewBox="0 0 24 24" aria-label="Emissão em processamento">
           <path d="M12 3a9 9 0 1 1-8.6 6.3"></path>
@@ -73,7 +73,7 @@
           <path d="M12 7a5 5 0 1 1-4.7 3.3"></path>
         </svg>
         {% endif %}
-        {% if workflow_mode == "validacao" %}Aguardando validação{% elif workflow_mode == "recusa" %}{{ solicitacao.situacao_recusa_label }}{% elif workflow_mode == "emissao" %}{{ solicitacao.status_label }}{% else %}Aprovada{% endif %}
+        {% if workflow_mode == "validacao" %}Aguardando validação{% elif workflow_mode == "recusa" %}{{ solicitacao.situacao_recusa_label }}{% elif workflow_mode == "emissao" or workflow_mode == "acompanhamento" %}{{ solicitacao.status_label }}{% else %}Aprovada{% endif %}
       </span>
     </div>
 
@@ -152,6 +152,24 @@
           <strong>{{ solicitacao.validado_em_formatada }}</strong>
         </span>
         {% endif %}
+        {% if workflow_mode == "acompanhamento" %}
+        <span>
+          <small>Data do atendimento</small>
+          <strong>{{ solicitacao.data_atendimento_formatada|default:"Não informada" }}</strong>
+        </span>
+        {% if solicitacao.numero_nfse %}
+        <span>
+          <small>Número da NFS-e</small>
+          <strong>{{ solicitacao.numero_nfse }}</strong>
+        </span>
+        {% endif %}
+        {% if solicitacao.erro_emissao %}
+        <span class="is-wide workflow-emission-error">
+          <small>Erro da emissão</small>
+          <strong>{{ solicitacao.erro_emissao }}</strong>
+        </span>
+        {% endif %}
+        {% endif %}
         <span class="is-wide">
           <small>Endereço</small>
           <strong>
@@ -165,7 +183,7 @@
       </div>
       {% endif %}
 
-      {% if workflow_mode == "validacao" %}
+      {% if workflow_mode == "validacao" or workflow_mode == "acompanhamento" and solicitacao.pode_validar %}
       {% if solicitacao.solicitacoes_anteriores %}
       <section class="workflow-previous-requests">
         <div class="workflow-previous-requests-heading">
@@ -387,6 +405,33 @@
         >Baixar PDF</a>
         {% else %}
         <span class="workflow-emission-file-unavailable">PDF ainda não disponível.</span>
+        {% endif %}
+      </div>
+      {% elif workflow_mode == "acompanhamento" %}
+      <div class="workflow-validation-actions workflow-emission-actions">
+        {% if solicitacao.pode_solicitar and screen_access.solicitar_nota %}
+        <a
+          class="workflow-action workflow-action--approve"
+          href="{% url 'solicitacao_nota' %}?codigo_atendimento={{ solicitacao.codigo_atendimento }}"
+        >Solicitar nota</a>
+        {% endif %}
+        {% if solicitacao.id and screen_access.solicitacoes_cadastradas %}
+        <a
+          class="workflow-action workflow-action--view"
+          href="{% url 'solicitacoes_nota' %}?codigo_atendimento={{ solicitacao.codigo_atendimento }}"
+        >Ver solicitação</a>
+        {% endif %}
+        {% if solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+        <a
+          class="workflow-action workflow-action--view"
+          href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
+          target="_blank"
+          rel="noopener"
+        >Visualizar NFS-e</a>
+        <a
+          class="workflow-action workflow-action--download"
+          href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=true"
+        >Baixar PDF</a>
         {% endif %}
       </div>
       {% endif %}

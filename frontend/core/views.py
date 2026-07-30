@@ -1071,8 +1071,61 @@ def solicitacoes_recusas(request):
     return render(request, "solicitacoes_recusas.html", context)
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def acompanhamento_particular(request):
+    if request.method == "POST":
+        solicitacao_id = as_int_or_zero(
+            request.POST.get("solicitacao_id")
+        )
+        decisao = (request.POST.get("decisao") or "").strip()
+        motivo_recusa = (
+            request.POST.get("motivo_recusa") or ""
+        ).strip()
+        empresa_emissora_id = as_int_or_zero(
+            request.POST.get("empresa_emissora_id")
+        )
+        try:
+            if solicitacao_id <= 0:
+                raise ValueError
+            if decisao == "VALIDADA":
+                if empresa_emissora_id <= 0:
+                    raise ValueError("Selecione o CNPJ emissor.")
+                api_put(
+                    f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                    f"{solicitacao_id}/empresa-emissora",
+                    {"empresa_emissora_id": empresa_emissora_id},
+                )
+            api_post(
+                f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/"
+                f"{solicitacao_id}/validacao",
+                {
+                    "decisao": decisao,
+                    "motivo_recusa": motivo_recusa or None,
+                },
+            )
+            if decisao == "VALIDADA":
+                messages.success(
+                    request,
+                    "Solicitação validada e encaminhada para emissão.",
+                )
+            else:
+                messages.success(
+                    request,
+                    "Solicitação recusada e encaminhada para recusas.",
+                )
+            return redirect(request.get_full_path())
+        except ValueError as exc:
+            messages.error(
+                request,
+                str(exc) or "Solicitação inválida.",
+            )
+        except ApiError as exc:
+            messages.error(
+                request,
+                "Validação da solicitação: "
+                f"{extract_api_error_message(exc)}",
+            )
+
     hoje = date.today()
     referencia_raw = (
         request.GET.get("data_referencia")
@@ -1088,49 +1141,26 @@ def acompanhamento_particular(request):
             "Informe uma data de referência válida.",
         )
 
-    visao = (request.GET.get("visao") or "").strip().lower()
-    if visao not in {"mes", "semana", "dia", "periodo"}:
-        visao = (
-            "periodo"
-            if request.GET.get("data_inicio") or request.GET.get("data_fim")
-            else "mes"
-        )
+    data_selecionada_raw = (
+        request.GET.get("data_selecionada") or hoje.isoformat()
+    ).strip()
+    try:
+        data_selecionada = date.fromisoformat(data_selecionada_raw)
+    except ValueError:
+        data_selecionada = hoje
+        messages.error(request, "Informe um dia válido.")
 
-    if visao == "mes":
+    data_inicio = data_referencia.replace(day=1)
+    data_fim = data_referencia.replace(
+        day=monthrange(data_referencia.year, data_referencia.month)[1]
+    )
+    if not data_inicio <= data_selecionada <= data_fim:
+        data_referencia = data_selecionada
         data_inicio = data_referencia.replace(day=1)
         data_fim = data_referencia.replace(
             day=monthrange(data_referencia.year, data_referencia.month)[1]
         )
-    elif visao == "semana":
-        data_inicio = data_referencia - timedelta(
-            days=(data_referencia.weekday() + 1) % 7
-        )
-        data_fim = data_inicio + timedelta(days=6)
-    elif visao == "dia":
-        data_inicio = data_fim = data_referencia
-    else:
-        data_inicio_raw = (
-            request.GET.get("data_inicio") or data_referencia.isoformat()
-        ).strip()
-        data_fim_raw = (
-            request.GET.get("data_fim") or data_referencia.isoformat()
-        ).strip()
-        try:
-            data_inicio = date.fromisoformat(data_inicio_raw)
-        except ValueError:
-            data_inicio = data_referencia
-            messages.error(request, "Informe uma data inicial válida.")
-        try:
-            data_fim = date.fromisoformat(data_fim_raw)
-        except ValueError:
-            data_fim = data_referencia
-            messages.error(request, "Informe uma data final válida.")
-        if data_fim < data_inicio:
-            data_fim = data_inicio
-            messages.error(
-                request,
-                "A data final deve ser igual ou posterior à data inicial.",
-            )
+    visao = "mes"
 
     codigo_raw = (
         request.GET.get("codigo_atendimento") or ""
@@ -1163,10 +1193,17 @@ def acompanhamento_particular(request):
         filtros["status"] = ""
 
     page = as_positive_int(request.GET.get("page"), 1)
-    limit = 25
+    limit = 10
     offset = (page - 1) * limit
-    api_params = {
+    api_params_calendario = {
         **filtros,
+        "limit": 1,
+        "offset": 0,
+    }
+    api_params_dia = {
+        **filtros,
+        "data_inicio": data_selecionada.isoformat(),
+        "data_fim": data_selecionada.isoformat(),
         "limit": limit,
         "offset": offset,
     }
@@ -1177,18 +1214,28 @@ def acompanhamento_particular(request):
     total_periodo = 0
     valor_total_periodo = 0
     try:
-        payload = api_get(
+        payload_calendario = api_get(
             ACOMPANHAMENTO_PARTICULAR_PATH,
-            api_params,
+            api_params_calendario,
         )
-        atendimentos = payload.get("atendimentos") or []
-        resumo_api = payload.get("resumo_status") or []
-        resumo_diario_api = payload.get("resumo_diario") or []
-        total = as_int_or_zero(payload.get("total"))
-        total_periodo = as_int_or_zero(payload.get("total_periodo"))
-        valor_total_periodo = payload.get("valor_total_periodo") or 0
-        limit = as_positive_int(payload.get("limit"), limit)
-        offset = as_int_or_zero(payload.get("offset"))
+        resumo_diario_api = (
+            payload_calendario.get("resumo_diario") or []
+        )
+        payload_dia = api_get(
+            ACOMPANHAMENTO_PARTICULAR_PATH,
+            api_params_dia,
+        )
+        atendimentos = payload_dia.get("atendimentos") or []
+        resumo_api = payload_dia.get("resumo_status") or []
+        total = as_int_or_zero(payload_dia.get("total"))
+        total_periodo = as_int_or_zero(
+            payload_dia.get("total_periodo")
+        )
+        valor_total_periodo = (
+            payload_dia.get("valor_total_periodo") or 0
+        )
+        limit = as_positive_int(payload_dia.get("limit"), limit)
+        offset = as_int_or_zero(payload_dia.get("offset"))
     except ApiError as exc:
         messages.error(
             request,
@@ -1196,6 +1243,7 @@ def acompanhamento_particular(request):
             f"{extract_api_error_message(exc)}",
         )
 
+    solicitacoes_acompanhamento = []
     for atendimento in atendimentos:
         status = str(atendimento.get("status") or "")
         status_label, status_classe = (
@@ -1219,6 +1267,82 @@ def acompanhamento_particular(request):
             format_brl_input(atendimento.get("valor_conta"))
             or "R$ 0,00"
         )
+        solicitacao_api = atendimento.get("solicitacao") or {}
+        solicitacao = dict(solicitacao_api)
+        solicitacao.setdefault(
+            "codigo_atendimento",
+            atendimento.get("codigo_atendimento"),
+        )
+        solicitacao.setdefault(
+            "nm_paciente",
+            atendimento.get("nome_paciente"),
+        )
+        solicitacao.setdefault(
+            "tipo_atendimento",
+            atendimento.get("tipo_atendimento"),
+        )
+        solicitacao.setdefault(
+            "convenio",
+            atendimento.get("convenio"),
+        )
+        solicitacao["id"] = as_int_or_zero(
+            solicitacao.get("id")
+        )
+        solicitacao["data_criacao_formatada"] = format_api_datetime(
+            solicitacao.get("data_criacao")
+        )
+        solicitacao["valor_nota_formatado"] = (
+            format_brl_input(solicitacao.get("valor_nota"))
+            or atendimento["valor_conta_formatado"]
+        )
+        solicitacao["validado_em_formatada"] = format_api_datetime(
+            solicitacao.get("validado_em")
+        )
+        solicitacao["inativado_em_formatada"] = format_api_datetime(
+            solicitacao.get("inativado_em")
+        )
+        procedimentos_atendimento = (
+            solicitacao.get("procedimentos_atendimento") or []
+        )
+        for procedimento in procedimentos_atendimento:
+            procedimento["realizado_em_formatado"] = (
+                format_api_datetime(procedimento.get("realizado_em"))
+            )
+        total_procedimentos = solicitacao.get(
+            "valor_total_procedimentos"
+        )
+        if total_procedimentos is None:
+            total_procedimentos = _somar_procedimentos_atendimento(
+                procedimentos_atendimento
+            )
+        solicitacao["valor_total_procedimentos_formatado"] = (
+            format_brl_input(total_procedimentos) or "R$ 0,00"
+        )
+        _preparar_historico_solicitacoes(
+            solicitacao.get("solicitacoes_anteriores") or []
+        )
+        solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
+            solicitacao.get("local"),
+            solicitacao.get("local") or "Não informado",
+        )
+        solicitacao["status"] = status
+        solicitacao["status_label"] = status_label
+        solicitacao["status_classe"] = status_classe
+        solicitacao["pode_validar"] = bool(
+            solicitacao["id"]
+            and status == "PENDENTE_VALIDACAO"
+        )
+        solicitacao["pode_solicitar"] = not solicitacao["id"]
+        solicitacao["emissao_id"] = atendimento.get("emissao_id")
+        solicitacao["arquivo_disponivel"] = atendimento.get(
+            "arquivo_disponivel"
+        )
+        solicitacao["numero_nfse"] = atendimento.get("numero_nfse")
+        solicitacao["erro_emissao"] = atendimento.get("erro_emissao")
+        solicitacao["data_atendimento_formatada"] = atendimento[
+            "data_atendimento_formatada"
+        ]
+        solicitacoes_acompanhamento.append(solicitacao)
 
     resumo_por_status = {
         str(item.get("status") or ""): item
@@ -1248,13 +1372,13 @@ def acompanhamento_particular(request):
         {
             "label": "Notas emitidas",
             "quantidade": emitidas,
-            "detalhe": "Concluídas no período",
+            "detalhe": "Concluídas no dia selecionado",
             "classe": "emitida",
         },
         {
             "label": "Faltam emitir",
             "quantidade": faltam_emitir,
-            "detalhe": "Todos os status não concluídos",
+            "detalhe": "Não concluídos no dia selecionado",
             "classe": "pendente",
         },
         {
@@ -1265,61 +1389,48 @@ def acompanhamento_particular(request):
         },
     ]
 
-    pipeline_config = [
-        ("Sem solicitação", ("SEM_SOLICITACAO",), "sem-solicitacao"),
-        ("Em validação", ("PENDENTE_VALIDACAO",), "pendente"),
-        ("Recusadas", ("RECUSADA",), "erro"),
-        ("Validadas", ("VALIDADA",), "validada"),
-        ("Na fila de emissão", ("PENDENTE_EMISSAO",), "emissao"),
-        ("Processando", ("PROCESSANDO",), "processando"),
-        ("NFS-e emitidas", ("EMITIDA",), "emitida"),
-        ("Com atenção", ("ERRO_EMISSAO", "INATIVA"), "erro"),
-    ]
-    pipeline_status = [
-        {
-            "posicao": indice,
-            "label": label,
-            "quantidade": quantidade_status(*status),
-            "percentual": round(
-                (quantidade_status(*status) / total_periodo) * 100
-            ) if total_periodo else 0,
-            "classe": classe,
-        }
-        for indice, (label, status, classe) in enumerate(
-            pipeline_config,
-            start=1,
-        )
-    ]
-
     resumo_diario = {
         str(item.get("data")): item for item in resumo_diario_api
     }
-    if visao != "dia":
-        inicio_grade = data_inicio - timedelta(
-            days=(data_inicio.weekday() + 1) % 7
-        )
-        fim_grade = data_fim + timedelta(
-            days=(5 - data_fim.weekday()) % 7
-        )
-    else:
-        inicio_grade = data_inicio
-        fim_grade = data_fim
+    inicio_grade = data_inicio - timedelta(
+        days=(data_inicio.weekday() + 1) % 7
+    )
+    fim_grade = data_fim + timedelta(
+        days=(5 - data_fim.weekday()) % 7
+    )
     dias_grade = []
     cursor = inicio_grade
     while cursor <= fim_grade:
         resumo_dia = resumo_diario.get(cursor.isoformat()) or {}
         total_dia = as_int_or_zero(resumo_dia.get("total"))
         emitidas_dia = as_int_or_zero(resumo_dia.get("emitidas"))
+        pacientes_dia = []
+        for paciente in resumo_dia.get("pacientes") or []:
+            status_paciente = str(paciente.get("status") or "")
+            _label, classe_paciente = (
+                STATUS_ACOMPANHAMENTO_PARTICULAR.get(
+                    status_paciente,
+                    ("Status não informado", "pendente"),
+                )
+            )
+            pacientes_dia.append({
+                **paciente,
+                "classe": classe_paciente,
+            })
         dias_grade.append({
             "data": cursor,
             "dia": cursor.day,
             "data_formatada": cursor.strftime("%d/%m/%Y"),
             "fora_periodo": cursor < data_inicio or cursor > data_fim,
             "hoje": cursor == hoje,
-            "referencia": cursor == data_referencia,
+            "selecionado": cursor == data_selecionada,
             "total": total_dia,
             "emitidas": emitidas_dia,
             "pendentes": max(total_dia - emitidas_dia, 0),
+            "pacientes": pacientes_dia[:3],
+            "pacientes_restantes": as_int_or_zero(
+                resumo_dia.get("pacientes_restantes")
+            ),
             "valor_total": (
                 format_brl_input(resumo_dia.get("valor_total"))
                 or "R$ 0,00"
@@ -1332,48 +1443,44 @@ def acompanhamento_particular(request):
         for key, value in filtros.items()
         if key not in {"data_inicio", "data_fim"} and value
     }
-    if visao == "mes":
-        mes_anterior = data_referencia.replace(day=1) - timedelta(days=1)
-        proximo_mes = (
-            data_referencia.replace(day=monthrange(
-                data_referencia.year,
-                data_referencia.month,
-            )[1]) + timedelta(days=1)
-        )
-        referencia_anterior = mes_anterior
-        referencia_proxima = proximo_mes
-    else:
-        passo = 7 if visao == "semana" else 1
-        if visao == "periodo":
-            passo = (data_fim - data_inicio).days + 1
-        referencia_anterior = data_referencia - timedelta(days=passo)
-        referencia_proxima = data_referencia + timedelta(days=passo)
+    referencia_anterior = data_inicio - timedelta(days=1)
+    referencia_proxima = data_fim + timedelta(days=1)
 
-    def url_visao(tipo, referencia):
-        parametros = {
+    def dia_equivalente_no_mes(referencia):
+        ultimo_dia = monthrange(
+            referencia.year,
+            referencia.month,
+        )[1]
+        return referencia.replace(
+            day=min(data_selecionada.day, ultimo_dia)
+        )
+
+    def url_calendario(referencia, dia_selecionado):
+        return "?" + urlencode({
             **filtros_navegacao,
-            "visao": tipo,
             "data_referencia": referencia.isoformat(),
-        }
-        if tipo == "periodo":
-            deslocamento = referencia - data_referencia
-            parametros.update({
-                "data_inicio": (
-                    data_inicio + deslocamento
-                ).isoformat(),
-                "data_fim": (
-                    data_fim + deslocamento
-                ).isoformat(),
-            })
-        return "?" + urlencode(parametros)
+            "data_selecionada": dia_selecionado.isoformat(),
+        })
 
     for dia_grade in dias_grade:
-        dia_grade["url"] = url_visao("dia", dia_grade["data"])
+        if dia_grade["selecionado"]:
+            dia_grade["url"] = url_calendario(hoje, hoje)
+            dia_grade["titulo_acao"] = (
+                "Retirar seleção e exibir o dia atual"
+            )
+        else:
+            dia_grade["url"] = url_calendario(
+                dia_grade["data"],
+                dia_grade["data"],
+            )
+            dia_grade["titulo_acao"] = (
+                f"Exibir atendimentos de {dia_grade['data_formatada']}"
+            )
 
     base_query = {
-        **{key: value for key, value in filtros.items() if value},
-        "visao": visao,
+        **filtros_navegacao,
         "data_referencia": data_referencia.isoformat(),
+        "data_selecionada": data_selecionada.isoformat(),
     }
     total_pages = max(ceil(total / limit), 1)
     if page > total_pages:
@@ -1405,14 +1512,21 @@ def acompanhamento_particular(request):
         "total": total,
         "query": base_query,
     }
-    periodo_formatado = data_inicio.strftime("%d/%m/%Y")
-    if data_fim != data_inicio:
-        periodo_formatado += " a " + data_fim.strftime("%d/%m/%Y")
+    periodo_formatado = data_referencia.strftime("%m/%Y")
+    empresas_emissoras = (
+        _carregar_empresas_emissoras(request)
+        if any(
+            solicitacao["pode_validar"]
+            for solicitacao in solicitacoes_acompanhamento
+        )
+        else []
+    )
     return render(
         request,
         "acompanhamento_particular.html",
         {
             "atendimentos": atendimentos,
+            "solicitacoes": solicitacoes_acompanhamento,
             "filtros": filtros,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
             "status_options": [
@@ -1421,19 +1535,25 @@ def acompanhamento_particular(request):
                 in STATUS_ACOMPANHAMENTO_PARTICULAR.items()
             ],
             "resumo_cards": resumo_cards,
-            "pipeline_status": pipeline_status,
             "dias_grade": dias_grade,
             "pagination": pagination,
             "periodo_formatado": periodo_formatado,
             "visao": visao,
             "data_referencia": data_referencia.isoformat(),
-            "visao_urls": {
-                tipo: url_visao(tipo, data_referencia)
-                for tipo in ("mes", "semana", "dia")
-            },
-            "anterior_url": url_visao(visao, referencia_anterior),
-            "proxima_url": url_visao(visao, referencia_proxima),
-            "hoje_url": url_visao(visao, hoje),
+            "data_selecionada": data_selecionada,
+            "data_selecionada_formatada": (
+                data_selecionada.strftime("%d/%m/%Y")
+            ),
+            "anterior_url": url_calendario(
+                referencia_anterior,
+                dia_equivalente_no_mes(referencia_anterior),
+            ),
+            "proxima_url": url_calendario(
+                referencia_proxima,
+                dia_equivalente_no_mes(referencia_proxima),
+            ),
+            "hoje_url": url_calendario(hoje, hoje),
+            "empresas_emissoras": empresas_emissoras,
             "weekday_labels": ("Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"),
             "ha_processamento": any(
                 atendimento.get("status")
