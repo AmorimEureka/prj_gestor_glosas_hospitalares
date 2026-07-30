@@ -11086,6 +11086,20 @@ body:not(.sidebar-collapsed) .indicator-grid {
   padding: 0.72rem;
 }
 
+.particular-dashboard-page--daily
+  .particular-queue-panel .results-heading {
+  width: 100%;
+  align-items: center;
+  flex-direction: row;
+}
+
+.particular-dashboard-page--daily
+  .particular-queue-panel .collapse-actions {
+  align-items: center;
+  flex-direction: row;
+  margin-left: auto;
+}
+
 .particular-dashboard-page--daily .particular-queue-scroll {
   overflow-x: hidden;
   overflow-y: auto;
@@ -11105,8 +11119,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .particular-dashboard-page--daily .workflow-request-header {
   grid-template-areas:
     "chevron attendance patient patient status"
-    "chevron cpf type location status"
-    ". value requested requested status";
+    "chevron type location value status";
   grid-template-columns:
     1.1rem minmax(5rem, 0.72fr) minmax(6.5rem, 1fr)
     minmax(6.5rem, 1fr) minmax(6.4rem, auto);
@@ -11126,10 +11139,6 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-area: patient;
 }
 
-.particular-dashboard-page--daily .workflow-request-field--cpf {
-  grid-area: cpf;
-}
-
 .particular-dashboard-page--daily .workflow-request-field--type {
   grid-area: type;
 }
@@ -11140,10 +11149,6 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .particular-dashboard-page--daily .workflow-request-field--value {
   grid-area: value;
-}
-
-.particular-dashboard-page--daily .workflow-request-field--requested {
-  grid-area: requested;
 }
 
 .particular-dashboard-page--daily .workflow-request-header strong {
@@ -11248,13 +11253,22 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 @media (max-width: 700px) {
+  .particular-dashboard-page--daily
+    .particular-queue-panel .results-heading {
+    flex-wrap: wrap;
+  }
+
+  .particular-dashboard-page--daily
+    .particular-queue-panel .collapse-actions {
+    justify-content: flex-end;
+  }
+
   .particular-dashboard-page--daily .workflow-request-header {
     grid-template-areas:
       "chevron attendance status"
       ". patient patient"
-      ". cpf type"
-      ". location value"
-      ". requested requested";
+      ". type location"
+      ". value value";
     grid-template-columns: 1.1rem repeat(2, minmax(0, 1fr));
   }
 
