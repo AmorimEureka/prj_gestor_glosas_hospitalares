@@ -1574,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-layout-particular-4',
+            '?v=20260730-cards-particular-5',
             base_template.read_text(),
         )
 
@@ -3901,6 +3901,10 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Confirmar validação')
         self.assertContains(response, 'Recusar dados')
         self.assertContains(response, 'CNPJ emissor *')
+        self.assertContains(
+            response,
+            'Procedimentos e exames realizados',
+        )
         self.assertContains(response, 'Atendimento')
         self.assertContains(response, 'MARIA DA SILVA')
         self.assertContains(response, 'JOÃO EM PROCESSAMENTO')
@@ -3909,6 +3913,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Em processamento')
         self.assertContains(response, 'NFS-e emitida')
         self.assertContains(response, 'R$ 715,50')
+        self.assertNotContains(response, '<small>CPF</small>')
+        self.assertNotContains(
+            response,
+            '<small>Solicitada em</small>',
+        )
         self.assertNotContains(
             response,
             '<small>Data do atendimento</small>',
@@ -3924,6 +3933,27 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(
             response,
             'window.setTimeout(() => window.location.reload(), 10000)',
+        )
+        html = response.content.decode()
+        self.assertLess(
+            html.index('CNPJ emissor *'),
+            html.index('Procedimentos e exames realizados'),
+        )
+        self.assertLess(
+            html.index('Procedimentos e exames realizados'),
+            html.index('>Confirmar validação</button>'),
+        )
+        self.assertLess(
+            html.index('Procedimentos e exames realizados'),
+            html.index('>Recusar dados</button>'),
+        )
+        self.assertIn(
+            'workflow-request-detail--address is-wide',
+            html,
+        )
+        self.assertIn(
+            'workflow-request-detail--procedure is-wide',
+            html,
         )
         self.assertEqual(
             response.context['anterior_url'],
@@ -4109,6 +4139,27 @@ class CadastrarNotaTests(TestCase):
             '.workflow-request-card {\n'
             '  width: 100%;\n'
             '  min-width: 0;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .particular-queue-panel .results-heading {\n'
+            '  width: 100%;\n'
+            '  align-items: center;\n'
+            '  flex-direction: row;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .particular-queue-panel .collapse-actions {\n'
+            '  align-items: center;\n'
+            '  flex-direction: row;\n'
+            '  margin-left: auto;',
+            css,
+        )
+        self.assertIn(
+            '"chevron attendance patient patient status"\n'
+            '    "chevron type location value status";',
             css,
         )
         self.assertIn(
