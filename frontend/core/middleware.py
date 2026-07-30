@@ -17,6 +17,11 @@ from .services import (
     set_request_api_token,
 )
 
+ACOMPANHAMENTO_PARTICULAR_SOURCE_SCREENS = {
+    "follow_up_solicitacoes",
+    "emissao_nfse",
+}
+
 
 class ApiSessionMiddleware:
     public_paths = {
@@ -47,7 +52,18 @@ class ApiSessionMiddleware:
 
         if not is_public and access_token:
             user = request.session.get("api_user") or {}
-            if "telas_permitidas" not in user:
+            telas_permitidas = set(user.get("telas_permitidas") or ())
+            deve_atualizar_permissoes = (
+                "telas_permitidas" not in user
+                or (
+                    "acompanhamento_particular" not in telas_permitidas
+                    and bool(
+                        telas_permitidas
+                        & ACOMPANHAMENTO_PARTICULAR_SOURCE_SCREENS
+                    )
+                )
+            )
+            if deve_atualizar_permissoes:
                 try:
                     user = api_get(
                         "/usuarios/me",

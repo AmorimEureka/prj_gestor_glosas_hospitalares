@@ -10371,6 +10371,527 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-size: 0.64rem;
 }
 
+/* Painel panorâmico de emissão dos atendimentos particulares */
+.particular-dashboard-page {
+  display: grid;
+  grid-template-rows: auto auto minmax(18rem, 0.9fr) minmax(15rem, 1fr);
+  gap: 0.7rem;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.particular-dashboard-page > .panel {
+  margin-bottom: 0;
+}
+
+.particular-dashboard-toolbar {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.8rem;
+}
+
+.particular-dashboard-heading {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.particular-dashboard-heading > div:first-child {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.particular-dashboard-heading p {
+  margin: 0;
+  color: #657d88;
+  font-size: 0.68rem;
+}
+
+.particular-period-switch {
+  display: inline-flex;
+  gap: 0.18rem;
+  padding: 0.2rem;
+  border: 1px solid #bdd6e0;
+  border-radius: 0.5rem;
+  background: #f4f9fb;
+}
+
+.particular-period-switch a {
+  padding: 0.42rem 0.72rem;
+  border-radius: 0.36rem;
+  color: #496b79;
+  font-size: 0.64rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.particular-period-switch a:hover {
+  background: #e7f3f7;
+}
+
+.particular-period-switch a.is-active {
+  background: #1d7189;
+  box-shadow: 0 0.18rem 0.42rem rgb(22 84 104 / 18%);
+  color: #fff;
+}
+
+.particular-dashboard-page .particular-monitor-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.particular-panorama-grid {
+  display: grid;
+  grid-template-columns: minmax(31rem, 1.45fr) minmax(22rem, 0.8fr);
+  gap: 0.7rem;
+  min-height: 0;
+}
+
+.particular-calendar-panel,
+.particular-pipeline-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.particular-section-head {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+}
+
+.particular-section-head > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.particular-section-head small {
+  color: #738893;
+  font-size: 0.58rem;
+}
+
+.particular-period-chip {
+  padding: 0.28rem 0.5rem;
+  border: 1px solid #c4dce5;
+  border-radius: 999px;
+  background: #f7fbfc;
+  color: #1b6378;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.particular-calendar-weekdays,
+.particular-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.28rem;
+}
+
+.particular-calendar-weekdays {
+  padding: 0 0.15rem 0.28rem;
+  color: #55717e;
+  font-size: 0.56rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.particular-calendar-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.12rem 0.18rem 0.2rem;
+  scrollbar-gutter: stable;
+}
+
+.particular-calendar-grid--semana {
+  align-content: stretch;
+}
+
+.particular-calendar-grid--periodo {
+  grid-template-columns: repeat(7, minmax(5.8rem, 1fr));
+  overflow-x: auto;
+}
+
+.particular-calendar-grid--dia {
+  grid-template-columns: minmax(14rem, 1fr);
+}
+
+.particular-calendar-day {
+  display: grid;
+  grid-template-rows: auto auto 0.28rem auto;
+  gap: 0.18rem;
+  min-height: 3.65rem;
+  padding: 0.36rem 0.42rem;
+  border: 1px solid #d3e1e7;
+  border-radius: 0.46rem;
+  background: #fff;
+  color: #193e4e;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.particular-calendar-day:hover {
+  border-color: #71adbf;
+  box-shadow: 0 0.28rem 0.6rem rgb(21 87 108 / 12%);
+  color: #153c4d;
+  transform: translateY(-1px);
+}
+
+.particular-calendar-day > span {
+  font-size: 0.63rem;
+  font-weight: 900;
+}
+
+.particular-calendar-day > strong {
+  font-size: 0.6rem;
+}
+
+.particular-calendar-day > small {
+  overflow: hidden;
+  color: #748a94;
+  font-size: 0.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.particular-calendar-day small b {
+  color: #247c59;
+}
+
+.particular-calendar-day small em {
+  color: #ad7216;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.particular-calendar-day.is-outside {
+  opacity: 0.38;
+}
+
+.particular-calendar-day.is-today {
+  border-color: #1d7189;
+  box-shadow: inset 0 0 0 1px #1d7189;
+}
+
+.particular-calendar-day.is-reference {
+  background: #edf8fb;
+}
+
+.particular-day-progress {
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1d9a8;
+}
+
+.particular-day-progress i {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: #45a479;
+}
+
+.particular-pipeline-list {
+  display: grid;
+  gap: 0.34rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
+}
+
+.particular-pipeline-item {
+  display: grid;
+  grid-template-columns: 1.65rem minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.42rem 0.5rem;
+  border: 1px solid #d5e2e7;
+  border-left: 0.24rem solid #6fa7b7;
+  border-radius: 0.46rem;
+  background: #fff;
+}
+
+.particular-pipeline-position {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f3f6;
+  color: #1c6277;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.particular-pipeline-item > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.particular-pipeline-item > div > strong {
+  color: #264b5a;
+  font-size: 0.61rem;
+}
+
+.particular-pipeline-item > span:last-child {
+  display: grid;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.particular-pipeline-item > span b {
+  color: #153c4d;
+  font-size: 0.82rem;
+}
+
+.particular-pipeline-item > span small {
+  color: #798c95;
+  font-size: 0.5rem;
+}
+
+.particular-pipeline-track {
+  height: 0.28rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2f4;
+}
+
+.particular-pipeline-track i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: #6fa7b7;
+}
+
+.particular-pipeline-item--emitida {
+  border-left-color: #42a276;
+}
+
+.particular-pipeline-item--emitida .particular-pipeline-track i {
+  background: #42a276;
+}
+
+.particular-pipeline-item--pendente,
+.particular-pipeline-item--sem-solicitacao {
+  border-left-color: #d3a13b;
+}
+
+.particular-pipeline-item--erro {
+  border-left-color: #c75c52;
+}
+
+.particular-queue-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0.62rem;
+}
+
+.particular-queue-panel > .panel-header {
+  flex: 0 0 auto;
+}
+
+.particular-queue-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.22rem;
+  scrollbar-gutter: stable;
+}
+
+.particular-queue-card {
+  margin-bottom: 0.45rem;
+  overflow: hidden;
+  border: 1px solid #cfdde4;
+  border-radius: 0.56rem;
+  background: #fff;
+  box-shadow: 0 0.22rem 0.55rem rgb(22 79 99 / 7%);
+}
+
+.particular-queue-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 1fr) auto auto auto auto;
+  gap: 0.55rem;
+  align-items: center;
+  width: 100%;
+  min-height: 3.1rem;
+  padding: 0.48rem 0.7rem;
+  border: 0;
+  background: linear-gradient(90deg, #245f75 0%, #2b7187 100%);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.particular-queue-card-head:hover {
+  background: linear-gradient(90deg, #286a82 0%, #327f96 100%);
+}
+
+.particular-queue-patient {
+  display: grid;
+  min-width: 0;
+}
+
+.particular-queue-patient strong,
+.particular-queue-patient small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.particular-queue-patient strong {
+  font-size: 0.68rem;
+  letter-spacing: 0.025em;
+}
+
+.particular-queue-patient small {
+  color: #d9edf3;
+  font-size: 0.54rem;
+}
+
+.particular-queue-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border-top: 2px solid #234f64;
+  background: #fbfdfe;
+}
+
+.particular-queue-card-body dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(7rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.particular-queue-card-body dl > div {
+  min-width: 0;
+  padding-right: 0.5rem;
+  border-right: 1px solid #dbe6eb;
+}
+
+.particular-queue-card-body dt {
+  color: #728791;
+  font-size: 0.5rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.particular-queue-card-body dd {
+  margin: 0.15rem 0 0;
+  overflow: hidden;
+  color: #234857;
+  font-size: 0.6rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.particular-queue-card-body .particular-status-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #a23830;
+  font-size: 0.58rem;
+}
+
+.particular-queue-panel > .pagination-footer {
+  flex: 0 0 auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e0e9ed;
+}
+
+@media (max-width: 1200px) {
+  .particular-dashboard-page {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .particular-dashboard-heading {
+    grid-template-columns: minmax(14rem, 1fr) auto;
+  }
+
+  .particular-dashboard-heading .particular-date-navigation {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .particular-panorama-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .particular-calendar-panel,
+  .particular-pipeline-panel,
+  .particular-queue-panel {
+    min-height: 20rem;
+  }
+
+  .particular-queue-card-head {
+    grid-template-columns: auto minmax(12rem, 1fr) auto auto;
+  }
+
+  .particular-queue-card-head .particular-status,
+  .particular-queue-card-head .mpill--valor {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 700px) {
+  .particular-dashboard-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .particular-dashboard-heading .particular-date-navigation {
+    grid-column: auto;
+    justify-self: stretch;
+  }
+
+  .particular-period-switch {
+    justify-self: start;
+  }
+
+  .particular-dashboard-page .particular-monitor-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .particular-calendar-weekdays,
+  .particular-calendar-grid {
+    min-width: 38rem;
+  }
+
+  .particular-calendar-panel {
+    overflow-x: auto;
+  }
+
+  .particular-queue-card-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .particular-queue-card-head > .mpill,
+  .particular-queue-card-head > .particular-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .particular-queue-card-body {
+    grid-template-columns: 1fr;
+  }
+
+  .particular-queue-card-body dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .issuer-admin-page {
   display: grid;
   gap: 0.75rem;

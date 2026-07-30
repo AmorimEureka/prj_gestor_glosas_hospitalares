@@ -1089,6 +1089,48 @@ class LoginFlowTests(TestCase):
             '<span class="nav-label">Administrativo</span>',
         )
 
+    @patch('core.middleware.api_get')
+    def test_atualiza_permissoes_da_sessao_para_exibir_acompanhamento(
+        self,
+        api_get,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Financeiro',
+            'perfil': 'usuario',
+            'telas_permitidas': [
+                'solicitar_nota',
+                'emissao_nfse',
+            ],
+        }
+        session.save()
+        api_get.return_value = {
+            **session['api_user'],
+            'telas_permitidas': [
+                'solicitar_nota',
+                'emissao_nfse',
+                'acompanhamento_particular',
+            ],
+        }
+
+        response = self.client.get('/requisicao/solicitacao-nota/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<span class="nav-label">Acompanhamento Particular</span>',
+        )
+        self.assertIn(
+            'acompanhamento_particular',
+            self.client.session['api_user']['telas_permitidas'],
+        )
+        api_get.assert_called_once_with(
+            '/usuarios/me',
+            token='token-seguro',
+        )
+
     @patch('core.views.api_get_stream')
     def test_usuario_das_solicitacoes_visualiza_pdf_emitido(
         self,
@@ -1531,7 +1573,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260729-acompanhamento-particular-1',
+            '?v=20260730-painel-particular-2',
             base_template.read_text(),
         )
 
@@ -3589,6 +3631,16 @@ class CadastrarNotaTests(TestCase):
                     'valor_total': '210.00',
                 },
             ],
+            'resumo_diario': [
+                {
+                    'data': '2026-07-29',
+                    'total': 3,
+                    'emitidas': 1,
+                    'pendentes': 2,
+                    'valor_total': '715.50',
+                    'resumo_status': [],
+                },
+            ],
             'data_inicio': '2026-07-01',
             'data_fim': '2026-07-29',
             'total_periodo': 3,
@@ -3757,12 +3809,18 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<h1>Acompanhamento Particular</h1>')
-        self.assertContains(response, 'Pacientes particulares por período')
+        self.assertContains(response, 'Painel de emissão particular')
         self.assertContains(response, '01/07/2026 a 29/07/2026')
         self.assertContains(
             response,
-            'O período considera a data do atendimento registrada no MV.',
+            'Visão operacional dos atendimentos particulares',
         )
+        self.assertContains(response, 'Mapa diário do período')
+        self.assertContains(response, 'Posição da emissão')
+        self.assertContains(response, 'Fila de atendimentos particulares')
+        self.assertContains(response, '3 atend.')
+        self.assertContains(response, 'aria-label="1 emitidas de 3"')
+        self.assertContains(response, 'particular-queue-card')
         self.assertContains(response, 'Data inicial')
         self.assertContains(response, 'Data final')
         self.assertContains(response, 'Atendimento')
@@ -3786,6 +3844,16 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(
             response,
             'window.setTimeout(() => window.location.reload(), 10000)',
+        )
+        self.assertEqual(
+            response.context['anterior_url'],
+            '?visao=periodo&data_referencia=2026-06-30'
+            '&data_inicio=2026-06-02&data_fim=2026-06-30',
+        )
+        self.assertEqual(
+            response.context['proxima_url'],
+            '?visao=periodo&data_referencia=2026-08-27'
+            '&data_inicio=2026-07-30&data_fim=2026-08-27',
         )
         api_get.assert_called_once_with(
             '/app_glosas/requisicoes/acompanhamento-particular',
@@ -3844,6 +3912,40 @@ class CadastrarNotaTests(TestCase):
         )
 
     @patch('core.views.api_get')
+    def test_acompanhamento_particular_monta_visao_mensal(
+        self,
+        api_get,
+    ):
+        api_get.return_value = self.acompanhamento_particular_payload()
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'visao': 'mes',
+                'data_referencia': '2026-07-15',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="is-active">Mês</a>')
+        self.assertContains(response, '01/07/2026 a 31/07/2026')
+        self.assertContains(response, '>Dom</span>')
+        self.assertContains(response, '>Sáb</span>')
+        api_get.assert_called_once_with(
+            '/app_glosas/requisicoes/acompanhamento-particular',
+            {
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-31',
+                'codigo_atendimento': '',
+                'nome_paciente': '',
+                'tipo_atendimento': '',
+                'status': '',
+                'limit': 25,
+                'offset': 0,
+            },
+        )
+
+    @patch('core.views.api_get')
     def test_acompanhamento_particular_usa_paginacao_padrao_com_filtros(
         self,
         api_get,
@@ -3876,6 +3978,7 @@ class CadastrarNotaTests(TestCase):
             'data_inicio=2026-07-01&data_fim=2026-07-29'
             '&codigo_atendimento=123457&nome_paciente=Jo%C3%A3o'
             '&tipo_atendimento=Urg%C3%AAncia&status=PROCESSANDO'
+            '&visao=periodo&data_referencia=2026-07-29'
         )
         self.assertEqual(
             pagination['previous_url'],
