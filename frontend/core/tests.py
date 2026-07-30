@@ -1574,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-layout-fiel-particular-7',
+            '?v=20260730-paginacao-particular-8',
             base_template.read_text(),
         )
 
@@ -4245,7 +4245,29 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="particular-page-select"')
+        self.assertContains(
+            response,
+            'results-toolbar workflow-request-toolbar '
+            'particular-queue-toolbar',
+        )
         self.assertContains(response, 'Página 2 de 3')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.particular-queue-toolbar {\n'
+            '  align-items: center;\n'
+            '  flex-direction: row;\n'
+            '  justify-content: flex-end;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .particular-queue-toolbar .pagination-control {\n'
+            '  align-items: center;\n'
+            '  flex-direction: row;\n'
+            '  margin-left: auto;',
+            css,
+        )
         pagination = response.context['pagination']
         query = (
             'codigo_atendimento=123457&nome_paciente=Jo%C3%A3o'

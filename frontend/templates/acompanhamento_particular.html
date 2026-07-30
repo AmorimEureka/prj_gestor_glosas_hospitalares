@@ -129,7 +129,9 @@
           </div>
           {% endif %}
         </div>
-        {% include "_workflow_pagination.html" with pagination_id="particular-page-select" %}
+        <div class="results-toolbar workflow-request-toolbar particular-queue-toolbar">
+          {% include "_workflow_pagination.html" with pagination_id="particular-page-select" %}
+        </div>
       </div>
 
       {% if solicitacoes %}
