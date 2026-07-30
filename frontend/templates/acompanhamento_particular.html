@@ -83,10 +83,13 @@
           {% if dia.selecionado %}aria-current="date"{% endif %}
         >
           <span class="particular-calendar-day-number">{{ dia.dia }}</span>
-          <strong
-            class="particular-calendar-day-total{% if not dia.total %} is-empty{% endif %}"
+          <div
+            class="particular-calendar-day-count{% if not dia.total %} is-empty{% endif %}"
             aria-label="{{ dia.total }} atendimento{% if dia.total != 1 %}s{% endif %}"
-          >{{ dia.total }}</strong>
+          >
+            <strong class="particular-calendar-day-total">{{ dia.total }}</strong>
+            <span>Atendimentos</span>
+          </div>
           {% if dia.total %}
           <div class="particular-patient-bubbles" aria-label="Pacientes do dia">
             {% for paciente in dia.pacientes %}

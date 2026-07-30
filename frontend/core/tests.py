@@ -1574,7 +1574,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-paginacao-bordas-9',
+            '?v=20260730-rotulo-atendimentos-10',
             base_template.read_text(),
         )
 
@@ -4099,6 +4099,7 @@ class CadastrarNotaTests(TestCase):
             response,
             'class="particular-calendar-day-total"',
         )
+        self.assertContains(response, '>Atendimentos</span>')
         self.assertContains(response, 'aria-label="3 atendimentos"')
         self.assertContains(response, '>+2</span>')
         self.assertContains(response, 'aria-current="date"')
@@ -4139,10 +4140,17 @@ class CadastrarNotaTests(TestCase):
         self.assertIn('.particular-patient-bubble--cor-8 {', css)
         self.assertIn(
             '.particular-dashboard-page--daily\n'
-            '  .particular-calendar-day-total {\n'
+            '  .particular-calendar-day-count {\n'
             '  position: absolute;\n'
-            '  top: 50%;\n'
+            '  top: 46%;\n'
             '  left: 50%;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily\n'
+            '  .particular-calendar-day-count > span {\n'
+            '  color: #718791;\n'
+            '  font-size: 0.44rem;',
             css,
         )
         self.assertIn(
@@ -4156,7 +4164,7 @@ class CadastrarNotaTests(TestCase):
             '.particular-calendar-day {\n'
             '  position: relative;\n'
             '  display: block;\n'
-            '  min-height: 5rem;\n'
+            '  min-height: 5.6rem;\n'
             '  padding: 0.42rem;\n'
             '  border-width: 2px;',
             css,

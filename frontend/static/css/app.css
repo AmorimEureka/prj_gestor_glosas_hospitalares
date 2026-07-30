@@ -10962,7 +10962,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .particular-dashboard-page--daily .particular-calendar-day {
   position: relative;
   display: block;
-  min-height: 5rem;
+  min-height: 5.6rem;
   padding: 0.42rem;
   border-width: 2px;
 }
@@ -10974,19 +10974,35 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily
-  .particular-calendar-day-total {
+  .particular-calendar-day-count {
   position: absolute;
-  top: 50%;
+  top: 46%;
   left: 50%;
-  color: #153f51;
-  font-size: 1.48rem;
-  font-weight: 900;
-  line-height: 1;
+  display: grid;
+  gap: 0.12rem;
+  place-items: center;
   transform: translate(-50%, -50%);
 }
 
 .particular-dashboard-page--daily
-  .particular-calendar-day-total.is-empty {
+  .particular-calendar-day-total {
+  color: #153f51;
+  font-size: 1.48rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-count > span {
+  color: #718791;
+  font-size: 0.44rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-count.is-empty
+  .particular-calendar-day-total {
   color: #b2c0c6;
 }
 
