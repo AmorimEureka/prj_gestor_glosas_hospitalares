@@ -70,6 +70,9 @@ EMISSOES_NFSE_PATH = f"{REQUISICOES_NOTA_PATH}/emissoes-nfse"
 ACOMPANHAMENTO_PARTICULAR_PATH = (
     f"{REQUISICOES_NOTA_PATH}/acompanhamento-particular"
 )
+ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY = (
+    "acompanhamento_particular_calendario"
+)
 EMPRESAS_EMISSORAS_PATH = f"{REQUISICOES_NOTA_PATH}/empresas-emissoras"
 LOCAIS_SOLICITACAO_NOTA = {
     "Clinica 1": "Clínica 1",
@@ -1119,6 +1122,10 @@ def acompanhamento_particular(request):
                     request,
                     "Solicitação recusada e encaminhada para recusas.",
                 )
+            request.session.pop(
+                ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY,
+                None,
+            )
             return redirect(request.get_full_path())
         except ValueError as exc:
             messages.error(
@@ -1221,18 +1228,43 @@ def acompanhamento_particular(request):
     valor_total_periodo = 0
     empresas_emissoras = []
     try:
-        contexto_calendario = copy_context()
+        calendario_cache_key = build_api_cache_key(
+            "acompanhamento-particular:calendario",
+            ACOMPANHAMENTO_PARTICULAR_PATH,
+            api_params_calendario,
+        )
+        calendario_cache = request.session.get(
+            ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY
+        ) or {}
+        calendario_cache_valido = (
+            calendario_cache.get("key") == calendario_cache_key
+            and calendario_cache.get("expires_at", 0)
+            > datetime.now().timestamp()
+            and isinstance(calendario_cache.get("payload"), dict)
+        )
+        payload_calendario = (
+            deepcopy(calendario_cache["payload"])
+            if calendario_cache_valido
+            else None
+        )
+        contexto_calendario = (
+            None if calendario_cache_valido else copy_context()
+        )
         contexto_dia = copy_context()
         contexto_empresas = copy_context()
         with ThreadPoolExecutor(
             max_workers=3,
             thread_name_prefix="acompanhamento-particular",
         ) as executor:
-            consulta_calendario = executor.submit(
-                contexto_calendario.run,
-                api_get,
-                ACOMPANHAMENTO_PARTICULAR_PATH,
-                api_params_calendario,
+            consulta_calendario = (
+                executor.submit(
+                    contexto_calendario.run,
+                    api_get,
+                    ACOMPANHAMENTO_PARTICULAR_PATH,
+                    api_params_calendario,
+                )
+                if contexto_calendario is not None
+                else None
             )
             consulta_dia = executor.submit(
                 contexto_dia.run,
@@ -1246,7 +1278,25 @@ def acompanhamento_particular(request):
                 EMPRESAS_EMISSORAS_PATH,
                 None,
             )
-            payload_calendario = consulta_calendario.result()
+            if consulta_calendario is not None:
+                payload_calendario = consulta_calendario.result()
+                request.session[
+                    ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY
+                ] = {
+                    "key": calendario_cache_key,
+                    "expires_at": (
+                        datetime.now().timestamp()
+                        + max(
+                            getattr(
+                                settings,
+                                "APP_FILTER_CACHE_SECONDS",
+                                45,
+                            ),
+                            1,
+                        )
+                    ),
+                    "payload": payload_calendario,
+                }
             payload_dia = consulta_dia.result()
             try:
                 payload_empresas = consulta_empresas.result()
@@ -1371,11 +1421,34 @@ def acompanhamento_particular(request):
         )
         solicitacao["pode_solicitar"] = not solicitacao["id"]
         solicitacao["emissao_id"] = atendimento.get("emissao_id")
+        solicitacao["lote_id"] = atendimento.get("lote_id")
+        solicitacao["status_emissao"] = atendimento.get(
+            "emissao_status"
+        )
+        solicitacao["status_emissao_label"] = STATUS_EMISSAO_NFSE.get(
+            str(atendimento.get("emissao_status") or ""),
+            "Não iniciada",
+        )
+        solicitacao["cnpj_emissor_formatado"] = format_cnpj(
+            atendimento.get("cnpj_emissor")
+            or solicitacao.get("cnpj_emissor")
+        )
+        solicitacao["razao_social_emissor"] = (
+            atendimento.get("razao_social_emissor")
+            or solicitacao.get("razao_social_emissor")
+        )
         solicitacao["arquivo_disponivel"] = atendimento.get(
             "arquivo_disponivel"
         )
         solicitacao["numero_nfse"] = atendimento.get("numero_nfse")
+        solicitacao["protocolo"] = atendimento.get("protocolo")
         solicitacao["erro_emissao"] = atendimento.get("erro_emissao")
+        solicitacao["emissao_atualizada_em_formatada"] = (
+            format_api_datetime(
+                atendimento.get("emissao_atualizada_em")
+                or atendimento.get("atualizada_em")
+            )
+        )
         solicitacao["data_atendimento_formatada"] = atendimento[
             "data_atendimento_formatada"
         ]

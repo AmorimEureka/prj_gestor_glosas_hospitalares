@@ -82,8 +82,8 @@
     </div>
 
     <div class="workflow-request-body" x-show="open" x-cloak>
-      {% if workflow_mode == "emissao" %}
-      <div class="workflow-detail-sections">
+      {% if workflow_mode == "emissao" or workflow_mode == "acompanhamento" and solicitacao.status == "EMITIDA" %}
+      <div class="workflow-detail-sections{% if workflow_mode == 'acompanhamento' %} workflow-detail-sections--emitted{% endif %}">
         <section class="workflow-detail-section workflow-detail-section--issuer">
           <h3>Empresa emissora</h3>
           <div class="workflow-request-details">
@@ -135,6 +135,51 @@
           </div>
         </section>
         {% endif %}
+      </div>
+      {% elif workflow_mode == "acompanhamento" %}
+      <div class="workflow-detail-sections workflow-particular-detail-groups">
+        <section class="workflow-detail-section workflow-particular-detail-section">
+          <h3>Paciente e atendimento</h3>
+          <div class="workflow-request-details workflow-particular-patient-details">
+            <span class="workflow-request-detail workflow-request-detail--convenio"><small>Convênio</small><strong>{{ solicitacao.convenio }}</strong></span>
+            <span class="workflow-request-detail workflow-request-detail--cep"><small>CEP</small><strong>{{ solicitacao.nr_cep|default:"Não informado" }}</strong></span>
+            <span class="workflow-request-detail workflow-request-detail--phone"><small>Telefone / Celular</small><strong>{{ solicitacao.nr_fone|default:"Não informado" }}</strong></span>
+            <span class="workflow-request-detail workflow-request-detail--email"><small>E-mail</small><strong>{{ solicitacao.email|default:"Não informado" }}</strong></span>
+            <span class="workflow-request-detail workflow-request-detail--address is-wide">
+              <small>Endereço</small>
+              <strong>
+                {{ solicitacao.ds_endereco|default:"Não informado" }}
+                {% if solicitacao.nr_endereco %}, {{ solicitacao.nr_endereco }}{% endif %}
+                {% if solicitacao.nm_bairro %} — {{ solicitacao.nm_bairro }}{% endif %}
+                {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
+              </strong>
+            </span>
+            <span class="workflow-request-detail workflow-request-detail--procedure is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
+          </div>
+        </section>
+
+        <section class="workflow-detail-section workflow-particular-detail-section workflow-particular-request-section">
+          <h3>Dados da solicitação</h3>
+          <div class="workflow-request-details workflow-particular-request-details">
+            <span class="workflow-request-detail workflow-request-detail--requested-by">
+              <small>Solicitada por</small>
+              <strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong>
+            </span>
+            {% if solicitacao.validado_por %}
+            <span class="workflow-request-detail workflow-request-detail--validated-by">
+              <small>Validada por</small>
+              <strong>{{ solicitacao.validado_por }}</strong>
+            </span>
+            <span class="workflow-request-detail workflow-request-detail--validated-at">
+              <small>Validada em</small>
+              <strong>{{ solicitacao.validado_em_formatada }}</strong>
+            </span>
+            {% endif %}
+          </div>
+          {% if solicitacao.pode_validar %}
+          {% include "_workflow_emitter_form.html" %}
+          {% endif %}
+        </section>
       </div>
       {% else %}
       <div class="workflow-request-details">
@@ -214,26 +259,9 @@
       </section>
       {% endif %}
 
-      <form
-        method="post"
-        id="workflow-approval-form-{{ solicitacao.id }}"
-        class="workflow-approval-form workflow-emitter-form"
-      >
-        {% csrf_token %}
-        <input type="hidden" name="solicitacao_id" value="{{ solicitacao.id }}">
-        <input type="hidden" name="decisao" value="VALIDADA">
-        <label>
-          <span>CNPJ emissor *</span>
-          <select name="empresa_emissora_id" class="form-select" required>
-            <option value="">Selecione a empresa emissora</option>
-            {% for empresa in empresas_emissoras %}
-            <option value="{{ empresa.id }}" {% if solicitacao.empresa_emissora_id == empresa.id %}selected{% endif %}>
-              {{ empresa.cnpj_formatado }} — {{ empresa.razao_social }}
-            </option>
-            {% endfor %}
-          </select>
-        </label>
-      </form>
+      {% if workflow_mode == "validacao" %}
+      {% include "_workflow_emitter_form.html" %}
+      {% endif %}
 
       <section class="workflow-attendance-items">
         <div class="workflow-attendance-items-heading">
