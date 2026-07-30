@@ -11125,6 +11125,19 @@ body:not(.sidebar-collapsed) .indicator-grid {
   justify-self: end;
 }
 
+.particular-dashboard-page--daily .particular-queue-toolbar {
+  align-items: center;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.particular-dashboard-page--daily
+  .particular-queue-toolbar .pagination-control {
+  align-items: center;
+  flex-direction: row;
+  margin-left: auto;
+}
+
 .particular-dashboard-page--daily .particular-queue-scroll {
   overflow-x: hidden;
   overflow-y: auto;
