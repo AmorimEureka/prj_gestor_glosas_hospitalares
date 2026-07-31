@@ -3995,6 +3995,9 @@ class CadastrarNotaTests(TestCase):
             'window.setTimeout(() => window.location.reload(), 10000)',
         )
         html = response.content.decode()
+        cabecalho_inicio = html.index('class="workflow-request-header"')
+        cabecalho_fim = html.index('</div>', cabecalho_inicio)
+        cabecalho_html = html[cabecalho_inicio:cabecalho_fim]
         paciente_inicio = html.index('<h3>Paciente e atendimento</h3>')
         paciente_fim = html.index('</section>', paciente_inicio)
         dados_inicio = html.index('<h3>Dados da solicitação</h3>')
@@ -4004,6 +4007,11 @@ class CadastrarNotaTests(TestCase):
         paciente_html = html[paciente_inicio:paciente_fim]
         dados_html = html[dados_inicio:dados_fim]
         emitido_html = html[emitido_inicio:emitido_fim]
+        self.assertIn('<small>Convênio</small>', cabecalho_html)
+        self.assertLess(
+            cabecalho_html.index('<small>Convênio</small>'),
+            cabecalho_html.index('<small>Local</small>'),
+        )
         self.assertIn('<small>Convênio</small>', paciente_html)
         self.assertIn('<small>CEP</small>', paciente_html)
         self.assertIn('<small>Telefone / Celular</small>', paciente_html)
@@ -4056,6 +4064,7 @@ class CadastrarNotaTests(TestCase):
                         'codigo_atendimento': '',
                         'nome_paciente': '',
                         'tipo_atendimento': '',
+                        'convenio': '',
                         'status': '',
                         'limit': 1,
                         'offset': 0,
@@ -4070,6 +4079,7 @@ class CadastrarNotaTests(TestCase):
                         'codigo_atendimento': '',
                         'nome_paciente': '',
                         'tipo_atendimento': '',
+                        'convenio': '',
                         'status': '',
                         'limit': 10,
                         'offset': 0,
@@ -4246,6 +4256,7 @@ class CadastrarNotaTests(TestCase):
                 'codigo_atendimento': '123457',
                 'nome_paciente': 'João',
                 'tipo_atendimento': 'Urgência',
+                'convenio': 'PRONTOREDE',
                 'status': 'PROCESSANDO',
             },
         )
@@ -4255,6 +4266,10 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(
             response,
             '<option value="PROCESSANDO" selected>',
+        )
+        self.assertContains(
+            response,
+            '<option value="PRONTOREDE" selected>Prontorede</option>',
         )
         hoje = date.today().isoformat()
         self.assertEqual(
@@ -4271,6 +4286,10 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertNotIn(
             'tipo_atendimento',
+            response.context['limpar_url'],
+        )
+        self.assertNotIn(
+            'convenio',
             response.context['limpar_url'],
         )
         self.assertNotIn(
@@ -4293,6 +4312,7 @@ class CadastrarNotaTests(TestCase):
                         'codigo_atendimento': 123457,
                         'nome_paciente': 'João',
                         'tipo_atendimento': 'Urgência',
+                        'convenio': 'PRONTOREDE',
                         'status': 'PROCESSANDO',
                         'limit': 1,
                         'offset': 0,
@@ -4307,6 +4327,7 @@ class CadastrarNotaTests(TestCase):
                         'codigo_atendimento': 123457,
                         'nome_paciente': 'João',
                         'tipo_atendimento': 'Urgência',
+                        'convenio': 'PRONTOREDE',
                         'status': 'PROCESSANDO',
                         'limit': 10,
                         'offset': 0,
@@ -4415,6 +4436,7 @@ class CadastrarNotaTests(TestCase):
                     'codigo_atendimento': '',
                     'nome_paciente': '',
                     'tipo_atendimento': '',
+                    'convenio': '',
                     'status': '',
                     'limit': 1,
                     'offset': 0,
@@ -4432,6 +4454,7 @@ class CadastrarNotaTests(TestCase):
                     'codigo_atendimento': '',
                     'nome_paciente': '',
                     'tipo_atendimento': '',
+                    'convenio': '',
                     'status': '',
                     'limit': 10,
                     'offset': 0,
@@ -4517,7 +4540,25 @@ class CadastrarNotaTests(TestCase):
             css,
         )
         self.assertIn(
-            '"chevron attendance patient type location value status";',
+            '"chevron attendance patient type convenio location value status";',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-field--convenio {\n'
+            '  grid-area: convenio;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-header strong {\n'
+            '  overflow: hidden;\n'
+            '  font-size: 0.56rem;',
+            css,
+        )
+        self.assertIn(
+            '  text-overflow: ellipsis;\n'
+            '  white-space: nowrap;',
             css,
         )
         self.assertIn(
@@ -4585,6 +4626,7 @@ class CadastrarNotaTests(TestCase):
                 'codigo_atendimento': '123457',
                 'nome_paciente': 'João',
                 'tipo_atendimento': 'Urgência',
+                'convenio': 'PRONTOREDE',
                 'status': 'PROCESSANDO',
                 'page': '2',
             },
@@ -4618,7 +4660,8 @@ class CadastrarNotaTests(TestCase):
         pagination = response.context['pagination']
         query = (
             'codigo_atendimento=123457&nome_paciente=Jo%C3%A3o'
-            '&tipo_atendimento=Urg%C3%AAncia&status=PROCESSANDO'
+            '&tipo_atendimento=Urg%C3%AAncia&convenio=PRONTOREDE'
+            '&status=PROCESSANDO'
             '&data_referencia=2026-07-15'
             '&data_selecionada=2026-07-29'
         )
@@ -4639,6 +4682,7 @@ class CadastrarNotaTests(TestCase):
                     'codigo_atendimento': 123457,
                     'nome_paciente': 'João',
                     'tipo_atendimento': 'Urgência',
+                    'convenio': 'PRONTOREDE',
                     'status': 'PROCESSANDO',
                     'limit': 10,
                     'offset': 10,

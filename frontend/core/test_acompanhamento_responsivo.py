@@ -41,9 +41,10 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             css,
         )
         self.assertIn(
-            '1.1rem minmax(5.1rem, 0.8fr) minmax(0, 1.7fr)\n'
-            '    minmax(0, 0.95fr) minmax(0, 0.85fr)\n'
-            '    minmax(0, 0.8fr) minmax(6rem, auto);',
+            '1rem minmax(4.5rem, 0.68fr) minmax(0, 1.45fr)\n'
+            '    minmax(0, 0.76fr) minmax(4.7rem, 0.68fr)\n'
+            '    minmax(0, 0.68fr) minmax(4.5rem, 0.68fr)\n'
+            '    minmax(5.5rem, auto);',
             css,
         )
         self.assertIn(
@@ -129,7 +130,7 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         self.assertIn(
             '.particular-dashboard-page--daily '
             '.workflow-request-header small {\n'
-            '  font-size: 0.48rem;\n'
+            '  font-size: 0.44rem;\n'
             '  letter-spacing: 0.025em;\n'
             '  line-height: 1.15;\n'
             '  overflow-wrap: normal;\n'
@@ -139,9 +140,12 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         self.assertIn(
             '.particular-dashboard-page--daily '
             '.workflow-request-header strong {\n'
-            '  font-size: 0.61rem;\n'
-            '  line-height: 1.25;\n'
-            '  overflow-wrap: break-word;',
+            '  overflow: hidden;\n'
+            '  font-size: 0.56rem;\n'
+            '  line-height: 1.2;\n'
+            '  overflow-wrap: normal;\n'
+            '  text-overflow: ellipsis;\n'
+            '  white-space: nowrap;',
             css,
         )
 
@@ -228,5 +232,18 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             '  .particular-daily-workspace {\n'
             '    height: var(--particular-calendar-workspace-height);\n'
             '    min-height: var(--particular-calendar-workspace-height);',
+            css,
+        )
+
+    def test_painel_de_emissao_permanece_visivel_durante_rolagem(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '> .particular-dashboard-toolbar {\n'
+            '  position: sticky;\n'
+            '  top: 0;\n'
+            '  z-index: 30;\n'
+            '  background: var(--panel);',
             css,
         )
