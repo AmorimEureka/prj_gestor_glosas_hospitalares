@@ -1490,7 +1490,7 @@ def acompanhamento_particular(request):
         return f"Valor total: {valor_formatado}"
 
     resumo_cards = [{
-        "label": "Total particular",
+        "label": "Total Particular + Prontorede",
         "quantidade": total_mes,
         "detalhe": detalhe_valor(valor_total_mes),
         "classe": "total",
