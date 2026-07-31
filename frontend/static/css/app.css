@@ -10953,6 +10953,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-column: 2;
 }
 
+.particular-month-overview
+  .particular-summary-card--erro {
+  grid-row: 3;
+  grid-column: 2;
+}
+
 .particular-billing-gauge-card {
   display: grid;
   gap: 0.35rem;
@@ -11109,7 +11115,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .particular-billing-gauge-legend dd strong {
   overflow: hidden;
   color: #153c4d;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11768,7 +11774,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .particular-month-overview
-    .particular-summary-card--validada {
+    .particular-summary-card--validada,
+  .particular-month-overview
+    .particular-summary-card--erro {
     grid-row: auto;
     grid-column: auto;
   }
@@ -11790,6 +11798,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .particular-month-overview
     .particular-summary-card--validada {
     grid-row: 2;
+    grid-column: 2;
+  }
+
+  .particular-month-overview
+    .particular-summary-card--erro {
+    grid-row: 3;
     grid-column: 2;
   }
 

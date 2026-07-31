@@ -72,7 +72,7 @@
       <header>
         <div>
           <span>Emissão de NFS-e</span>
-          <small>Progresso financeiro do mês</small>
+          <small>Progresso por quantidade no mês</small>
         </div>
         <strong>{{ periodo_formatado }}</strong>
       </header>
@@ -80,7 +80,7 @@
         <div
           class="particular-billing-gauge"
           role="img"
-          aria-label="{{ emissao_mes.percentual|floatformat:1 }}% do valor mensal emitido em NFS-e"
+          aria-label="{{ emissao_mes.percentual|floatformat:1 }}% dos atendimentos com NFS-e emitida"
         >
           <svg viewBox="0 0 120 66" aria-hidden="true">
             <path class="particular-billing-gauge-track" pathLength="100" d="M 10 58 A 50 50 0 0 1 110 58"></path>
@@ -109,15 +109,15 @@
           <div class="is-billed">
             <dt>Emitido em NFS-e</dt>
             <dd>
-              <strong>{{ emissao_mes.valor_emitido }}</strong>
-              <span>{{ emissao_mes.quantidade_emitida }} atendimento{{ emissao_mes.quantidade_emitida|pluralize }}</span>
+              <strong>{{ emissao_mes.quantidade_emitida }} atendimento{{ emissao_mes.quantidade_emitida|pluralize }}</strong>
+              <span>Valor: {{ emissao_mes.valor_emitido }}</span>
             </dd>
           </div>
           <div class="is-unbilled">
             <dt>Não emitido em NFS-e</dt>
             <dd>
-              <strong>{{ emissao_mes.valor_nao_emitido }}</strong>
-              <span>{{ emissao_mes.quantidade_nao_emitida }} atendimento{{ emissao_mes.quantidade_nao_emitida|pluralize }}</span>
+              <strong>{{ emissao_mes.quantidade_nao_emitida }} atendimento{{ emissao_mes.quantidade_nao_emitida|pluralize }}</strong>
+              <span>Valor: {{ emissao_mes.valor_nao_emitido }}</span>
             </dd>
           </div>
         </dl>
