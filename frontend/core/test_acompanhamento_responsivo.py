@@ -144,3 +144,37 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             '  overflow-wrap: break-word;',
             css,
         )
+
+    def test_dia_separa_rotulo_de_atendimentos_das_bolinhas(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.particular-calendar-day-count {\n'
+            '  top: 40%;\n'
+            '  gap: 0.06rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-calendar-day-total {\n'
+            '  font-size: clamp(0.98rem, 24cqi, 1.28rem);',
+            css,
+        )
+        self.assertIn(
+            '.particular-calendar-day-count > span {\n'
+            '  font-size: clamp(0.48rem, 10cqi, 0.54rem);\n'
+            '  line-height: 1;',
+            css,
+        )
+        self.assertIn(
+            '.particular-patient-bubbles {\n'
+            '  bottom: 0.22rem;\n'
+            '  min-height: 1.08rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-patient-bubble {\n'
+            '  width: 1.08rem;\n'
+            '  height: 1.08rem;\n'
+            '  margin-left: -0.34rem;',
+            css,
+        )
