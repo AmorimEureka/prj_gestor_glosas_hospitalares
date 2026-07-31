@@ -9421,6 +9421,21 @@ body:not(.sidebar-collapsed) .indicator-grid {
   margin-bottom: 0;
 }
 
+.workflow-request-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(8rem, 0.7fr) minmax(13rem, 1.25fr)
+    minmax(9rem, 0.8fr) minmax(12rem, 1fr)
+    minmax(11rem, 0.95fr) minmax(9rem, 0.8fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.workflow-request-filters .filter-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
 .workflow-request-toolbar {
   justify-content: space-between;
 }
@@ -11921,6 +11936,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .workflow-request-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .workflow-request-filters .filter-actions {
+    grid-column: 1 / -1;
+  }
+
   .issuer-form-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -12034,8 +12057,15 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .workflow-refusal-form,
-  .note-emission-filters {
+  .note-emission-filters,
+  .workflow-request-filters {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-request-filters .filter-actions {
+    grid-column: auto;
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .workflow-approval-form,
