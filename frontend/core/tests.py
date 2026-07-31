@@ -3897,6 +3897,10 @@ class CadastrarNotaTests(TestCase):
             response,
             'Painel de emissão Particular e Prontorede',
         )
+        self.assertContains(
+            response,
+            'name="selecionar_dia_resultado" value="1"',
+        )
         self.assertContains(response, '07/2026')
         self.assertContains(response, '29/07/2026')
         self.assertNotContains(
@@ -4379,6 +4383,122 @@ class CadastrarNotaTests(TestCase):
                 ),
             ],
             any_order=True,
+        )
+
+    @patch('core.views.api_get')
+    def test_filtro_por_atendimento_seleciona_dia_com_resultado(
+        self,
+        api_get,
+    ):
+        payload_calendario = self.acompanhamento_particular_payload()
+        payload_calendario['resumo_diario'] = [{
+            'data': '2026-07-30',
+            'total': 1,
+            'emitidas': 0,
+            'pendentes': 1,
+            'valor_total': '1155.00',
+            'resumo_status': [],
+            'pacientes': [{
+                'nome': 'MANOEL ARRUDA CAVALCANTE',
+                'inicial': 'M',
+                'status': 'ERRO_EMISSAO',
+            }],
+            'pacientes_restantes': 0,
+        }]
+        payload_dia_vazio = {
+            **payload_calendario,
+            'atendimentos': [],
+            'total': 0,
+            'limit': 10,
+            'offset': 0,
+        }
+
+        def responder(path, params=None):
+            if path.endswith('/empresas-emissoras'):
+                return self.empresas_payload()
+            if params['data_inicio'] == '2026-07-01':
+                return payload_calendario
+            return payload_dia_vazio
+
+        api_get.side_effect = responder
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'codigo_atendimento': '340080',
+                'data_referencia': '2026-07-31',
+                'data_selecionada': '2026-07-31',
+                'selecionar_dia_resultado': '1',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/acompanhamento-particular/'
+            '?codigo_atendimento=340080'
+            '&data_referencia=2026-07-31'
+            '&data_selecionada=2026-07-30',
+            fetch_redirect_response=False,
+        )
+
+    @patch('core.views.api_get')
+    def test_filtro_por_erro_seleciona_dia_com_status(
+        self,
+        api_get,
+    ):
+        payload_calendario = self.acompanhamento_particular_payload()
+        payload_calendario['resumo_diario'] = [{
+            'data': '2026-07-30',
+            'total': 40,
+            'emitidas': 0,
+            'pendentes': 40,
+            'valor_total': '42000.00',
+            'resumo_status': [{
+                'status': 'ERRO_EMISSAO',
+                'quantidade': 1,
+                'valor_total': '1155.00',
+            }],
+            'pacientes': [],
+            'pacientes_restantes': 40,
+        }]
+        payload_dia_vazio = {
+            **payload_calendario,
+            'atendimentos': [],
+            'total': 0,
+            'limit': 10,
+            'offset': 0,
+        }
+
+        def responder(path, params=None):
+            if path.endswith('/empresas-emissoras'):
+                return self.empresas_payload()
+            if params['data_inicio'] == '2026-07-01':
+                return payload_calendario
+            return payload_dia_vazio
+
+        api_get.side_effect = responder
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'status': 'ERRO_EMISSAO',
+                'data_referencia': '2026-07-31',
+                'data_selecionada': '2026-07-31',
+                'selecionar_dia_resultado': '1',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            '/requisicao/acompanhamento-particular/'
+            '?status=ERRO_EMISSAO'
+            '&data_referencia=2026-07-31'
+            '&data_selecionada=2026-07-30',
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn(
+            'selecionar_dia_resultado',
+            response['Location'],
         )
 
     @patch('core.views.api_get')

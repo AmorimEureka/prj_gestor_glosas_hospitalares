@@ -1358,6 +1358,55 @@ def acompanhamento_particular(request):
         total = as_int_or_zero(payload_dia.get("total"))
         limit = as_positive_int(payload_dia.get("limit"), limit)
         offset = as_int_or_zero(payload_dia.get("offset"))
+
+        selecionar_dia_resultado = (
+            request.GET.get("selecionar_dia_resultado") == "1"
+        )
+        if selecionar_dia_resultado and total == 0:
+            datas_com_resultado = []
+            for resumo_dia in resumo_diario_api:
+                quantidade_dia = as_int_or_zero(
+                    resumo_dia.get("total")
+                )
+                if filtros["status"]:
+                    quantidade_dia = next(
+                        (
+                            as_int_or_zero(item.get("quantidade"))
+                            for item in (
+                                resumo_dia.get("resumo_status") or []
+                            )
+                            if str(item.get("status") or "")
+                            == filtros["status"]
+                        ),
+                        0,
+                    )
+                if quantidade_dia <= 0:
+                    continue
+                try:
+                    data_resultado = date.fromisoformat(
+                        str(resumo_dia.get("data") or "")[:10]
+                    )
+                except ValueError:
+                    continue
+                if data_inicio <= data_resultado <= data_fim:
+                    datas_com_resultado.append(data_resultado)
+
+            if datas_com_resultado:
+                data_resultado = max(datas_com_resultado)
+                if data_resultado != data_selecionada:
+                    filtros_redirecionamento = {
+                        key: value
+                        for key, value in filtros.items()
+                        if key not in {"data_inicio", "data_fim"} and value
+                    }
+                    query_redirecionamento = urlencode({
+                        **filtros_redirecionamento,
+                        "data_referencia": data_referencia.isoformat(),
+                        "data_selecionada": data_resultado.isoformat(),
+                    })
+                    return redirect(
+                        f"{request.path}?{query_redirecionamento}"
+                    )
     except ApiError as exc:
         messages.error(
             request,
