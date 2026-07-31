@@ -95,7 +95,7 @@ STATUS_EMISSAO_NFSE = {
 }
 STATUS_ACOMPANHAMENTO_PARTICULAR = {
     "SEM_SOLICITACAO": ("Sem solicitação", "sem-solicitacao"),
-    "PENDENTE_VALIDACAO": ("Pendente de validação", "pendente"),
+    "PENDENTE_VALIDACAO": ("Aguardando validação", "pendente"),
     "RECUSADA": ("Solicitação recusada", "recusada"),
     "VALIDADA": ("Validada para emissão", "validada"),
     "PENDENTE_EMISSAO": ("Aguardando emissão", "emissao"),
@@ -446,6 +446,18 @@ def logout_view(request):
 
 @require_http_methods(["GET", "POST"])
 def solicitacao_nota(request):
+    retorno = (
+        request.POST.get("retorno")
+        if request.method == "POST"
+        else request.GET.get("retorno")
+    )
+    retorno = str(retorno or "").strip()
+    if retorno and not url_has_allowed_host_and_scheme(
+        retorno,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        retorno = ""
     codigo_atendimento = (
         request.POST.get("codigo_atendimento")
         if request.method == "POST"
@@ -487,7 +499,20 @@ def solicitacao_nota(request):
                     request,
                     "Solicitação de nota cadastrada com sucesso.",
                 )
-                return redirect("solicitacao_nota")
+                atendimento_path = (
+                    f"{REQUISICOES_NOTA_PATH}/atendimentos/{codigo}"
+                )
+                cache.delete(
+                    build_api_cache_key(
+                        ATENDIMENTO_NOTA_CACHE_NAMESPACE,
+                        atendimento_path,
+                    )
+                )
+                request.session.pop(
+                    ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY,
+                    None,
+                )
+                return redirect(retorno or "solicitacao_nota")
             except ApiError as exc:
                 messages.error(
                     request,
@@ -542,6 +567,7 @@ def solicitacao_nota(request):
             "procedimento": procedimento,
             "valor_nota": valor_nota,
             "locais": LOCAIS_SOLICITACAO_NOTA.items(),
+            "retorno": retorno,
         },
     )
 
