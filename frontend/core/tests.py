@@ -5824,6 +5824,86 @@ class CadastrarNotaTests(TestCase):
             },
         )
 
+    @patch('core.views.api_get')
+    def test_workflow_encaminha_filtros_e_preserva_paginacao(
+        self,
+        api_get,
+    ):
+        def responder(path, params=None):
+            if path.endswith('/empresas-emissoras'):
+                return self.empresas_payload()
+            if path.endswith('/convenios'):
+                return {
+                    'convenios': [
+                        {'nm_convenio': 'CONVÊNIO TESTE'},
+                    ],
+                }
+            return self.lista_payload(
+                [self.workflow_payload()],
+                total=12,
+                offset=10,
+            )
+
+        api_get.side_effect = responder
+        response = self.client.get(
+            '/requisicao/workflow-solicitacoes/',
+            {
+                'codigo_atendimento': '123456',
+                'nome_paciente': 'Maria',
+                'cpf': '12345678901',
+                'convenio': 'CONVÊNIO TESTE',
+                'tipo_atendimento': 'Ambulatório',
+                'local': 'Clinica 1',
+                'page': '2',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="123456"')
+        self.assertContains(response, 'value="Maria"')
+        self.assertContains(response, 'value="12345678901"')
+        self.assertContains(
+            response,
+            '<option value="CONVÊNIO TESTE" selected>',
+        )
+        self.assertContains(
+            response,
+            '<option value="Ambulatório" selected>',
+        )
+        self.assertContains(
+            response,
+            '<option value="Clinica 1" selected>',
+        )
+        self.assertContains(
+            response,
+            'href="/requisicao/workflow-solicitacoes/"',
+        )
+        api_get.assert_any_call(
+            '/app_glosas/requisicoes/solicitacoes-nota/workflow',
+            {
+                'status': 'PENDENTE_VALIDACAO',
+                'limit': 10,
+                'offset': 10,
+                'codigo_atendimento': '123456',
+                'nome_paciente': 'Maria',
+                'cpf': '12345678901',
+                'convenio': 'CONVÊNIO TESTE',
+                'tipo_atendimento': 'Ambulatório',
+                'local': 'Clinica 1',
+            },
+        )
+        self.assertEqual(
+            response.context['pagination']['query'],
+            {
+                'codigo_atendimento': '123456',
+                'nome_paciente': 'Maria',
+                'cpf': '12345678901',
+                'convenio': 'CONVÊNIO TESTE',
+                'tipo_atendimento': 'Ambulatório',
+                'local': 'Clinica 1',
+            },
+        )
+
     def test_cards_expansiveis_preservam_altura_natural_da_triagem(self):
         css = Path(finders.find('css/app.css')).read_text()
 
