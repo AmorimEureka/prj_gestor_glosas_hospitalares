@@ -1086,12 +1086,35 @@ def workflow_solicitacoes(request):
                 f"{extract_api_error_message(exc)}",
             )
 
+    filtros = {
+        "codigo_atendimento": (
+            request.GET.get("codigo_atendimento") or ""
+        ).strip(),
+        "nome_paciente": (
+            request.GET.get("nome_paciente") or ""
+        ).strip(),
+        "cpf": (request.GET.get("cpf") or "").strip(),
+        "convenio": (request.GET.get("convenio") or "").strip(),
+        "tipo_atendimento": (
+            request.GET.get("tipo_atendimento") or ""
+        ).strip(),
+        "local": (request.GET.get("local") or "").strip(),
+    }
+    if filtros["tipo_atendimento"] not in TIPOS_ATENDIMENTO:
+        filtros["tipo_atendimento"] = ""
+    if filtros["local"] not in LOCAIS_SOLICITACAO_NOTA:
+        filtros["local"] = ""
+
     context = _carregar_fila_solicitacoes(
         request,
         "PENDENTE_VALIDACAO",
+        filtros,
     )
     if redirect_url := context.get("redirect_url"):
         return redirect(redirect_url)
+    context["convenios"] = get_convenio_dropdown_options(
+        filtros["convenio"]
+    )
     context["empresas_emissoras"] = _carregar_empresas_emissoras(
         request
     )
