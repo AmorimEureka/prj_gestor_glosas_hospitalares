@@ -104,6 +104,10 @@ STATUS_ACOMPANHAMENTO_PARTICULAR = {
     "ERRO_EMISSAO": ("Erro na emissão", "erro"),
     "INATIVA": ("Solicitação inativa", "inativa"),
 }
+CONVENIOS_ACOMPANHAMENTO_PARTICULAR = {
+    "PARTICULAR": "Particular",
+    "PRONTOREDE": "Prontorede",
+}
 
 
 def format_cnpj(value):
@@ -1198,10 +1202,13 @@ def acompanhamento_particular(request):
         "tipo_atendimento": (
             request.GET.get("tipo_atendimento") or ""
         ).strip(),
+        "convenio": (request.GET.get("convenio") or "").strip().upper(),
         "status": (request.GET.get("status") or "").strip(),
     }
     if filtros["tipo_atendimento"] not in TIPOS_ATENDIMENTO:
         filtros["tipo_atendimento"] = ""
+    if filtros["convenio"] not in CONVENIOS_ACOMPANHAMENTO_PARTICULAR:
+        filtros["convenio"] = ""
     if filtros["status"] not in STATUS_ACOMPANHAMENTO_PARTICULAR:
         filtros["status"] = ""
 
@@ -1713,6 +1720,9 @@ def acompanhamento_particular(request):
             "solicitacoes": solicitacoes_acompanhamento,
             "filtros": filtros,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
+            "convenios_options": (
+                CONVENIOS_ACOMPANHAMENTO_PARTICULAR.items()
+            ),
             "status_options": [
                 (status, label)
                 for status, (label, _classe)
