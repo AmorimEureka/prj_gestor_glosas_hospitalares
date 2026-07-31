@@ -227,5 +227,47 @@
     </article>
   </section>
 </div>
+<script>
+(() => {
+  const page = document.querySelector('.particular-dashboard-page--daily');
+  const toolbar = page?.querySelector('.particular-dashboard-toolbar');
+  const workspace = page?.querySelector('.particular-daily-workspace');
+  if (!page || !toolbar || !workspace) return;
+
+  let overviewHidden = page.scrollTop > 2;
+
+  const hideMonthlyOverview = () => {
+    if (overviewHidden || page.scrollHeight <= page.clientHeight) return;
+    overviewHidden = true;
+    const pageTop = page.getBoundingClientRect().top;
+    const workspaceTop = workspace.getBoundingClientRect().top;
+    const targetTop = Math.max(
+      0,
+      page.scrollTop + workspaceTop - pageTop - toolbar.offsetHeight - 8,
+    );
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    page.scrollTo({
+      top: targetTop,
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    });
+  };
+
+  page.addEventListener('wheel', (event) => {
+    if (event.deltaY <= 0 || overviewHidden || page.scrollTop > 2) return;
+    event.preventDefault();
+    hideMonthlyOverview();
+  }, { passive: false });
+
+  page.addEventListener('scroll', () => {
+    if (page.scrollTop <= 2) {
+      overviewHidden = false;
+      return;
+    }
+    hideMonthlyOverview();
+  }, { passive: true });
+})();
+</script>
 {% if ha_processamento %}<script>window.setTimeout(() => window.location.reload(), 10000);</script>{% endif %}
 {% endblock %}
