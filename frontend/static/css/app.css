@@ -11143,6 +11143,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-width: 2px;
 }
 
+.particular-dashboard-page--daily .particular-calendar-day {
+  min-width: 0;
+  container-type: inline-size;
+  overflow: hidden;
+}
+
 .particular-calendar-day-number {
   position: absolute;
   top: 0.36rem;
@@ -11155,6 +11161,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
   top: 46%;
   left: 50%;
   display: grid;
+  width: calc(100% - 0.7rem);
+  max-width: 100%;
+  min-width: 0;
   gap: 0.12rem;
   place-items: center;
   transform: translate(-50%, -50%);
@@ -11163,7 +11172,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .particular-dashboard-page--daily
   .particular-calendar-day-total {
   color: #153f51;
-  font-size: 1.48rem;
+  font-size: clamp(1.12rem, 28cqi, 1.48rem);
   font-weight: 900;
   line-height: 1;
 }
@@ -11174,6 +11183,18 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-size: 0.58rem;
   font-weight: 850;
   line-height: 1.1;
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-count > span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(0.48rem, 11cqi, 0.58rem);
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .particular-dashboard-page--daily
@@ -11195,8 +11216,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   bottom: 0.3rem;
   left: 0.4rem;
   display: flex;
+  max-width: calc(100% - 0.8rem);
   align-items: center;
   min-height: 1.3rem;
+  overflow: hidden;
   padding-left: 0;
 }
 
@@ -11336,6 +11359,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow-y: auto;
 }
 
+.particular-dashboard-page--daily .particular-calendar-weekdays,
+.particular-dashboard-page--daily .particular-calendar-grid {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.particular-dashboard-page--daily .particular-calendar-grid {
+  overflow-x: hidden;
+}
+
 .particular-dashboard-page--daily .workflow-request-list {
   width: 100%;
   min-width: 0;
@@ -11351,10 +11385,23 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-areas:
     "chevron attendance patient type location value status";
   grid-template-columns:
-    1.1rem minmax(4.5rem, 0.7fr) minmax(8rem, 1.6fr)
-    minmax(5.5rem, 0.9fr) minmax(5rem, 0.8fr)
-    minmax(5rem, 0.8fr) minmax(6.4rem, auto);
+    1.1rem minmax(0, 0.72fr) minmax(0, 1.7fr)
+    minmax(0, 0.95fr) minmax(0, 0.85fr)
+    minmax(0, 0.8fr) minmax(6rem, auto);
   gap: 0.48rem 0.58rem;
+}
+
+.particular-dashboard-page--daily
+  .workflow-request-header > span:not(
+    .workflow-request-chevron,
+    .workflow-request-status
+  ) {
+  overflow: hidden;
+}
+
+.particular-dashboard-page--daily .workflow-request-header small {
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .particular-dashboard-page--daily .workflow-request-chevron {
