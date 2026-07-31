@@ -3888,7 +3888,10 @@ class CadastrarNotaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<h1>Acompanhamento Particular</h1>')
-        self.assertContains(response, 'Painel de emissão particular')
+        self.assertContains(
+            response,
+            'Painel de emissão Particular e Prontorede',
+        )
         self.assertContains(response, '07/2026')
         self.assertContains(response, '29/07/2026')
         self.assertNotContains(
@@ -3898,7 +3901,10 @@ class CadastrarNotaTests(TestCase):
         self.assertNotContains(response, 'Exibir hoje')
         self.assertContains(response, 'Mapa diário do período')
         self.assertNotContains(response, 'Posição da emissão')
-        self.assertContains(response, 'Fila de atendimentos particulares')
+        self.assertContains(
+            response,
+            'Fila de atendimentos Particular e Prontorede',
+        )
         self.assertContains(response, 'particular-patient-bubble')
         self.assertContains(response, 'particular-patient-bubble--cor-')
         self.assertContains(response, '>M</span>')
@@ -4132,9 +4138,9 @@ class CadastrarNotaTests(TestCase):
             card['label']: card for card in response.context['resumo_cards']
         }
         self.assertEqual(
-            cards['Total particular'],
+            cards['Total Particular + Prontorede'],
             {
-                'label': 'Total particular',
+                'label': 'Total Particular + Prontorede',
                 'quantidade': 10,
                 'detalhe': 'Valor total: R$ 2.250,75',
                 'classe': 'total',
@@ -4177,9 +4183,9 @@ class CadastrarNotaTests(TestCase):
             sum(
                 card['quantidade']
                 for label, card in cards.items()
-                if label != 'Total particular'
+                if label != 'Total Particular + Prontorede'
             ),
-            cards['Total particular']['quantidade'],
+            cards['Total Particular + Prontorede']['quantidade'],
         )
         self.assertEqual(
             response.context['emissao_mes'],
@@ -4192,7 +4198,7 @@ class CadastrarNotaTests(TestCase):
                 'quantidade_nao_emitida': 8,
             },
         )
-        self.assertContains(response, 'Total particular')
+        self.assertContains(response, 'Total Particular + Prontorede')
         self.assertContains(response, 'Sem solicitação')
         self.assertContains(response, 'Aguardando validação')
         self.assertContains(response, 'Atendimentos validados')
