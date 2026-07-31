@@ -11462,6 +11462,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily
+  .particular-patient-bubble:first-child {
+  margin-left: 0;
+}
+
+.particular-dashboard-page--daily
   .particular-patient-bubble--remaining {
   font-size: 0.36rem;
 }
