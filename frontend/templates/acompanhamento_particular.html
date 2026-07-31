@@ -14,6 +14,7 @@
     <form method="get" class="particular-monitor-filters particular-monitor-filters--daily">
       <input type="hidden" name="data_referencia" value="{{ data_referencia }}">
       <input type="hidden" name="data_selecionada" value="{{ data_selecionada|date:'Y-m-d' }}">
+      <input type="hidden" name="selecionar_dia_resultado" value="1">
       <div class="filter-group">
         <label>Atendimento</label>
         <input class="form-control" type="search" name="codigo_atendimento" value="{{ filtros.codigo_atendimento }}" inputmode="numeric" placeholder="Código MV">
