@@ -1467,35 +1467,50 @@ def acompanhamento_particular(request):
             for item in status
         )
 
-    emitidas = quantidade_status("EMITIDA")
-    faltam_emitir = max(total_periodo - emitidas, 0)
-    taxa_emissao = round((emitidas / total_periodo) * 100) if total_periodo else 0
+    def valor_status(*status):
+        total_status = Decimal("0")
+        for item in status:
+            try:
+                total_status += Decimal(
+                    str(
+                        (resumo_por_status.get(item) or {}).get(
+                            "valor_total"
+                        )
+                        or "0"
+                    )
+                )
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+        return total_status
+
+    def detalhe_valor(valor):
+        valor_formatado = format_brl_input(valor) or "R$ 0,00"
+        return f"Valor total: {valor_formatado}"
+
     resumo_cards = [
         {
-            "label": "Atendimentos particulares",
+            "label": "Total particular",
             "quantidade": total_periodo,
-            "detalhe": (
-                format_brl_input(valor_total_periodo) or "R$ 0,00"
-            ),
+            "detalhe": detalhe_valor(valor_total_periodo),
             "classe": "total",
         },
         {
-            "label": "Notas emitidas",
-            "quantidade": emitidas,
-            "detalhe": "Concluídas no dia selecionado",
+            "label": "Sem solicitação",
+            "quantidade": quantidade_status("SEM_SOLICITACAO"),
+            "detalhe": detalhe_valor(valor_status("SEM_SOLICITACAO")),
+            "classe": "sem-solicitacao",
+        },
+        {
+            "label": "Atendimentos validados",
+            "quantidade": quantidade_status("VALIDADA"),
+            "detalhe": detalhe_valor(valor_status("VALIDADA")),
+            "classe": "validada",
+        },
+        {
+            "label": "Com nota emitida",
+            "quantidade": quantidade_status("EMITIDA"),
+            "detalhe": detalhe_valor(valor_status("EMITIDA")),
             "classe": "emitida",
-        },
-        {
-            "label": "Faltam emitir",
-            "quantidade": faltam_emitir,
-            "detalhe": "Não concluídos no dia selecionado",
-            "classe": "pendente",
-        },
-        {
-            "label": "Taxa de conclusão",
-            "quantidade": f"{taxa_emissao}%",
-            "detalhe": f"{emitidas} de {total_periodo} atendimentos",
-            "classe": "emissao",
         },
     ]
 
