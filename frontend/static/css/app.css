@@ -10155,6 +10155,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-left-color: #c95a50;
 }
 
+.particular-summary-card--recusada,
+.particular-summary-card--inativa {
+  border-left-color: #b85a58;
+}
+
 .particular-monitor-results {
   min-height: 0;
   overflow: hidden;
@@ -10916,7 +10921,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-month-overview .particular-monitor-summary {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .particular-billing-gauge-card {
