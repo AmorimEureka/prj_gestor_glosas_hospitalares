@@ -115,7 +115,6 @@
             <span><small>Solicitada por</small><strong>{{ solicitacao.cadastrado_por|default:"Usuário #" }}{% if not solicitacao.cadastrado_por %}{{ solicitacao.usuario_id }}{% endif %}</strong></span>
             <span><small>Validada por</small><strong>{{ solicitacao.validado_por|default:"Não informado" }}</strong></span>
             <span><small>Validada em</small><strong>{{ solicitacao.validado_em_formatada }}</strong></span>
-            <span class="is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
           </div>
         </section>
         {% if solicitacao.status_emissao %}
@@ -154,7 +153,6 @@
                 {% if solicitacao.ds_complemento %} — {{ solicitacao.ds_complemento }}{% endif %}
               </strong>
             </span>
-            <span class="workflow-request-detail workflow-request-detail--procedure is-wide"><small>Procedimento</small><strong>{{ solicitacao.procedimento }}</strong></span>
           </div>
         </section>
 
@@ -262,7 +260,9 @@
       {% if workflow_mode == "validacao" %}
       {% include "_workflow_emitter_form.html" %}
       {% endif %}
+      {% endif %}
 
+      {% if workflow_mode == "validacao" or workflow_mode == "acompanhamento" %}
       <section class="workflow-attendance-items">
         <div class="workflow-attendance-items-heading">
           <div>
@@ -319,6 +319,9 @@
         </p>
         {% endif %}
       </section>
+      {% endif %}
+
+      {% if workflow_mode == "validacao" or workflow_mode == "acompanhamento" and solicitacao.pode_validar %}
       <div class="workflow-validation-actions workflow-validation-actions--footer">
         <button
           type="submit"
