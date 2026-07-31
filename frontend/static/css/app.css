@@ -10909,6 +10909,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
   scrollbar-gutter: auto;
 }
 
+.particular-dashboard-page--daily > .particular-dashboard-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--panel);
+  box-shadow: 0 0.3rem 0.85rem rgb(21 69 86 / 12%);
+}
+
 .particular-dashboard-page--daily .particular-dashboard-heading {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
@@ -11092,10 +11100,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .particular-monitor-filters--daily {
   grid-template-columns:
-    minmax(8rem, 0.55fr)
-    minmax(12rem, 1fr)
-    minmax(10rem, 0.8fr)
-    minmax(10rem, 0.8fr)
+    minmax(7rem, 0.5fr)
+    minmax(10rem, 1fr)
+    minmax(8rem, 0.72fr)
+    minmax(8rem, 0.7fr)
+    minmax(9rem, 0.75fr)
     auto;
 }
 
@@ -11494,13 +11503,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .particular-dashboard-page--daily .workflow-request-header {
   grid-template-areas:
-    "chevron attendance patient type location value status";
+    "chevron attendance patient type convenio location value status";
   grid-template-columns:
-    1.1rem minmax(5.1rem, 0.8fr) minmax(0, 1.7fr)
-    minmax(0, 0.95fr) minmax(0, 0.85fr)
-    minmax(0, 0.8fr) minmax(6rem, auto);
-  gap: 0.48rem 0.58rem;
-  padding: 0.62rem 0.72rem;
+    1rem minmax(4.5rem, 0.68fr) minmax(0, 1.45fr)
+    minmax(0, 0.76fr) minmax(4.7rem, 0.68fr)
+    minmax(0, 0.68fr) minmax(4.5rem, 0.68fr)
+    minmax(5.5rem, auto);
+  gap: 0.42rem 0.46rem;
+  padding: 0.58rem 0.64rem;
 }
 
 .particular-dashboard-page--daily
@@ -11512,7 +11522,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .workflow-request-header small {
-  font-size: 0.48rem;
+  font-size: 0.44rem;
   letter-spacing: 0.025em;
   line-height: 1.15;
   overflow-wrap: normal;
@@ -11536,6 +11546,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-area: type;
 }
 
+.particular-dashboard-page--daily .workflow-request-field--convenio {
+  grid-area: convenio;
+}
+
 .particular-dashboard-page--daily .workflow-request-field--location {
   grid-area: location;
 }
@@ -11545,11 +11559,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .workflow-request-header strong {
-  font-size: 0.61rem;
-  line-height: 1.25;
-  overflow-wrap: break-word;
-  text-overflow: clip;
-  white-space: normal;
+  overflow: hidden;
+  font-size: 0.56rem;
+  line-height: 1.2;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .particular-dashboard-page--daily .workflow-request-chevron {
@@ -11748,8 +11763,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-template-areas:
       "chevron attendance status"
       ". patient patient"
-      ". type location"
-      ". value value";
+      ". type convenio"
+      ". location value";
     grid-template-columns: 1.1rem repeat(2, minmax(0, 1fr));
   }
 

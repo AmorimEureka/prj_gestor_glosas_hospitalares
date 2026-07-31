@@ -39,11 +39,11 @@
       <span class="workflow-request-chevron" :class="{ 'is-open': open }">&#9654;</span>
       <span class="workflow-request-field workflow-request-field--attendance">
         <small>Atendimento</small>
-        <strong>{{ solicitacao.codigo_atendimento }}</strong>
+        <strong title="{{ solicitacao.codigo_atendimento }}">{{ solicitacao.codigo_atendimento }}</strong>
       </span>
       <span class="workflow-request-field workflow-request-field--patient is-patient">
         <small>Paciente</small>
-        <strong>{{ solicitacao.nm_paciente }}</strong>
+        <strong title="{{ solicitacao.nm_paciente }}">{{ solicitacao.nm_paciente }}</strong>
       </span>
       {% if workflow_mode != "acompanhamento" %}
       <span class="workflow-request-field workflow-request-field--cpf">
@@ -53,15 +53,21 @@
       {% endif %}
       <span class="workflow-request-field workflow-request-field--type">
         <small>Tipo atendimento</small>
-        <strong>{{ solicitacao.tipo_atendimento }}</strong>
+        <strong title="{{ solicitacao.tipo_atendimento }}">{{ solicitacao.tipo_atendimento }}</strong>
       </span>
+      {% if workflow_mode == "acompanhamento" %}
+      <span class="workflow-request-field workflow-request-field--convenio">
+        <small>Convênio</small>
+        <strong title="{{ solicitacao.convenio|default:'Não informado' }}">{{ solicitacao.convenio|default:"Não informado" }}</strong>
+      </span>
+      {% endif %}
       <span class="workflow-request-field workflow-request-field--location">
         <small>Local</small>
-        <strong>{{ solicitacao.local_label }}</strong>
+        <strong title="{{ solicitacao.local_label }}">{{ solicitacao.local_label }}</strong>
       </span>
       <span class="workflow-request-field workflow-request-field--value">
         <small>{% if workflow_mode == "acompanhamento" %}Valor{% else %}Valor da nota{% endif %}</small>
-        <strong>{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
+        <strong title="{{ solicitacao.valor_nota_formatado|default:'Não informado' }}">{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
       </span>
       {% if workflow_mode != "acompanhamento" %}
       <span class="workflow-request-field workflow-request-field--requested">
