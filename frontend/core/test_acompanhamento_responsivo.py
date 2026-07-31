@@ -212,3 +212,21 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             template,
         )
         self.assertNotIn('<span>emitido</span>', template)
+
+    def test_janela_baixa_preserva_altura_dos_dias(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '@media (max-height: 900px) and (min-width: 1101px) {\n'
+            '  .particular-dashboard-page--daily {\n'
+            '    grid-template-rows: auto auto auto;\n'
+            '    overflow-y: auto;\n'
+            '    scrollbar-gutter: stable;',
+            css,
+        )
+        self.assertIn(
+            '  .particular-daily-workspace {\n'
+            '    height: var(--particular-calendar-workspace-height);\n'
+            '    min-height: var(--particular-calendar-workspace-height);',
+            css,
+        )
