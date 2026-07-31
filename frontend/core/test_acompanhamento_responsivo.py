@@ -183,3 +183,32 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             '  margin-left: 0;',
             css,
         )
+
+    def test_velocimetro_exibe_legenda_abaixo_da_agulha(self):
+        css = Path(finders.find('css/app.css')).read_text()
+        template = Path(
+            get_template('acompanhamento_particular.html').origin.name
+        ).read_text()
+
+        self.assertIn(
+            '.particular-billing-gauge-readout {\n'
+            '  position: static;\n'
+            '  display: flex;',
+            css,
+        )
+        self.assertIn(
+            'margin-top: 0.18rem;\n'
+            '  padding-top: 0.28rem;\n'
+            '  border-top: 1px solid #d7e5ea;',
+            css,
+        )
+        self.assertNotIn(
+            '.particular-billing-gauge > div {\n'
+            '  position: absolute;',
+            css,
+        )
+        self.assertIn(
+            '<span>NFS-e emitidas</span>',
+            template,
+        )
+        self.assertNotIn('<span>emitido</span>', template)
