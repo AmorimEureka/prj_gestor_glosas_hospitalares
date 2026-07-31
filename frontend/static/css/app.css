@@ -471,7 +471,7 @@ body.is-login-entry .app-light-reveal span {
 
 .sidebar-footer {
   margin: auto -14px 0;
-  padding: 14px;
+  padding: 14px 14px calc(24px + env(safe-area-inset-bottom));
   border-top: 1px solid rgba(31, 111, 134, 0.16);
   background: rgba(255, 255, 255, 0.36);
 }
@@ -638,7 +638,7 @@ body.is-login-entry .app-light-reveal span {
 .sidebar-collapsed .sidebar-footer {
   margin-inline: -10px;
   padding-inline: 10px;
-  padding-block: 14px 18px;
+  padding-block: 14px calc(24px + env(safe-area-inset-bottom));
   border-top: 0;
   background: transparent;
 }
