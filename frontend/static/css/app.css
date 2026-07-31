@@ -11677,6 +11677,19 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 }
 
+@media (max-height: 900px) and (min-width: 1101px) {
+  .particular-dashboard-page--daily {
+    grid-template-rows: auto auto auto;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .particular-daily-workspace {
+    height: var(--particular-calendar-workspace-height);
+    min-height: var(--particular-calendar-workspace-height);
+  }
+}
+
 @media (max-width: 1100px) {
   .particular-dashboard-page--daily {
     height: 100%;
