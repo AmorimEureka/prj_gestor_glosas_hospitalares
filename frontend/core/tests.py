@@ -4238,6 +4238,15 @@ class CadastrarNotaTests(TestCase):
             'Valor total: R$ 800,00',
         )
         self.assertEqual(
+            cards['Emissões com erro'],
+            {
+                'label': 'Emissões com erro',
+                'quantidade': 0,
+                'detalhe': 'Valor total: R$ 0,00',
+                'classe': 'erro',
+            },
+        )
+        self.assertEqual(
             sum(
                 card['quantidade']
                 for label, card in cards.items()
@@ -4248,8 +4257,8 @@ class CadastrarNotaTests(TestCase):
         self.assertEqual(
             response.context['emissao_mes'],
             {
-                'percentual': 35.5,
-                'angulo': 63.98,
+                'percentual': 20.0,
+                'angulo': 36.0,
                 'valor_emitido': 'R$ 800,00',
                 'valor_nao_emitido': 'R$ 1.450,75',
                 'quantidade_emitida': 2,
@@ -4260,13 +4269,19 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Sem solicitação')
         self.assertContains(response, 'Aguardando validação')
         self.assertContains(response, 'Atendimentos validados')
+        self.assertContains(response, 'Emissões com erro')
         self.assertContains(response, 'Com nota emitida')
         self.assertContains(response, 'Resumo mensal de 07/2026')
         self.assertContains(response, 'Emissão de NFS-e')
-        self.assertContains(response, 'Progresso financeiro do mês')
+        self.assertContains(response, 'Progresso por quantidade no mês')
+        self.assertNotContains(response, 'Progresso financeiro do mês')
         self.assertContains(response, 'Emitido em NFS-e')
         self.assertContains(response, 'Não emitido em NFS-e')
         self.assertContains(response, '<span>NFS-e emitidas</span>')
+        self.assertContains(response, '<strong>2 atendimentos</strong>')
+        self.assertContains(response, '<span>Valor: R$ 800,00</span>')
+        self.assertContains(response, '<strong>8 atendimentos</strong>')
+        self.assertContains(response, '<span>Valor: R$ 1.450,75</span>')
         self.assertNotContains(response, '<span>emitido</span>')
         self.assertNotContains(response, 'Faturamento NFS-e')
         self.assertNotContains(response, 'Faturado em NFS-e')
@@ -4275,8 +4290,21 @@ class CadastrarNotaTests(TestCase):
             response,
             'class="particular-billing-gauge-progress"',
         )
-        self.assertContains(response, 'stroke-dasharray: 35.5 100;')
-        self.assertContains(response, 'rotate(63.98 60 58)')
+        self.assertContains(response, 'stroke-dasharray: 20.0 100;')
+        self.assertContains(response, 'rotate(36.0 60 58)')
+        html = response.content.decode()
+        self.assertLess(
+            html.index('Atendimentos validados'),
+            html.index('Emissões com erro'),
+        )
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.particular-month-overview\n'
+            '  .particular-summary-card--erro {\n'
+            '  grid-row: 3;\n'
+            '  grid-column: 2;',
+            css,
+        )
         self.assertContains(
             response,
             'Selecione um dia para atualizar a fila.',
