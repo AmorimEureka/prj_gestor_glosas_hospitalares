@@ -178,3 +178,8 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             '  margin-left: -0.34rem;',
             css,
         )
+        self.assertIn(
+            '.particular-patient-bubble:first-child {\n'
+            '  margin-left: 0;',
+            css,
+        )
