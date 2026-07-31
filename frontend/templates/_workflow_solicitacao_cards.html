@@ -52,7 +52,7 @@
       </span>
       {% endif %}
       <span class="workflow-request-field workflow-request-field--type">
-        <small>Tipo atendimento</small>
+        <small>{% if workflow_mode == "acompanhamento" %}Tipo{% else %}Tipo atendimento{% endif %}</small>
         <strong title="{{ solicitacao.tipo_atendimento }}">{{ solicitacao.tipo_atendimento }}</strong>
       </span>
       {% if workflow_mode == "acompanhamento" %}
