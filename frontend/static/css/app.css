@@ -10898,7 +10898,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 /* Calendário operacional e fila diária de particulares */
 .particular-dashboard-page--daily {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  grid-template-rows: auto auto auto;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .particular-dashboard-page--daily .particular-dashboard-heading {
@@ -11087,11 +11090,26 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-daily-workspace {
+  --particular-calendar-workspace-height: 41.5rem;
+
   display: grid;
+  height: var(--particular-calendar-workspace-height);
   grid-template-columns: minmax(27rem, 0.82fr) minmax(0, 1.18fr);
   gap: 0.7rem;
-  min-height: 0;
+  min-height: var(--particular-calendar-workspace-height);
   overflow: hidden;
+}
+
+.particular-daily-workspace--28-days {
+  --particular-calendar-workspace-height: 29.5rem;
+}
+
+.particular-daily-workspace--35-days {
+  --particular-calendar-workspace-height: 35.5rem;
+}
+
+.particular-daily-workspace--42-days {
+  --particular-calendar-workspace-height: 41.5rem;
 }
 
 .particular-daily-workspace > .panel {
@@ -11370,6 +11388,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow-x: hidden;
 }
 
+.particular-dashboard-page--daily .particular-calendar-grid {
+  overflow-y: hidden;
+  scrollbar-gutter: auto;
+}
+
 .particular-dashboard-page--daily .workflow-request-list {
   width: 100%;
   min-width: 0;
@@ -11557,13 +11580,20 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 @media (max-width: 1100px) {
   .particular-dashboard-page--daily {
-    height: auto;
+    height: 100%;
     overflow-y: auto;
   }
 
   .particular-daily-workspace {
+    height: auto;
     grid-template-columns: 1fr;
+    min-height: 0;
     overflow: visible;
+  }
+
+  .particular-dashboard-page--daily .particular-calendar-panel {
+    height: var(--particular-calendar-workspace-height);
+    min-height: var(--particular-calendar-workspace-height);
   }
 
   .particular-month-overview {
