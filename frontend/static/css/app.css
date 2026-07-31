@@ -10899,9 +10899,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
 /* Calendário operacional e fila diária de particulares */
 .particular-dashboard-page--daily {
   height: 100%;
-  grid-template-rows: auto auto auto;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  scrollbar-gutter: auto;
 }
 
 .particular-dashboard-page--daily .particular-dashboard-heading {
@@ -11093,10 +11093,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
   --particular-calendar-workspace-height: 41.5rem;
 
   display: grid;
-  height: var(--particular-calendar-workspace-height);
   grid-template-columns: minmax(27rem, 0.82fr) minmax(0, 1.18fr);
   gap: 0.7rem;
-  min-height: var(--particular-calendar-workspace-height);
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -11419,8 +11418,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .particular-calendar-grid {
+  grid-auto-rows: minmax(0, 1fr);
   overflow-y: hidden;
   scrollbar-gutter: auto;
+}
+
+.particular-dashboard-page--daily .particular-calendar-day {
+  min-height: 0;
 }
 
 .particular-dashboard-page--daily .workflow-request-list {

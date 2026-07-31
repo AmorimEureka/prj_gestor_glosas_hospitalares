@@ -53,14 +53,15 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             css,
         )
 
-    def test_calendario_exibe_todas_as_semanas_sem_rolagem_interna(self):
+    def test_calendario_exibe_todas_as_semanas_sem_rolagem_ou_corte(self):
         css = Path(finders.find('css/app.css')).read_text()
 
         self.assertIn(
             '.particular-dashboard-page--daily {\n'
             '  height: 100%;\n'
-            '  grid-template-rows: auto auto auto;\n'
-            '  overflow-y: auto;',
+            '  grid-template-rows: auto auto minmax(0, 1fr);\n'
+            '  overflow: hidden;\n'
+            '  scrollbar-gutter: auto;',
             css,
         )
         self.assertIn(
@@ -85,8 +86,15 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         self.assertIn(
             '.particular-dashboard-page--daily '
             '.particular-calendar-grid {\n'
+            '  grid-auto-rows: minmax(0, 1fr);\n'
             '  overflow-y: hidden;\n'
             '  scrollbar-gutter: auto;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.particular-calendar-day {\n'
+            '  min-height: 0;',
             css,
         )
 
