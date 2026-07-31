@@ -41,7 +41,7 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             css,
         )
         self.assertIn(
-            '1.1rem minmax(0, 0.72fr) minmax(0, 1.7fr)\n'
+            '1.1rem minmax(5.1rem, 0.8fr) minmax(0, 1.7fr)\n'
             '    minmax(0, 0.95fr) minmax(0, 0.85fr)\n'
             '    minmax(0, 0.8fr) minmax(6rem, auto);',
             css,
@@ -53,14 +53,15 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             css,
         )
 
-    def test_calendario_exibe_todas_as_semanas_sem_rolagem_interna(self):
+    def test_calendario_exibe_todas_as_semanas_sem_rolagem_ou_corte(self):
         css = Path(finders.find('css/app.css')).read_text()
 
         self.assertIn(
             '.particular-dashboard-page--daily {\n'
             '  height: 100%;\n'
-            '  grid-template-rows: auto auto auto;\n'
-            '  overflow-y: auto;',
+            '  grid-template-rows: auto auto minmax(0, 1fr);\n'
+            '  overflow: hidden;\n'
+            '  scrollbar-gutter: auto;',
             css,
         )
         self.assertIn(
@@ -85,8 +86,15 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         self.assertIn(
             '.particular-dashboard-page--daily '
             '.particular-calendar-grid {\n'
+            '  grid-auto-rows: minmax(0, 1fr);\n'
             '  overflow-y: hidden;\n'
             '  scrollbar-gutter: auto;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.particular-calendar-day {\n'
+            '  min-height: 0;',
             css,
         )
 
@@ -96,4 +104,43 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         self.assertIn(
             'particular-daily-workspace--{{ dias_grade|length }}-days',
             template,
+        )
+
+    def test_fila_usa_tipografia_compacta_sem_quebrar_rotulos(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.particular-queue-panel .panel-title {\n'
+            '  font-size: 0.8rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-queue-panel .results-subtitle {\n'
+            '  font-size: 0.58rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-queue-panel .page-select-form .form-select {\n'
+            '  width: 3.75rem;\n'
+            '  min-height: 2rem;\n'
+            '  font-size: 0.62rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-header small {\n'
+            '  font-size: 0.48rem;\n'
+            '  letter-spacing: 0.025em;\n'
+            '  line-height: 1.15;\n'
+            '  overflow-wrap: normal;\n'
+            '  word-break: normal;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-header strong {\n'
+            '  font-size: 0.61rem;\n'
+            '  line-height: 1.25;\n'
+            '  overflow-wrap: break-word;',
+            css,
         )
