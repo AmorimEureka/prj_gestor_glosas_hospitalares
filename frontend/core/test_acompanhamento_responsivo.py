@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from django.contrib.staticfiles import finders
+from django.template.loader import get_template
 from django.test import SimpleTestCase
 
 
@@ -50,4 +51,49 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             '  ) {\n'
             '  overflow: hidden;',
             css,
+        )
+
+    def test_calendario_exibe_todas_as_semanas_sem_rolagem_interna(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.particular-dashboard-page--daily {\n'
+            '  height: 100%;\n'
+            '  grid-template-rows: auto auto auto;\n'
+            '  overflow-y: auto;',
+            css,
+        )
+        self.assertIn(
+            '--particular-calendar-workspace-height: 41.5rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-daily-workspace--28-days {\n'
+            '  --particular-calendar-workspace-height: 29.5rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-daily-workspace--35-days {\n'
+            '  --particular-calendar-workspace-height: 35.5rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-daily-workspace--42-days {\n'
+            '  --particular-calendar-workspace-height: 41.5rem;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.particular-calendar-grid {\n'
+            '  overflow-y: hidden;\n'
+            '  scrollbar-gutter: auto;',
+            css,
+        )
+
+        template = Path(
+            get_template('acompanhamento_particular.html').origin.name
+        ).read_text()
+        self.assertIn(
+            'particular-daily-workspace--{{ dias_grade|length }}-days',
+            template,
         )
