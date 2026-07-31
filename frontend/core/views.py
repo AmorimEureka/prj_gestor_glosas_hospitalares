@@ -1611,10 +1611,10 @@ def acompanhamento_particular(request):
         ("PENDENTE_VALIDACAO", "Aguardando validação", "pendente", False),
         ("RECUSADA", "Solicitações recusadas", "recusada", False),
         ("VALIDADA", "Atendimentos validados", "validada", True),
+        ("ERRO_EMISSAO", "Emissões com erro", "erro", True),
         ("PENDENTE_EMISSAO", "Aguardando emissão", "emissao", False),
         ("PROCESSANDO", "Em processamento", "emissao", False),
         ("EMITIDA", "Com nota emitida", "emitida", True),
-        ("ERRO_EMISSAO", "Erros na emissão", "erro", False),
         ("INATIVA", "Solicitações inativas", "inativa", False),
     )
     for status, label, classe, exibir_sem_registros in (
@@ -1647,12 +1647,12 @@ def acompanhamento_particular(request):
     percentual_emitido = (
         min(
             max(
-                float(valor_emitido / valor_total_mes_decimal * 100),
+                quantidade_emitida / total_mes * 100,
                 0,
             ),
             100,
         )
-        if valor_total_mes_decimal > 0
+        if total_mes > 0
         else 0
     )
     emissao_mes = {
