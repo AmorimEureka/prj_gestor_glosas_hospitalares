@@ -10143,6 +10143,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-left-color: #3989b3;
 }
 
+.particular-summary-card--validada {
+  border-left-color: #32879b;
+}
+
 .particular-summary-card--emitida {
   border-left-color: #2d9a6d;
 }

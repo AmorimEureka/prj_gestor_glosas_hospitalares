@@ -3891,10 +3891,11 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Painel de emissão particular')
         self.assertContains(response, '07/2026')
         self.assertContains(response, '29/07/2026')
-        self.assertContains(
+        self.assertNotContains(
             response,
             'Visão operacional dos atendimentos do convênio Particular',
         )
+        self.assertNotContains(response, 'Exibir hoje')
         self.assertContains(response, 'Mapa diário do período')
         self.assertNotContains(response, 'Posição da emissão')
         self.assertContains(response, 'Fila de atendimentos particulares')
@@ -4074,6 +4075,83 @@ class CadastrarNotaTests(TestCase):
                 ),
             ],
         )
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_particular_exibe_quantidade_e_valor_nos_cards(
+        self,
+        api_get,
+    ):
+        payload = self.acompanhamento_particular_payload()
+        payload['total_periodo'] = 10
+        payload['valor_total_periodo'] = '2250.75'
+        payload['resumo_status'] = [
+            {
+                'status': 'SEM_SOLICITACAO',
+                'quantidade': 4,
+                'valor_total': '650.25',
+            },
+            {
+                'status': 'VALIDADA',
+                'quantidade': 3,
+                'valor_total': '725.50',
+            },
+            {
+                'status': 'EMITIDA',
+                'quantidade': 2,
+                'valor_total': '800.00',
+            },
+        ]
+        self.configurar_api_acompanhamento(api_get, payload)
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/',
+            {
+                'data_referencia': '2026-07-15',
+                'data_selecionada': '2026-07-29',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cards = {
+            card['label']: card for card in response.context['resumo_cards']
+        }
+        self.assertEqual(
+            cards['Total particular'],
+            {
+                'label': 'Total particular',
+                'quantidade': 10,
+                'detalhe': 'Valor total: R$ 2.250,75',
+                'classe': 'total',
+            },
+        )
+        self.assertEqual(
+            cards['Sem solicitação']['quantidade'],
+            4,
+        )
+        self.assertEqual(
+            cards['Sem solicitação']['detalhe'],
+            'Valor total: R$ 650,25',
+        )
+        self.assertEqual(
+            cards['Atendimentos validados']['quantidade'],
+            3,
+        )
+        self.assertEqual(
+            cards['Atendimentos validados']['detalhe'],
+            'Valor total: R$ 725,50',
+        )
+        self.assertEqual(
+            cards['Com nota emitida']['quantidade'],
+            2,
+        )
+        self.assertEqual(
+            cards['Com nota emitida']['detalhe'],
+            'Valor total: R$ 800,00',
+        )
+        self.assertContains(response, 'Total particular')
+        self.assertContains(response, 'Sem solicitação')
+        self.assertContains(response, 'Atendimentos validados')
+        self.assertContains(response, 'Com nota emitida')
 
     @patch('core.views.api_get')
     def test_acompanhamento_particular_encaminha_filtros(
