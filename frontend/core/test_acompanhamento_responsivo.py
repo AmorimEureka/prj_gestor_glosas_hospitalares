@@ -41,10 +41,10 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             css,
         )
         self.assertIn(
-            '1rem minmax(4.5rem, 0.68fr) minmax(0, 1.45fr)\n'
-            '    minmax(5rem, 0.76fr) minmax(4.7rem, 0.68fr)\n'
-            '    minmax(4.25rem, 0.68fr) minmax(4.5rem, 0.68fr)\n'
-            '    8.5rem;',
+            '1rem minmax(4rem, 0.55fr) minmax(8rem, 2.15fr)\n'
+            '    minmax(0, 0.46fr) minmax(4.25rem, 0.64fr)\n'
+            '    minmax(0, 0.54fr) minmax(4.25rem, 0.62fr)\n'
+            '    8.25rem;',
             css,
         )
         self.assertIn(
@@ -109,6 +109,9 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
 
     def test_fila_usa_tipografia_compacta_sem_quebrar_rotulos(self):
         css = Path(finders.find('css/app.css')).read_text()
+        template = Path(
+            get_template('_workflow_solicitacao_cards.html').origin.name
+        ).read_text()
 
         self.assertIn(
             '.particular-queue-panel .panel-title {\n'
@@ -168,6 +171,11 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             '  text-overflow: ellipsis;\n'
             '  white-space: nowrap;',
             css,
+        )
+        self.assertIn(
+            '{% if workflow_mode == "acompanhamento" %}'
+            'Tipo{% else %}Tipo atendimento{% endif %}',
+            template,
         )
 
     def test_dia_separa_rotulo_de_atendimentos_das_bolinhas(self):
