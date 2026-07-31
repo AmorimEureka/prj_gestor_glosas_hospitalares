@@ -42,9 +42,9 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         )
         self.assertIn(
             '1rem minmax(4.5rem, 0.68fr) minmax(0, 1.45fr)\n'
-            '    minmax(0, 0.76fr) minmax(4.7rem, 0.68fr)\n'
-            '    minmax(0, 0.68fr) minmax(4.5rem, 0.68fr)\n'
-            '    minmax(5.5rem, auto);',
+            '    minmax(5rem, 0.76fr) minmax(4.7rem, 0.68fr)\n'
+            '    minmax(4.25rem, 0.68fr) minmax(4.5rem, 0.68fr)\n'
+            '    8.5rem;',
             css,
         )
         self.assertIn(
@@ -130,11 +130,32 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         self.assertIn(
             '.particular-dashboard-page--daily '
             '.workflow-request-header small {\n'
+            '  overflow: hidden;\n'
             '  font-size: 0.44rem;\n'
             '  letter-spacing: 0.025em;\n'
             '  line-height: 1.15;\n'
             '  overflow-wrap: normal;\n'
+            '  text-overflow: ellipsis;\n'
+            '  white-space: nowrap;\n'
             '  word-break: normal;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-header > .workflow-request-field {\n'
+            '  min-height: 1.38rem;\n'
+            '  grid-template-rows: 0.54rem 0.68rem;\n'
+            '  align-content: center;',
+            css,
+        )
+        self.assertIn(
+            '.particular-dashboard-page--daily '
+            '.workflow-request-status {\n'
+            '  grid-area: status;\n'
+            '  align-self: center;\n'
+            '  width: 100%;\n'
+            '  max-width: 100%;\n'
+            '  justify-content: center;\n'
+            '  justify-self: stretch;',
             css,
         )
         self.assertIn(
