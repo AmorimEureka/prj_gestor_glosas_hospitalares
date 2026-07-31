@@ -10905,6 +10905,178 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
 
+.particular-month-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 0.7fr);
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.particular-month-overview .particular-monitor-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.particular-billing-gauge-card {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.58rem 0.72rem;
+  border: 1px solid #cadde5;
+  border-radius: 0.52rem;
+  background: linear-gradient(145deg, #fff 38%, #f4fafb);
+  box-shadow: 0 0.18rem 0.55rem rgb(22 88 108 / 6%);
+}
+
+.particular-billing-gauge-card > header {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.particular-billing-gauge-card > header div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.particular-billing-gauge-card > header span {
+  color: #315764;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.particular-billing-gauge-card > header small {
+  color: #748892;
+  font-size: 0.55rem;
+}
+
+.particular-billing-gauge-card > header > strong {
+  padding: 0.2rem 0.42rem;
+  border: 1px solid #c9dde5;
+  border-radius: 999px;
+  color: #315764;
+  font-size: 0.57rem;
+}
+
+.particular-billing-gauge-body {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.82fr) minmax(10rem, 1fr);
+  gap: 0.72rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.particular-billing-gauge {
+  position: relative;
+  min-width: 0;
+  color: #153c4d;
+}
+
+.particular-billing-gauge svg {
+  display: block;
+  width: 100%;
+  max-height: 5.7rem;
+  overflow: visible;
+}
+
+.particular-billing-gauge-track,
+.particular-billing-gauge-progress {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 10;
+}
+
+.particular-billing-gauge-track {
+  stroke: #dfe9ed;
+}
+
+.particular-billing-gauge-progress {
+  stroke: #2d9a6d;
+}
+
+.particular-billing-gauge-needle {
+  stroke: #153c4d;
+  stroke-linecap: round;
+  stroke-width: 2.4;
+}
+
+.particular-billing-gauge-center {
+  fill: #153c4d;
+  stroke: #fff;
+  stroke-width: 1.6;
+}
+
+.particular-billing-gauge > div {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  transform: translateX(-50%);
+}
+
+.particular-billing-gauge > div strong {
+  color: #153c4d;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.particular-billing-gauge > div span {
+  color: #6d838d;
+  font-size: 0.52rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.particular-billing-gauge-legend {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.particular-billing-gauge-legend > div {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+  padding-left: 0.55rem;
+  border-left: 0.2rem solid #aebfc6;
+}
+
+.particular-billing-gauge-legend > div.is-billed {
+  border-left-color: #2d9a6d;
+}
+
+.particular-billing-gauge-legend dt {
+  color: #607984;
+  font-size: 0.53rem;
+  font-weight: 850;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.particular-billing-gauge-legend dd {
+  display: grid;
+  gap: 0.04rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.particular-billing-gauge-legend dd strong {
+  overflow: hidden;
+  color: #153c4d;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.particular-billing-gauge-legend dd span {
+  color: #748892;
+  font-size: 0.53rem;
+}
+
 .particular-monitor-filters--daily {
   grid-template-columns:
     minmax(8rem, 0.55fr)
@@ -11347,6 +11519,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
     overflow: visible;
   }
 
+  .particular-month-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .particular-month-overview .particular-monitor-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .particular-daily-workspace > .panel {
     min-height: 30rem;
   }
@@ -11357,6 +11537,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 @media (max-width: 700px) {
+  .particular-month-overview .particular-monitor-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .particular-billing-gauge-body {
+    grid-template-columns: 1fr;
+  }
+
   .particular-dashboard-page--daily
     .particular-queue-panel .results-heading {
     flex-wrap: wrap;

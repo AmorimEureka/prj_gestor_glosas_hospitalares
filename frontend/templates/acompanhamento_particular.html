@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block breadcrumb_label %}Financeiro · Solicitações Notas{% endblock %}
 {% block page_title %}Acompanhamento Particular{% endblock %}
 {% block content %}
@@ -46,14 +47,72 @@
     </form>
   </section>
 
-  <section class="particular-monitor-summary" aria-label="Resumo do dia {{ data_selecionada_formatada }}">
-    {% for card in resumo_cards %}
-    <article class="particular-summary-card particular-summary-card--{{ card.classe }}">
-      <span>{{ card.label }}</span>
-      <strong>{{ card.quantidade }}</strong>
-      <small>{{ card.detalhe }}</small>
+  <section class="particular-month-overview" aria-label="Resumo mensal de {{ periodo_formatado }}">
+    <div class="particular-monitor-summary">
+      {% for card in resumo_cards %}
+      <article class="particular-summary-card particular-summary-card--{{ card.classe }}">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.quantidade }}</strong>
+        <small>{{ card.detalhe }}</small>
+      </article>
+      {% endfor %}
+    </div>
+
+    <article class="particular-billing-gauge-card">
+      <header>
+        <div>
+          <span>Faturamento NFS-e</span>
+          <small>Conversão financeira do mês</small>
+        </div>
+        <strong>{{ periodo_formatado }}</strong>
+      </header>
+      <div class="particular-billing-gauge-body">
+        <div
+          class="particular-billing-gauge"
+          role="img"
+          aria-label="{{ faturamento_mes.percentual|floatformat:1 }}% do valor mensal faturado em NFS-e"
+        >
+          <svg viewBox="0 0 120 66" aria-hidden="true">
+            <path class="particular-billing-gauge-track" pathLength="100" d="M 10 58 A 50 50 0 0 1 110 58"></path>
+            <path
+              class="particular-billing-gauge-progress"
+              pathLength="100"
+              d="M 10 58 A 50 50 0 0 1 110 58"
+              style="stroke-dasharray: {{ faturamento_mes.percentual|unlocalize }} 100;"
+            ></path>
+            <line
+              class="particular-billing-gauge-needle"
+              x1="60"
+              y1="58"
+              x2="35"
+              y2="58"
+              transform="rotate({{ faturamento_mes.angulo|unlocalize }} 60 58)"
+            ></line>
+            <circle class="particular-billing-gauge-center" cx="60" cy="58" r="3.6"></circle>
+          </svg>
+          <div>
+            <strong>{{ faturamento_mes.percentual|floatformat:1 }}%</strong>
+            <span>faturado</span>
+          </div>
+        </div>
+        <dl class="particular-billing-gauge-legend">
+          <div class="is-billed">
+            <dt>Faturado em NFS-e</dt>
+            <dd>
+              <strong>{{ faturamento_mes.valor_faturado }}</strong>
+              <span>{{ faturamento_mes.quantidade_faturada }} atendimento{{ faturamento_mes.quantidade_faturada|pluralize }}</span>
+            </dd>
+          </div>
+          <div class="is-unbilled">
+            <dt>Não faturado</dt>
+            <dd>
+              <strong>{{ faturamento_mes.valor_nao_faturado }}</strong>
+              <span>{{ faturamento_mes.quantidade_nao_faturada }} atendimento{{ faturamento_mes.quantidade_nao_faturada|pluralize }}</span>
+            </dd>
+          </div>
+        </dl>
+      </div>
     </article>
-    {% endfor %}
   </section>
 
   <section class="particular-daily-workspace">
@@ -61,7 +120,7 @@
       <header class="particular-section-head particular-calendar-heading">
         <div>
           <span class="panel-title">Mapa diário do período</span>
-          <small>Selecione um dia para atualizar os indicadores e a fila.</small>
+          <small>Selecione um dia para atualizar a fila.</small>
         </div>
         <nav class="particular-month-navigation" aria-label="Navegação entre meses">
           <a href="{{ anterior_url }}" rel="prev" aria-label="Mês anterior" title="Mês anterior">&#8249;</a>
