@@ -1417,10 +1417,16 @@ def acompanhamento_particular(request):
         _preparar_historico_solicitacoes(
             solicitacao.get("solicitacoes_anteriores") or []
         )
-        solicitacao["local_label"] = LOCAIS_SOLICITACAO_NOTA.get(
+        local_label = LOCAIS_SOLICITACAO_NOTA.get(
             solicitacao.get("local"),
             solicitacao.get("local") or "Não informado",
         )
+        if str(local_label).strip().casefold() in {
+            "não informado",
+            "nao informado",
+        }:
+            local_label = "SEM"
+        solicitacao["local_label"] = local_label
         solicitacao["status"] = status
         solicitacao["status_label"] = status_label
         solicitacao["status_classe"] = status_classe

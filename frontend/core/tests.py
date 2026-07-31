@@ -3865,6 +3865,7 @@ class CadastrarNotaTests(TestCase):
         api_get,
     ):
         payload = self.acompanhamento_particular_payload()
+        payload['atendimentos'][0]['solicitacao']['local'] = None
         solicitacao_emitida = payload['atendimentos'][2]['solicitacao']
         solicitacao_emitida['procedimentos_atendimento'] = [
             {
@@ -4008,6 +4009,7 @@ class CadastrarNotaTests(TestCase):
         dados_html = html[dados_inicio:dados_fim]
         emitido_html = html[emitido_inicio:emitido_fim]
         self.assertIn('<small>Convênio</small>', cabecalho_html)
+        self.assertIn('<strong title="SEM">SEM</strong>', cabecalho_html)
         self.assertLess(
             cabecalho_html.index('<small>Convênio</small>'),
             cabecalho_html.index('<small>Local</small>'),
