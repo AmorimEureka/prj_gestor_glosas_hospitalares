@@ -11344,6 +11344,36 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily
+  .particular-queue-panel .panel-title {
+  font-size: 0.8rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-queue-panel .results-subtitle {
+  font-size: 0.58rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-queue-panel .collapse-action,
+.particular-dashboard-page--daily
+  .particular-queue-panel .pagination-control,
+.particular-dashboard-page--daily
+  .particular-queue-panel .page-select-form label,
+.particular-dashboard-page--daily
+  .particular-queue-panel .page-step,
+.particular-dashboard-page--daily
+  .particular-queue-panel .pagination-footer {
+  font-size: 0.58rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-queue-panel .page-select-form .form-select {
+  width: 3.75rem;
+  min-height: 2rem;
+  font-size: 0.62rem;
+}
+
+.particular-dashboard-page--daily
   .particular-queue-panel .results-heading {
   display: grid;
   width: 100%;
@@ -11408,10 +11438,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-areas:
     "chevron attendance patient type location value status";
   grid-template-columns:
-    1.1rem minmax(0, 0.72fr) minmax(0, 1.7fr)
+    1.1rem minmax(5.1rem, 0.8fr) minmax(0, 1.7fr)
     minmax(0, 0.95fr) minmax(0, 0.85fr)
     minmax(0, 0.8fr) minmax(6rem, auto);
   gap: 0.48rem 0.58rem;
+  padding: 0.62rem 0.72rem;
 }
 
 .particular-dashboard-page--daily
@@ -11423,8 +11454,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .workflow-request-header small {
-  overflow-wrap: anywhere;
+  font-size: 0.48rem;
+  letter-spacing: 0.025em;
   line-height: 1.15;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .particular-dashboard-page--daily .workflow-request-chevron {
@@ -11453,15 +11487,22 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-dashboard-page--daily .workflow-request-header strong {
-  overflow-wrap: anywhere;
+  font-size: 0.61rem;
+  line-height: 1.25;
+  overflow-wrap: break-word;
   text-overflow: clip;
   white-space: normal;
+}
+
+.particular-dashboard-page--daily .workflow-request-chevron {
+  font-size: 0.56rem;
 }
 
 .particular-dashboard-page--daily .workflow-request-status {
   grid-area: status;
   align-self: center;
   max-width: 100%;
+  font-size: 0.48rem;
   white-space: normal;
 }
 
