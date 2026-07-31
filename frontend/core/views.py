@@ -1221,11 +1221,11 @@ def acompanhamento_particular(request):
         "offset": offset,
     }
     atendimentos = []
-    resumo_api = []
+    resumo_mes_api = []
     resumo_diario_api = []
     total = 0
-    total_periodo = 0
-    valor_total_periodo = 0
+    total_mes = 0
+    valor_total_mes = 0
     empresas_emissoras = []
     try:
         calendario_cache_key = build_api_cache_key(
@@ -1312,15 +1312,17 @@ def acompanhamento_particular(request):
         resumo_diario_api = (
             payload_calendario.get("resumo_diario") or []
         )
+        resumo_mes_api = (
+            payload_calendario.get("resumo_status") or []
+        )
+        total_mes = as_int_or_zero(
+            payload_calendario.get("total_periodo")
+        )
+        valor_total_mes = (
+            payload_calendario.get("valor_total_periodo") or 0
+        )
         atendimentos = payload_dia.get("atendimentos") or []
-        resumo_api = payload_dia.get("resumo_status") or []
         total = as_int_or_zero(payload_dia.get("total"))
-        total_periodo = as_int_or_zero(
-            payload_dia.get("total_periodo")
-        )
-        valor_total_periodo = (
-            payload_dia.get("valor_total_periodo") or 0
-        )
         limit = as_positive_int(payload_dia.get("limit"), limit)
         offset = as_int_or_zero(payload_dia.get("offset"))
     except ApiError as exc:
@@ -1456,7 +1458,7 @@ def acompanhamento_particular(request):
 
     resumo_por_status = {
         str(item.get("status") or ""): item
-        for item in resumo_api
+        for item in resumo_mes_api
     }
 
     def quantidade_status(*status):
@@ -1490,8 +1492,8 @@ def acompanhamento_particular(request):
     resumo_cards = [
         {
             "label": "Total particular",
-            "quantidade": total_periodo,
-            "detalhe": detalhe_valor(valor_total_periodo),
+            "quantidade": total_mes,
+            "detalhe": detalhe_valor(valor_total_mes),
             "classe": "total",
         },
         {
@@ -1513,6 +1515,44 @@ def acompanhamento_particular(request):
             "classe": "emitida",
         },
     ]
+
+    valor_faturado = valor_status("EMITIDA")
+    try:
+        valor_total_mes_decimal = Decimal(str(valor_total_mes or "0"))
+    except (InvalidOperation, TypeError, ValueError):
+        valor_total_mes_decimal = Decimal("0")
+    valor_nao_faturado = max(
+        valor_total_mes_decimal - valor_faturado,
+        Decimal("0"),
+    )
+    quantidade_faturada = quantidade_status("EMITIDA")
+    quantidade_nao_faturada = max(
+        total_mes - quantidade_faturada,
+        0,
+    )
+    percentual_faturado = (
+        min(
+            max(
+                float(valor_faturado / valor_total_mes_decimal * 100),
+                0,
+            ),
+            100,
+        )
+        if valor_total_mes_decimal > 0
+        else 0
+    )
+    faturamento_mes = {
+        "percentual": round(percentual_faturado, 1),
+        "angulo": round(percentual_faturado * 1.8, 2),
+        "valor_faturado": (
+            format_brl_input(valor_faturado) or "R$ 0,00"
+        ),
+        "valor_nao_faturado": (
+            format_brl_input(valor_nao_faturado) or "R$ 0,00"
+        ),
+        "quantidade_faturada": quantidade_faturada,
+        "quantidade_nao_faturada": quantidade_nao_faturada,
+    }
 
     resumo_diario = {
         str(item.get("data")): item for item in resumo_diario_api
@@ -1676,6 +1716,7 @@ def acompanhamento_particular(request):
                 in STATUS_ACOMPANHAMENTO_PARTICULAR.items()
             ],
             "resumo_cards": resumo_cards,
+            "faturamento_mes": faturamento_mes,
             "dias_grade": dias_grade,
             "pagination": pagination,
             "periodo_formatado": periodo_formatado,
