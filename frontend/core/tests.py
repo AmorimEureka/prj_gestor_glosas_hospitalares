@@ -4160,14 +4160,14 @@ class CadastrarNotaTests(TestCase):
             'Valor total: R$ 800,00',
         )
         self.assertEqual(
-            response.context['faturamento_mes'],
+            response.context['emissao_mes'],
             {
                 'percentual': 35.5,
                 'angulo': 63.98,
-                'valor_faturado': 'R$ 800,00',
-                'valor_nao_faturado': 'R$ 1.450,75',
-                'quantidade_faturada': 2,
-                'quantidade_nao_faturada': 8,
+                'valor_emitido': 'R$ 800,00',
+                'valor_nao_emitido': 'R$ 1.450,75',
+                'quantidade_emitida': 2,
+                'quantidade_nao_emitida': 8,
             },
         )
         self.assertContains(response, 'Total particular')
@@ -4175,10 +4175,13 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Atendimentos validados')
         self.assertContains(response, 'Com nota emitida')
         self.assertContains(response, 'Resumo mensal de 07/2026')
-        self.assertContains(response, 'Faturamento NFS-e')
-        self.assertContains(response, 'Conversão financeira do mês')
-        self.assertContains(response, 'Faturado em NFS-e')
-        self.assertContains(response, 'Não faturado')
+        self.assertContains(response, 'Emissão de NFS-e')
+        self.assertContains(response, 'Progresso financeiro do mês')
+        self.assertContains(response, 'Emitido em NFS-e')
+        self.assertContains(response, 'Não emitido em NFS-e')
+        self.assertNotContains(response, 'Faturamento NFS-e')
+        self.assertNotContains(response, 'Faturado em NFS-e')
+        self.assertNotContains(response, 'Não faturado')
         self.assertContains(
             response,
             'class="particular-billing-gauge-progress"',
