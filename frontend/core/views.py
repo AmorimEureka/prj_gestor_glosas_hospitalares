@@ -1516,24 +1516,24 @@ def acompanhamento_particular(request):
         },
     ]
 
-    valor_faturado = valor_status("EMITIDA")
+    valor_emitido = valor_status("EMITIDA")
     try:
         valor_total_mes_decimal = Decimal(str(valor_total_mes or "0"))
     except (InvalidOperation, TypeError, ValueError):
         valor_total_mes_decimal = Decimal("0")
-    valor_nao_faturado = max(
-        valor_total_mes_decimal - valor_faturado,
+    valor_nao_emitido = max(
+        valor_total_mes_decimal - valor_emitido,
         Decimal("0"),
     )
-    quantidade_faturada = quantidade_status("EMITIDA")
-    quantidade_nao_faturada = max(
-        total_mes - quantidade_faturada,
+    quantidade_emitida = quantidade_status("EMITIDA")
+    quantidade_nao_emitida = max(
+        total_mes - quantidade_emitida,
         0,
     )
-    percentual_faturado = (
+    percentual_emitido = (
         min(
             max(
-                float(valor_faturado / valor_total_mes_decimal * 100),
+                float(valor_emitido / valor_total_mes_decimal * 100),
                 0,
             ),
             100,
@@ -1541,17 +1541,17 @@ def acompanhamento_particular(request):
         if valor_total_mes_decimal > 0
         else 0
     )
-    faturamento_mes = {
-        "percentual": round(percentual_faturado, 1),
-        "angulo": round(percentual_faturado * 1.8, 2),
-        "valor_faturado": (
-            format_brl_input(valor_faturado) or "R$ 0,00"
+    emissao_mes = {
+        "percentual": round(percentual_emitido, 1),
+        "angulo": round(percentual_emitido * 1.8, 2),
+        "valor_emitido": (
+            format_brl_input(valor_emitido) or "R$ 0,00"
         ),
-        "valor_nao_faturado": (
-            format_brl_input(valor_nao_faturado) or "R$ 0,00"
+        "valor_nao_emitido": (
+            format_brl_input(valor_nao_emitido) or "R$ 0,00"
         ),
-        "quantidade_faturada": quantidade_faturada,
-        "quantidade_nao_faturada": quantidade_nao_faturada,
+        "quantidade_emitida": quantidade_emitida,
+        "quantidade_nao_emitida": quantidade_nao_emitida,
     }
 
     resumo_diario = {
@@ -1716,7 +1716,7 @@ def acompanhamento_particular(request):
                 in STATUS_ACOMPANHAMENTO_PARTICULAR.items()
             ],
             "resumo_cards": resumo_cards,
-            "faturamento_mes": faturamento_mes,
+            "emissao_mes": emissao_mes,
             "dias_grade": dias_grade,
             "pagination": pagination,
             "periodo_formatado": periodo_formatado,
