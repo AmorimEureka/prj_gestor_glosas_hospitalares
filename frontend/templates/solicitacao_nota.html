@@ -16,6 +16,7 @@
 
     <form method="post" id="note-request-form" class="note-request-form" novalidate>
       {% csrf_token %}
+      {% if retorno %}<input type="hidden" name="retorno" value="{{ retorno }}">{% endif %}
       <div class="note-request-form-scroll">
       <section class="note-request-section">
         <div class="note-request-section-title">

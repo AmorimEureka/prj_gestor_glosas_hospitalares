@@ -10,6 +10,7 @@ from django.test import RequestFactory, TestCase
 from core.access import SCREEN_KEYS
 from core.services import ApiError
 from core.views import (
+    ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY,
     ACOMPANHAMENTO_BUCKETS,
     ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
     apply_dashboard_filters,
@@ -17,6 +18,7 @@ from core.views import (
     build_acompanhamento_cards,
     build_acompanhamento_rows,
     build_acompanhamento_resumo,
+    build_api_cache_key,
     build_conciliacao_faturamento_payload,
     build_edicao_conciliacao_payload,
     build_recebimento_remessa_payload,
@@ -27,11 +29,13 @@ from core.views import (
     CONCILIACAO_FATURAMENTO_PATH,
     contextualize_registro_glosa_error,
     DASHBOARD_GLOSAS_CACHE_KEY,
+    ATENDIMENTO_NOTA_CACHE_NAMESPACE,
     disabled_convenio_ids,
     extract_api_error_message,
     get_dashboard_filters,
     is_enabled_convenio_registro,
     is_recebido_registro,
+    REQUISICOES_NOTA_PATH,
     subtract_months,
 )
 
@@ -3954,7 +3958,7 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'MARIA DA SILVA')
         self.assertContains(response, 'JOÃO EM PROCESSAMENTO')
         self.assertContains(response, 'ANA COM NOTA')
-        self.assertContains(response, 'Pendente de validação')
+        self.assertContains(response, 'Aguardando validação')
         self.assertContains(response, 'Em processamento')
         self.assertContains(response, 'NFS-e emitida')
         self.assertContains(response, 'Empresa emissora')
@@ -4093,6 +4097,44 @@ class CadastrarNotaTests(TestCase):
                 ),
             ],
         )
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_solicitar_nota_preserva_dia_para_retorno(
+        self,
+        api_get,
+    ):
+        payload = self.acompanhamento_particular_payload()
+        atendimento = payload['atendimentos'][0]
+        atendimento['status'] = 'SEM_SOLICITACAO'
+        atendimento['solicitacao_id'] = None
+        atendimento['workflow_status'] = None
+        atendimento['solicitacao'] = None
+        payload['atendimentos'] = [atendimento]
+        payload['total'] = 1
+        self.configurar_api_acompanhamento(api_get, payload)
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/'
+            '?data_referencia=2026-07-15'
+            '&data_selecionada=2026-07-29'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Sem solicitação')
+        self.assertContains(response, '>Solicitar nota</a>')
+        html = response.content.decode()
+        acao_fim = html.index('>Solicitar nota</a>')
+        href_inicio = html.rfind('href="', 0, acao_fim) + len('href="')
+        href_fim = html.index('"', href_inicio)
+        solicitar_nota_url = html[href_inicio:href_fim]
+        self.assertIn(
+            '/requisicao/solicitacao-nota/'
+            '?codigo_atendimento=123456',
+            solicitar_nota_url,
+        )
+        self.assertIn('retorno=', solicitar_nota_url)
+        self.assertIn('data_referencia%3D2026-07-15', solicitar_nota_url)
+        self.assertIn('data_selecionada%3D2026-07-29', solicitar_nota_url)
 
     @patch('core.views.api_get')
     def test_acompanhamento_particular_exibe_quantidade_e_valor_nos_cards(
@@ -5131,6 +5173,67 @@ class CadastrarNotaTests(TestCase):
             response,
             'Solicitação de nota cadastrada com sucesso.',
         )
+        api_post.assert_called_once_with(
+            '/app_glosas/requisicoes/solicitacoes-nota',
+            {
+                'codigo_atendimento': 123456,
+                'local': 'Clinica 1',
+                'procedimento': 'Consulta cardiológica',
+                'valor_nota': '60.75',
+            },
+        )
+
+    @patch('core.views.api_post')
+    def test_cadastro_originado_no_acompanhamento_retorna_para_card(
+        self,
+        api_post,
+    ):
+        retorno = (
+            '/requisicao/acompanhamento-particular/'
+            '?data_referencia=2026-07-15'
+            '&data_selecionada=2026-07-29'
+            '&convenio=PARTICULAR'
+        )
+        session = self.client.session
+        session[ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY] = {
+            'key': 'resumo-anterior',
+            'payload': {'total_periodo': 1},
+        }
+        session.save()
+        atendimento_path = (
+            f'{REQUISICOES_NOTA_PATH}/atendimentos/123456'
+        )
+        atendimento_cache_key = build_api_cache_key(
+            ATENDIMENTO_NOTA_CACHE_NAMESPACE,
+            atendimento_path,
+        )
+        cache.set(
+            atendimento_cache_key,
+            {'codigo_atendimento': 123456},
+            300,
+        )
+
+        response = self.client.post(
+            '/requisicao/solicitacao-nota/',
+            {
+                'codigo_atendimento': '123456',
+                'local': 'Clinica 1',
+                'procedimento': 'Consulta cardiológica',
+                'valor_nota': 'R$ 60,75',
+                'retorno': retorno,
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            retorno,
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn(
+            ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY,
+            self.client.session,
+        )
+        self.assertIsNone(cache.get(atendimento_cache_key))
         api_post.assert_called_once_with(
             '/app_glosas/requisicoes/solicitacoes-nota',
             {
