@@ -4202,6 +4202,8 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Progresso financeiro do mês')
         self.assertContains(response, 'Emitido em NFS-e')
         self.assertContains(response, 'Não emitido em NFS-e')
+        self.assertContains(response, '<span>NFS-e emitidas</span>')
+        self.assertNotContains(response, '<span>emitido</span>')
         self.assertNotContains(response, 'Faturamento NFS-e')
         self.assertNotContains(response, 'Faturado em NFS-e')
         self.assertNotContains(response, 'Não faturado')

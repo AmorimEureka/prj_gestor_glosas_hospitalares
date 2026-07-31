@@ -10977,7 +10977,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .particular-billing-gauge {
-  position: relative;
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: center;
   min-width: 0;
   color: #153c4d;
 }
@@ -10985,7 +10987,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .particular-billing-gauge svg {
   display: block;
   width: 100%;
-  max-height: 5.7rem;
+  max-height: 4.8rem;
   overflow: visible;
 }
 
@@ -11016,22 +11018,25 @@ body:not(.sidebar-collapsed) .indicator-grid {
   stroke-width: 1.6;
 }
 
-.particular-billing-gauge > div {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  display: grid;
-  justify-items: center;
-  transform: translateX(-50%);
+.particular-billing-gauge-readout {
+  position: static;
+  display: flex;
+  width: min(9rem, 100%);
+  gap: 0.3rem;
+  align-items: baseline;
+  justify-content: center;
+  margin-top: 0.18rem;
+  padding-top: 0.28rem;
+  border-top: 1px solid #d7e5ea;
 }
 
-.particular-billing-gauge > div strong {
+.particular-billing-gauge-readout strong {
   color: #153c4d;
   font-size: 1.05rem;
   line-height: 1;
 }
 
-.particular-billing-gauge > div span {
+.particular-billing-gauge-readout span {
   color: #6d838d;
   font-size: 0.52rem;
   font-weight: 800;
