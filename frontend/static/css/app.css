@@ -11427,6 +11427,45 @@ body:not(.sidebar-collapsed) .indicator-grid {
   min-height: 0;
 }
 
+.particular-dashboard-page--daily .particular-calendar-day-number {
+  font-size: 0.58rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-count {
+  top: 40%;
+  gap: 0.06rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-total {
+  font-size: clamp(0.98rem, 24cqi, 1.28rem);
+}
+
+.particular-dashboard-page--daily
+  .particular-calendar-day-count > span {
+  font-size: clamp(0.48rem, 10cqi, 0.54rem);
+  line-height: 1;
+}
+
+.particular-dashboard-page--daily .particular-patient-bubbles {
+  bottom: 0.22rem;
+  min-height: 1.08rem;
+}
+
+.particular-dashboard-page--daily .particular-patient-bubble {
+  width: 1.08rem;
+  height: 1.08rem;
+  margin-left: -0.34rem;
+  border-width: 1.5px;
+  font-size: 0.42rem;
+}
+
+.particular-dashboard-page--daily
+  .particular-patient-bubble--remaining {
+  font-size: 0.36rem;
+}
+
 .particular-dashboard-page--daily .workflow-request-list {
   width: 100%;
   min-width: 0;
