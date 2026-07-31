@@ -10923,13 +10923,19 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .particular-month-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 0.7fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(23rem, 0.85fr);
   gap: 0.62rem;
   min-width: 0;
 }
 
 .particular-month-overview .particular-monitor-summary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.particular-month-overview
+  .particular-summary-card--validada {
+  grid-row: 2;
+  grid-column: 2;
 }
 
 .particular-billing-gauge-card {
@@ -11746,6 +11752,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .particular-month-overview
+    .particular-summary-card--validada {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
   .particular-daily-workspace > .panel {
     min-height: 30rem;
   }
@@ -11758,6 +11770,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
 @media (max-width: 700px) {
   .particular-month-overview .particular-monitor-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .particular-month-overview
+    .particular-summary-card--validada {
+    grid-row: 2;
+    grid-column: 2;
   }
 
   .particular-billing-gauge-body {
