@@ -4091,6 +4091,11 @@ class CadastrarNotaTests(TestCase):
                 'valor_total': '650.25',
             },
             {
+                'status': 'PENDENTE_VALIDACAO',
+                'quantidade': 1,
+                'valor_total': '75.00',
+            },
+            {
                 'status': 'VALIDADA',
                 'quantidade': 3,
                 'valor_total': '725.50',
@@ -4144,6 +4149,15 @@ class CadastrarNotaTests(TestCase):
             'Valor total: R$ 650,25',
         )
         self.assertEqual(
+            cards['Aguardando validação'],
+            {
+                'label': 'Aguardando validação',
+                'quantidade': 1,
+                'detalhe': 'Valor total: R$ 75,00',
+                'classe': 'pendente',
+            },
+        )
+        self.assertEqual(
             cards['Atendimentos validados']['quantidade'],
             3,
         )
@@ -4160,6 +4174,14 @@ class CadastrarNotaTests(TestCase):
             'Valor total: R$ 800,00',
         )
         self.assertEqual(
+            sum(
+                card['quantidade']
+                for label, card in cards.items()
+                if label != 'Total particular'
+            ),
+            cards['Total particular']['quantidade'],
+        )
+        self.assertEqual(
             response.context['emissao_mes'],
             {
                 'percentual': 35.5,
@@ -4172,6 +4194,7 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertContains(response, 'Total particular')
         self.assertContains(response, 'Sem solicitação')
+        self.assertContains(response, 'Aguardando validação')
         self.assertContains(response, 'Atendimentos validados')
         self.assertContains(response, 'Com nota emitida')
         self.assertContains(response, 'Resumo mensal de 07/2026')

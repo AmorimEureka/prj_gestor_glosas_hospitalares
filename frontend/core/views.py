@@ -1489,32 +1489,35 @@ def acompanhamento_particular(request):
         valor_formatado = format_brl_input(valor) or "R$ 0,00"
         return f"Valor total: {valor_formatado}"
 
-    resumo_cards = [
-        {
-            "label": "Total particular",
-            "quantidade": total_mes,
-            "detalhe": detalhe_valor(valor_total_mes),
-            "classe": "total",
-        },
-        {
-            "label": "Sem solicitação",
-            "quantidade": quantidade_status("SEM_SOLICITACAO"),
-            "detalhe": detalhe_valor(valor_status("SEM_SOLICITACAO")),
-            "classe": "sem-solicitacao",
-        },
-        {
-            "label": "Atendimentos validados",
-            "quantidade": quantidade_status("VALIDADA"),
-            "detalhe": detalhe_valor(valor_status("VALIDADA")),
-            "classe": "validada",
-        },
-        {
-            "label": "Com nota emitida",
-            "quantidade": quantidade_status("EMITIDA"),
-            "detalhe": detalhe_valor(valor_status("EMITIDA")),
-            "classe": "emitida",
-        },
-    ]
+    resumo_cards = [{
+        "label": "Total particular",
+        "quantidade": total_mes,
+        "detalhe": detalhe_valor(valor_total_mes),
+        "classe": "total",
+    }]
+    configuracao_cards_status = (
+        ("SEM_SOLICITACAO", "Sem solicitação", "sem-solicitacao", True),
+        ("PENDENTE_VALIDACAO", "Aguardando validação", "pendente", False),
+        ("RECUSADA", "Solicitações recusadas", "recusada", False),
+        ("VALIDADA", "Atendimentos validados", "validada", True),
+        ("PENDENTE_EMISSAO", "Aguardando emissão", "emissao", False),
+        ("PROCESSANDO", "Em processamento", "emissao", False),
+        ("EMITIDA", "Com nota emitida", "emitida", True),
+        ("ERRO_EMISSAO", "Erros na emissão", "erro", False),
+        ("INATIVA", "Solicitações inativas", "inativa", False),
+    )
+    for status, label, classe, exibir_sem_registros in (
+        configuracao_cards_status
+    ):
+        quantidade = quantidade_status(status)
+        if not exibir_sem_registros and not quantidade:
+            continue
+        resumo_cards.append({
+            "label": label,
+            "quantidade": quantidade,
+            "detalhe": detalhe_valor(valor_status(status)),
+            "classe": classe,
+        })
 
     valor_emitido = valor_status("EMITIDA")
     try:
