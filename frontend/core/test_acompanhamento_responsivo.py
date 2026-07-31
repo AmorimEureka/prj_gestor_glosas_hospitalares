@@ -238,6 +238,57 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
         )
         self.assertNotIn('<span>emitido</span>', template)
 
+    def test_resumo_posiciona_validados_abaixo_de_sem_solicitacao(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.particular-month-overview {\n'
+            '  display: grid;\n'
+            '  grid-template-columns: '
+            'minmax(0, 1.45fr) minmax(23rem, 0.85fr);',
+            css,
+        )
+        self.assertIn(
+            '.particular-month-overview .particular-monitor-summary {\n'
+            '  grid-template-columns: repeat(2, minmax(0, 1fr));',
+            css,
+        )
+        self.assertIn(
+            '.particular-month-overview\n'
+            '  .particular-summary-card--validada {\n'
+            '  grid-row: 2;\n'
+            '  grid-column: 2;',
+            css,
+        )
+
+    def test_primeira_rolagem_oculta_resumo_e_depois_segue_livre(self):
+        template = Path(
+            get_template('acompanhamento_particular.html').origin.name
+        ).read_text()
+
+        self.assertIn(
+            "const hideMonthlyOverview = () => {",
+            template,
+        )
+        self.assertIn(
+            "page.addEventListener('wheel', (event) => {",
+            template,
+        )
+        self.assertIn(
+            "event.preventDefault();\n    hideMonthlyOverview();",
+            template,
+        )
+        self.assertIn(
+            "if (event.deltaY <= 0 || overviewHidden "
+            "|| page.scrollTop > 2) return;",
+            template,
+        )
+        self.assertIn(
+            "if (page.scrollTop <= 2) {\n"
+            "      overviewHidden = false;",
+            template,
+        )
+
     def test_janela_baixa_preserva_altura_dos_dias(self):
         css = Path(finders.find('css/app.css')).read_text()
 
