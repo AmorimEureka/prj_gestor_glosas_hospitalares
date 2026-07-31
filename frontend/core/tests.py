@@ -4081,10 +4081,10 @@ class CadastrarNotaTests(TestCase):
         self,
         api_get,
     ):
-        payload = self.acompanhamento_particular_payload()
-        payload['total_periodo'] = 10
-        payload['valor_total_periodo'] = '2250.75'
-        payload['resumo_status'] = [
+        payload_mes = self.acompanhamento_particular_payload()
+        payload_mes['total_periodo'] = 10
+        payload_mes['valor_total_periodo'] = '2250.75'
+        payload_mes['resumo_status'] = [
             {
                 'status': 'SEM_SOLICITACAO',
                 'quantidade': 4,
@@ -4101,7 +4101,18 @@ class CadastrarNotaTests(TestCase):
                 'valor_total': '800.00',
             },
         ]
-        self.configurar_api_acompanhamento(api_get, payload)
+        payload_dia = self.acompanhamento_particular_payload()
+        payload_dia['total_periodo'] = 3
+        payload_dia['valor_total_periodo'] = '715.50'
+
+        def responder(path, params=None):
+            if path.endswith('/empresas-emissoras'):
+                return self.empresas_payload()
+            if params['data_inicio'] == '2026-07-01':
+                return payload_mes
+            return payload_dia
+
+        api_get.side_effect = responder
 
         response = self.client.get(
             '/requisicao/acompanhamento-particular/',
@@ -4148,10 +4159,40 @@ class CadastrarNotaTests(TestCase):
             cards['Com nota emitida']['detalhe'],
             'Valor total: R$ 800,00',
         )
+        self.assertEqual(
+            response.context['faturamento_mes'],
+            {
+                'percentual': 35.5,
+                'angulo': 63.98,
+                'valor_faturado': 'R$ 800,00',
+                'valor_nao_faturado': 'R$ 1.450,75',
+                'quantidade_faturada': 2,
+                'quantidade_nao_faturada': 8,
+            },
+        )
         self.assertContains(response, 'Total particular')
         self.assertContains(response, 'Sem solicitação')
         self.assertContains(response, 'Atendimentos validados')
         self.assertContains(response, 'Com nota emitida')
+        self.assertContains(response, 'Resumo mensal de 07/2026')
+        self.assertContains(response, 'Faturamento NFS-e')
+        self.assertContains(response, 'Conversão financeira do mês')
+        self.assertContains(response, 'Faturado em NFS-e')
+        self.assertContains(response, 'Não faturado')
+        self.assertContains(
+            response,
+            'class="particular-billing-gauge-progress"',
+        )
+        self.assertContains(response, 'stroke-dasharray: 35.5 100;')
+        self.assertContains(response, 'rotate(63.98 60 58)')
+        self.assertContains(
+            response,
+            'Selecione um dia para atualizar a fila.',
+        )
+        self.assertNotContains(
+            response,
+            'Selecione um dia para atualizar os indicadores e a fila.',
+        )
 
     @patch('core.views.api_get')
     def test_acompanhamento_particular_encaminha_filtros(
