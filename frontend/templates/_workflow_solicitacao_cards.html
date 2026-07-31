@@ -435,7 +435,7 @@
         {% if solicitacao.pode_solicitar and screen_access.solicitar_nota %}
         <a
           class="workflow-action workflow-action--approve"
-          href="{% url 'solicitacao_nota' %}?codigo_atendimento={{ solicitacao.codigo_atendimento }}"
+          href="{% url 'solicitacao_nota' %}?codigo_atendimento={{ solicitacao.codigo_atendimento }}&amp;retorno={{ request.get_full_path|urlencode }}"
         >Solicitar nota</a>
         {% endif %}
         {% if solicitacao.id and screen_access.solicitacoes_cadastradas %}
