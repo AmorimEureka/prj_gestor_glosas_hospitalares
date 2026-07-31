@@ -3864,7 +3864,21 @@ class CadastrarNotaTests(TestCase):
         self,
         api_get,
     ):
-        self.configurar_api_acompanhamento(api_get)
+        payload = self.acompanhamento_particular_payload()
+        solicitacao_emitida = payload['atendimentos'][2]['solicitacao']
+        solicitacao_emitida['procedimentos_atendimento'] = [
+            {
+                'codigo': '40304361',
+                'descricao': 'ECOCARDIOGRAMA DE ACOMPANHAMENTO',
+                'grupo': 'EXAMES CARDIOLÓGICOS',
+                'quantidade': '1',
+                'valor_total': '385.50',
+                'realizado_em': '2026-07-29T08:30:00',
+                'prestador': 'DRA. TESTE',
+            },
+        ]
+        solicitacao_emitida['valor_total_procedimentos'] = '385.50'
+        self.configurar_api_acompanhamento(api_get, payload)
 
         response = self.client.get(
             '/requisicao/acompanhamento-particular/'
@@ -3913,7 +3927,16 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(
             response,
             'Procedimentos e exames realizados',
+            count=3,
         )
+        self.assertContains(
+            response,
+            '<section class="workflow-attendance-items">',
+            count=3,
+        )
+        self.assertContains(response, 'ECOCARDIOGRAMA DE ACOMPANHAMENTO')
+        self.assertContains(response, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(response, 'DRA. TESTE')
         self.assertContains(response, 'Atendimento')
         self.assertContains(response, '<small>Valor</small>')
         self.assertNotContains(
@@ -3969,14 +3992,18 @@ class CadastrarNotaTests(TestCase):
         paciente_fim = html.index('</section>', paciente_inicio)
         dados_inicio = html.index('<h3>Dados da solicitação</h3>')
         dados_fim = html.index('</section>', dados_inicio)
+        emitido_inicio = html.index('<h3>Atendimento e solicitação</h3>')
+        emitido_fim = html.index('</section>', emitido_inicio)
         paciente_html = html[paciente_inicio:paciente_fim]
         dados_html = html[dados_inicio:dados_fim]
+        emitido_html = html[emitido_inicio:emitido_fim]
         self.assertIn('<small>Convênio</small>', paciente_html)
         self.assertIn('<small>CEP</small>', paciente_html)
         self.assertIn('<small>Telefone / Celular</small>', paciente_html)
         self.assertIn('<small>E-mail</small>', paciente_html)
         self.assertIn('<small>Endereço</small>', paciente_html)
-        self.assertIn('<small>Procedimento</small>', paciente_html)
+        self.assertNotIn('<small>Procedimento</small>', paciente_html)
+        self.assertNotIn('<small>Procedimento</small>', emitido_html)
         self.assertIn('<small>Solicitada por</small>', dados_html)
         self.assertIn('CNPJ emissor *', dados_html)
         self.assertLess(paciente_inicio, dados_inicio)
@@ -3996,7 +4023,7 @@ class CadastrarNotaTests(TestCase):
             'workflow-request-detail--address is-wide',
             html,
         )
-        self.assertIn(
+        self.assertNotIn(
             'workflow-request-detail--procedure is-wide',
             html,
         )
