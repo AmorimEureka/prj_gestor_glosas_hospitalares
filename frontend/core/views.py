@@ -211,15 +211,42 @@ def _somar_procedimentos_atendimento(procedimentos):
     return total
 
 
+def _procedimento_elegivel_nfse(procedimento):
+    if procedimento.get("convenio_elegivel_nfse") is True:
+        return True
+    convenio = str(procedimento.get("convenio") or "").strip().upper()
+    return convenio in {"PARTICULAR", "PRONTOREDE", "PRONTOCARDIO REDE"}
+
+
+def _preparar_procedimentos_atendimento(procedimentos):
+    for procedimento in procedimentos:
+        procedimento["convenio_elegivel_nfse"] = (
+            _procedimento_elegivel_nfse(procedimento)
+        )
+    return procedimentos
+
+
+def _procedimentos_elegiveis_nfse(procedimentos):
+    return [
+        procedimento
+        for procedimento in procedimentos
+        if _procedimento_elegivel_nfse(procedimento)
+    ]
+
+
+def _somar_procedimentos_elegiveis_nfse(procedimentos):
+    return _somar_procedimentos_atendimento(
+        _procedimentos_elegiveis_nfse(procedimentos)
+    )
+
+
 def _descricao_procedimentos_atendimento(procedimentos):
     linhas = []
     for procedimento in procedimentos:
         codigo = str(procedimento.get("codigo") or "").strip()
         descricao = str(procedimento.get("descricao") or "").strip()
-        if codigo and descricao:
-            linhas.append(f"{codigo} - {descricao}")
-        elif codigo or descricao:
-            linhas.append(codigo or descricao)
+        if descricao or codigo:
+            linhas.append(descricao or codigo)
     return "\n".join(linhas)
 
 
@@ -534,7 +561,7 @@ def solicitacao_nota(request):
                 )
 
     if atendimento:
-        procedimentos_atendimento = (
+        procedimentos_atendimento = _preparar_procedimentos_atendimento(
             atendimento.get("procedimentos_atendimento") or []
         )
         total_procedimentos = atendimento.get(
@@ -547,12 +574,27 @@ def solicitacao_nota(request):
             atendimento["valor_total_procedimentos"] = str(
                 total_procedimentos
             )
+        procedimentos_elegiveis = _procedimentos_elegiveis_nfse(
+            procedimentos_atendimento
+        )
+        total_procedimentos_elegiveis = atendimento.get(
+            "valor_total_procedimentos_elegiveis_nfse"
+        )
+        if total_procedimentos_elegiveis is None:
+            total_procedimentos_elegiveis = (
+                _somar_procedimentos_elegiveis_nfse(
+                    procedimentos_atendimento
+                )
+            )
+            atendimento[
+                "valor_total_procedimentos_elegiveis_nfse"
+            ] = str(total_procedimentos_elegiveis)
         if not procedimento:
             procedimento = _descricao_procedimentos_atendimento(
-                procedimentos_atendimento
+                procedimentos_elegiveis
             )
         if not valor_nota:
-            valor_nota = format_brl_input(total_procedimentos)
+            valor_nota = format_brl_input(total_procedimentos_elegiveis)
         _preparar_historico_solicitacoes(
             atendimento.get("solicitacoes_existentes") or []
         )
