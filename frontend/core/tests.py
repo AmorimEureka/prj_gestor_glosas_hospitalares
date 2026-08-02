@@ -3461,6 +3461,8 @@ class CadastrarNotaTests(TestCase):
                     'codigo': '40304361',
                     'descricao': 'ECOCARDIOGRAMA TRANSTORÁCICO',
                     'grupo': 'EXAMES CARDIOLÓGICOS',
+                    'convenio': 'PARTICULAR',
+                    'convenio_elegivel_nfse': True,
                     'quantidade': '1',
                     'valor_total': '385.50',
                     'realizado_em': '2026-07-23T10:30:00',
@@ -3469,6 +3471,7 @@ class CadastrarNotaTests(TestCase):
             ],
             'procedimentos_atendimento_disponiveis': True,
             'valor_total_procedimentos': '385.50',
+            'valor_total_procedimentos_elegiveis_nfse': '385.50',
             'solicitacoes_existentes': [],
         }
 
@@ -5174,7 +5177,22 @@ class CadastrarNotaTests(TestCase):
         self,
         api_get,
     ):
-        api_get.return_value = self.atendimento_payload()
+        atendimento = self.atendimento_payload()
+        atendimento['procedimentos_atendimento'].append(
+            {
+                'codigo': '10101039',
+                'descricao': 'CONSULTA EM PRONTO SOCORRO',
+                'grupo': 'HONORÁRIOS MÉDICOS',
+                'convenio': 'ISSEC',
+                'convenio_elegivel_nfse': False,
+                'quantidade': '1',
+                'valor_total': '210.00',
+                'realizado_em': '2026-07-23T09:45:00',
+                'prestador': 'DR. CONVÊNIO',
+            }
+        )
+        atendimento['valor_total_procedimentos'] = '595.50'
+        api_get.return_value = atendimento
 
         ajax = self.client.get(
             '/requisicao/solicitacao-nota/atendimentos/123456/'
@@ -5190,8 +5208,18 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(pagina, 'name="valor_nota"')
         self.assertContains(pagina, 'Procedimentos e exames realizados')
         self.assertContains(pagina, 'ECOCARDIOGRAMA TRANSTORÁCICO')
+        self.assertContains(pagina, 'CONSULTA EM PRONTO SOCORRO')
         self.assertContains(pagina, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(pagina, '<th>Convênio</th>', html=True)
+        self.assertContains(
+            pagina,
+            'note-request-convenio--elegivel',
+        )
+        self.assertContains(pagina, 'PARTICULAR')
+        self.assertContains(pagina, 'note-request-convenio--outro')
+        self.assertContains(pagina, 'ISSEC')
         self.assertContains(pagina, 'R$ 385,50')
+        self.assertContains(pagina, 'R$ 595,50')
         self.assertContains(pagina, 'Total geral')
         self.assertIn(
             'value="R$ 385,50"',
@@ -5199,7 +5227,8 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertContains(
             pagina,
-            '40304361 - ECOCARDIOGRAMA TRANSTORÁCICO',
+            'O valor da nota soma somente os procedimentos dos convênios '
+            'Particular e Prontorede.',
         )
         self.assertContains(pagina, '23/07/2026 10:30')
         self.assertContains(pagina, 'DR. TESTE')
@@ -5208,6 +5237,50 @@ class CadastrarNotaTests(TestCase):
             'Informações recuperadas da view HPC_V_PACIENTES.',
         )
         html = pagina.content.decode()
+        cabecalho_tabela_inicio = html.index('<th>Código</th>')
+        cabecalho_tabela_fim = html.index('</tr>', cabecalho_tabela_inicio)
+        cabecalho_tabela = html[
+            cabecalho_tabela_inicio:cabecalho_tabela_fim
+        ]
+        self.assertLess(
+            cabecalho_tabela.index('<th>Convênio</th>'),
+            cabecalho_tabela.index('<th>Quantidade</th>'),
+        )
+        procedimento_inicio = html.index('id="procedimento"')
+        procedimento_fim = html.index('</textarea>', procedimento_inicio)
+        procedimento_textarea = html[
+            procedimento_inicio:procedimento_fim
+        ]
+        self.assertIn(
+            'ECOCARDIOGRAMA TRANSTORÁCICO',
+            procedimento_textarea,
+        )
+        self.assertNotIn('40304361', procedimento_textarea)
+        self.assertNotIn(
+            '10101039 - CONSULTA EM PRONTO SOCORRO',
+            procedimento_textarea,
+        )
+        self.assertIn(
+            'eligibleAttendanceTotal(payload)',
+            html,
+        )
+        self.assertIn(
+            'const items = eligibleAttendanceItems(payload);',
+            html,
+        )
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.note-request-convenio--elegivel {\n'
+            '  background: #eaf9f1;\n'
+            '  color: #176c4b;',
+            css,
+        )
+        self.assertIn(
+            '.note-request-convenio--outro {\n'
+            '  background: #fff1ef;\n'
+            '  color: #a33127;',
+            css,
+        )
         codigo_posicao = html.index('id="codigo-atendimento"')
         codigo_input = html[codigo_posicao - 100 : codigo_posicao + 300]
         self.assertIn('type="text"', codigo_input)
