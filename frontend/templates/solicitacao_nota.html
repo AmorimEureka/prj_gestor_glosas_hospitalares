@@ -191,6 +191,7 @@
                     <th>Código</th>
                     <th>Procedimento / exame</th>
                     <th>Grupo</th>
+                    <th>Convênio</th>
                     <th>Quantidade</th>
                     <th>Valor total</th>
                     <th>Realizado em</th>
@@ -203,6 +204,11 @@
                     <td>{{ item.codigo|default:"Não informado" }}</td>
                     <td><strong>{{ item.descricao }}</strong></td>
                     <td>{{ item.grupo|default:"Não informado" }}</td>
+                    <td>
+                      <span class="note-request-convenio note-request-convenio--{% if item.convenio_elegivel_nfse %}elegivel{% else %}outro{% endif %}">
+                        {{ item.convenio|default:"Não informado" }}
+                      </span>
+                    </td>
                     <td>{{ item.quantidade|default_if_none:"Não informada" }}</td>
                     <td>R$ {{ item.valor_total|br_currency }}</td>
                     <td>{{ item.realizado_em|api_datetime }}</td>
@@ -212,7 +218,7 @@
                 </tbody>
                 <tfoot>
                   <tr class="workflow-attendance-total-row">
-                    <td colspan="4"><strong>Total geral</strong></td>
+                    <td colspan="5"><strong>Total geral</strong></td>
                     <td><strong>R$ {{ atendimento.valor_total_procedimentos|br_currency }}</strong></td>
                     <td colspan="2"></td>
                   </tr>
@@ -247,7 +253,15 @@
             </select>
           </label>
           <label>
-            <span>Valor da nota *</span>
+            <span class="note-request-field-label">
+              Valor da nota *
+              <i
+                class="help-tip help-tip--below"
+                tabindex="0"
+                aria-label="Ajuda sobre o valor da nota"
+                data-tooltip="O valor da nota soma somente os procedimentos dos convênios Particular e Prontorede."
+              >?</i>
+            </span>
             <input
               type="text"
               id="valor-nota"
@@ -344,6 +358,30 @@
         return total + (Number.isFinite(value) ? value : 0);
       }, 0);
     };
+    const eligibleAgreementNames = new Set([
+      'PARTICULAR',
+      'PRONTOREDE',
+      'PRONTOCARDIO REDE'
+    ]);
+    const isEligibleNfseItem = (item = {}) => (
+      item.convenio_elegivel_nfse === true
+      || eligibleAgreementNames.has(
+        String(item.convenio || '').trim().toUpperCase()
+      )
+    );
+    const eligibleAttendanceItems = (payload = {}) => (
+      (payload.procedimentos_atendimento || []).filter(isEligibleNfseItem)
+    );
+    const eligibleAttendanceTotal = (payload = {}) => {
+      const explicitTotal = Number(
+        payload.valor_total_procedimentos_elegiveis_nfse
+      );
+      if (Number.isFinite(explicitTotal)) return explicitTotal;
+      return eligibleAttendanceItems(payload).reduce((total, item) => {
+        const value = Number(item.valor_total);
+        return total + (Number.isFinite(value) ? value : 0);
+      }, 0);
+    };
 
     const renderExistingRequests = (payload = {}) => {
       const requests = Array.isArray(payload.solicitacoes_existentes)
@@ -413,20 +451,18 @@
     };
 
     const suggestNoteData = (payload = {}, shouldReplace = true) => {
-      const items = Array.isArray(payload.procedimentos_atendimento)
-        ? payload.procedimentos_atendimento
-        : [];
+      const items = eligibleAttendanceItems(payload);
       if (shouldReplace || !procedureInput.value.trim()) {
         procedureInput.value = items.map((item) => {
           const code = String(item.codigo || '').trim();
           const description = String(item.descricao || '').trim();
-          return code && description
-            ? `${code} - ${description}`
-            : (code || description);
+          return description || code;
         }).filter(Boolean).join('\n');
       }
       if (shouldReplace || !valueInput.value.trim()) {
-        valueInput.value = formatAttendanceValue(attendanceTotal(payload));
+        valueInput.value = formatAttendanceValue(
+          eligibleAttendanceTotal(payload)
+        );
       }
     };
 
@@ -467,6 +503,7 @@
         'Código',
         'Procedimento / exame',
         'Grupo',
+        'Convênio',
         'Quantidade',
         'Valor total',
         'Realizado em',
@@ -486,6 +523,7 @@
           valueOrFallback(item.codigo),
           valueOrFallback(item.descricao),
           valueOrFallback(item.grupo),
+          valueOrFallback(item.convenio),
           valueOrFallback(item.quantidade, 'Não informada'),
           formatAttendanceValue(item.valor_total),
           formatAttendanceDate(item.realizado_em),
@@ -496,6 +534,14 @@
             const strong = document.createElement('strong');
             strong.textContent = value;
             cell.appendChild(strong);
+          } else if (index === 3) {
+            const agreement = document.createElement('span');
+            agreement.className = (
+              'note-request-convenio note-request-convenio--'
+              + (isEligibleNfseItem(item) ? 'elegivel' : 'outro')
+            );
+            agreement.textContent = value;
+            cell.appendChild(agreement);
           } else {
             cell.textContent = value;
           }
@@ -508,7 +554,7 @@
       const footerRow = document.createElement('tr');
       footerRow.className = 'workflow-attendance-total-row';
       const totalLabel = document.createElement('td');
-      totalLabel.colSpan = 4;
+      totalLabel.colSpan = 5;
       const totalLabelStrong = document.createElement('strong');
       totalLabelStrong.textContent = 'Total geral';
       totalLabel.appendChild(totalLabelStrong);

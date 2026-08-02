@@ -8748,6 +8748,20 @@ body:not(.sidebar-collapsed) .indicator-grid {
   text-transform: uppercase;
 }
 
+.note-request-data-grid .note-request-field-label {
+  display: inline-flex;
+  gap: 0.32rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.note-request-data-grid .note-request-field-label .help-tip {
+  width: 1rem;
+  height: 1rem;
+  flex-basis: 1rem;
+  font-size: 0.58rem;
+}
+
 .note-request-lookup input,
 .note-request-patient-grid input,
 .note-request-data-grid input,
@@ -9780,6 +9794,29 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .workflow-attendance-items-table td strong {
   color: #14394a;
   font-size: inherit;
+}
+
+.note-request-convenio {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.38rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 0.56rem;
+  font-weight: 850;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.note-request-convenio--elegivel {
+  background: #eaf9f1;
+  color: #176c4b;
+}
+
+.note-request-convenio--outro {
+  background: #fff1ef;
+  color: #a33127;
 }
 
 .workflow-attendance-items-empty {
