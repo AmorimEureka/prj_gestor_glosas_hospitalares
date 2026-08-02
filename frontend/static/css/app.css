@@ -9459,6 +9459,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   box-shadow: 0 0.2rem 0.6rem rgb(22 88 108 / 6%);
 }
 
+.workflow-request-card--validacao,
+.workflow-request-card--emissao {
+  min-width: 0;
+}
+
 .workflow-request-header {
   display: grid;
   grid-template-columns:
@@ -9476,10 +9481,33 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .workflow-request-card--emissao .workflow-request-header {
   grid-template-columns:
-    1.4rem 1.1rem minmax(6rem, 0.65fr) minmax(12rem, 1.5fr)
-    minmax(8rem, 0.85fr) minmax(8rem, 0.9fr)
-    minmax(6.5rem, 0.7fr) minmax(7rem, 0.75fr)
-    minmax(9rem, 0.9fr) minmax(6.5rem, auto);
+    1.4rem 1.1rem minmax(0, 0.6fr) minmax(0, 1.65fr)
+    minmax(0, 0.85fr) minmax(0, 0.55fr)
+    minmax(0, 0.9fr) minmax(0, 0.65fr)
+    minmax(0, 0.7fr) minmax(0, 0.95fr)
+    minmax(7rem, auto);
+  gap: 0.48rem;
+  overflow: hidden;
+}
+
+.workflow-request-card--validacao .workflow-request-header {
+  grid-template-columns:
+    1.1rem minmax(0, 0.65fr) minmax(0, 1.75fr)
+    minmax(0, 0.9fr) minmax(0, 0.6fr)
+    minmax(0, 0.95fr) minmax(0, 0.7fr)
+    minmax(0, 0.75fr) minmax(0, 1fr)
+    minmax(7.5rem, auto);
+  gap: 0.55rem;
+  overflow: hidden;
+}
+
+.workflow-request-card--validacao .workflow-request-field,
+.workflow-request-card--validacao .workflow-request-field small,
+.workflow-request-card--emissao .workflow-request-field,
+.workflow-request-card--emissao .workflow-request-field small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workflow-request-header > span:not(.workflow-request-chevron, .workflow-request-status) {
