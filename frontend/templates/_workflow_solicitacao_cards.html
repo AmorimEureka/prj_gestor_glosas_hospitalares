@@ -52,10 +52,10 @@
       </span>
       {% endif %}
       <span class="workflow-request-field workflow-request-field--type">
-        <small>{% if workflow_mode == "acompanhamento" %}Tipo{% else %}Tipo atendimento{% endif %}</small>
+        <small>{% if workflow_mode == "acompanhamento" or workflow_mode == "validacao" or workflow_mode == "emissao" %}Tipo{% else %}Tipo atendimento{% endif %}</small>
         <strong title="{{ solicitacao.tipo_atendimento }}">{{ solicitacao.tipo_atendimento }}</strong>
       </span>
-      {% if workflow_mode == "acompanhamento" %}
+      {% if workflow_mode == "acompanhamento" or workflow_mode == "validacao" or workflow_mode == "emissao" %}
       <span class="workflow-request-field workflow-request-field--convenio">
         <small>Convênio</small>
         <strong title="{{ solicitacao.convenio|default:'Não informado' }}">{{ solicitacao.convenio|default:"Não informado" }}</strong>
@@ -66,7 +66,7 @@
         <strong title="{{ solicitacao.local_label }}">{{ solicitacao.local_label }}</strong>
       </span>
       <span class="workflow-request-field workflow-request-field--value">
-        <small>{% if workflow_mode == "acompanhamento" %}Valor{% else %}Valor da nota{% endif %}</small>
+        <small>{% if workflow_mode == "acompanhamento" or workflow_mode == "validacao" or workflow_mode == "emissao" %}Valor{% else %}Valor da nota{% endif %}</small>
         <strong title="{{ solicitacao.valor_nota_formatado|default:'Não informado' }}">{{ solicitacao.valor_nota_formatado|default:"Não informado" }}</strong>
       </span>
       {% if workflow_mode != "acompanhamento" %}

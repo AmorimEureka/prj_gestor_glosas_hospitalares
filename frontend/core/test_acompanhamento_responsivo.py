@@ -173,7 +173,8 @@ class AcompanhamentoParticularResponsivoTests(SimpleTestCase):
             css,
         )
         self.assertIn(
-            '{% if workflow_mode == "acompanhamento" %}'
+            '{% if workflow_mode == "acompanhamento" or '
+            'workflow_mode == "validacao" or workflow_mode == "emissao" %}'
             'Tipo{% else %}Tipo atendimento{% endif %}',
             template,
         )
