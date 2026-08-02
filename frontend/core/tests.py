@@ -5803,6 +5803,22 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'CNPJ emissor *')
         self.assertContains(response, '05.613.278/0001-58')
         html = response.content.decode()
+        cabecalho_inicio = html.index('class="workflow-request-header"')
+        cabecalho_fim = html.index('</div>', cabecalho_inicio)
+        cabecalho = html[cabecalho_inicio:cabecalho_fim]
+        self.assertIn('<small>Tipo</small>', cabecalho)
+        self.assertNotIn('<small>Tipo atendimento</small>', cabecalho)
+        self.assertIn('<small>Valor</small>', cabecalho)
+        self.assertNotIn('<small>Valor da nota</small>', cabecalho)
+        self.assertLess(
+            cabecalho.index('<small>Tipo</small>'),
+            cabecalho.index('<small>Convênio</small>'),
+        )
+        self.assertLess(
+            cabecalho.index('<small>Convênio</small>'),
+            cabecalho.index('<small>Local</small>'),
+        )
+        self.assertIn('CONVÊNIO TESTE', cabecalho)
         self.assertLess(
             html.index('CNPJ emissor *'),
             html.index('Procedimentos e exames realizados'),
@@ -5841,6 +5857,32 @@ class CadastrarNotaTests(TestCase):
         self.assertIn(
             '.workflow-attendance-total-row td:first-child {\n'
             '  text-align: left;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-card--validacao,\n'
+            '.workflow-request-card--emissao {\n'
+            '  min-width: 0;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-card--validacao '
+            '.workflow-request-header {\n'
+            '  grid-template-columns:',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-card--validacao '
+            '.workflow-request-field,\n'
+            '.workflow-request-card--validacao '
+            '.workflow-request-field small,\n'
+            '.workflow-request-card--emissao '
+            '.workflow-request-field,\n'
+            '.workflow-request-card--emissao '
+            '.workflow-request-field small {\n'
+            '  overflow: hidden;\n'
+            '  text-overflow: ellipsis;\n'
+            '  white-space: nowrap;',
             css,
         )
         api_get.assert_any_call(
@@ -6090,6 +6132,22 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Reverter para recusa')
         self.assertContains(response, 'Confirmar reversão')
         html = response.content.decode()
+        cabecalho_inicio = html.index('class="workflow-request-header"')
+        cabecalho_fim = html.index('</div>', cabecalho_inicio)
+        cabecalho = html[cabecalho_inicio:cabecalho_fim]
+        self.assertIn('<small>Tipo</small>', cabecalho)
+        self.assertNotIn('<small>Tipo atendimento</small>', cabecalho)
+        self.assertIn('<small>Valor</small>', cabecalho)
+        self.assertNotIn('<small>Valor da nota</small>', cabecalho)
+        self.assertLess(
+            cabecalho.index('<small>Tipo</small>'),
+            cabecalho.index('<small>Convênio</small>'),
+        )
+        self.assertLess(
+            cabecalho.index('<small>Convênio</small>'),
+            cabecalho.index('<small>Local</small>'),
+        )
+        self.assertIn('CONVÊNIO TESTE', cabecalho)
         reverter_inicio = html.index('>Reverter para recusa</button>')
         reverter_botao = html[reverter_inicio - 180 : reverter_inicio]
         self.assertIn('x-show="!recusar"', reverter_botao)
@@ -6106,6 +6164,33 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, '05.613.278/0001-58')
         self.assertNotContains(response, '<small>Código paciente</small>')
         self.assertNotContains(response, '<small>Código convênio</small>')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.workflow-request-card--validacao,\n'
+            '.workflow-request-card--emissao {\n'
+            '  min-width: 0;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-card--emissao '
+            '.workflow-request-header {\n'
+            '  grid-template-columns:',
+            css,
+        )
+        self.assertIn(
+            '.workflow-request-card--validacao '
+            '.workflow-request-field,\n'
+            '.workflow-request-card--validacao '
+            '.workflow-request-field small,\n'
+            '.workflow-request-card--emissao '
+            '.workflow-request-field,\n'
+            '.workflow-request-card--emissao '
+            '.workflow-request-field small {\n'
+            '  overflow: hidden;\n'
+            '  text-overflow: ellipsis;\n'
+            '  white-space: nowrap;',
+            css,
+        )
         api_get.assert_any_call(
             '/app_glosas/requisicoes/emissoes-nfse',
             {
