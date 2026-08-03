@@ -5753,6 +5753,8 @@ class CadastrarNotaTests(TestCase):
                 'codigo': '40304361',
                 'descricao': 'ECOCARDIOGRAMA TRANSTORÁCICO',
                 'grupo': 'EXAMES CARDIOLÓGICOS',
+                'convenio': 'PARTICULAR',
+                'convenio_elegivel_nfse': True,
                 'quantidade': '1',
                 'valor_total': '385.50',
                 'realizado_em': '2026-07-23T10:30:00',
@@ -5762,6 +5764,8 @@ class CadastrarNotaTests(TestCase):
                 'codigo': '10101012',
                 'descricao': 'CONSULTA EM CARDIOLOGIA',
                 'grupo': 'PROCEDIMENTOS',
+                'convenio': 'ISSEC',
+                'convenio_elegivel_nfse': False,
                 'quantidade': '1',
                 'valor_total': '210.00',
                 'realizado_em': '2026-07-23T09:45:00',
@@ -5846,6 +5850,14 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Procedimentos e exames realizados')
         self.assertContains(response, 'ECOCARDIOGRAMA TRANSTORÁCICO')
         self.assertContains(response, 'EXAMES CARDIOLÓGICOS')
+        self.assertContains(response, '<th>Convênio</th>')
+        self.assertContains(response, 'PARTICULAR')
+        self.assertContains(response, 'ISSEC')
+        self.assertContains(
+            response,
+            'workflow-procedure-convenio--elegivel',
+        )
+        self.assertContains(response, 'workflow-procedure-convenio--outro')
         self.assertContains(response, 'R$ 385,50')
         self.assertContains(response, 'R$ 210,00')
         self.assertContains(response, 'R$ 595,50')
@@ -5909,8 +5921,15 @@ class CadastrarNotaTests(TestCase):
             html,
         )
         self.assertIn(
-            '<td colspan="4"><strong>Total geral</strong></td>',
+            '<td colspan="5"><strong>Total geral</strong></td>',
             html,
+        )
+        tabela_inicio = html.index('<th>Código</th>')
+        tabela_fim = html.index('</tr>', tabela_inicio)
+        cabecalho_tabela = html[tabela_inicio:tabela_fim]
+        self.assertLess(
+            cabecalho_tabela.index('<th>Convênio</th>'),
+            cabecalho_tabela.index('<th>Quantidade</th>'),
         )
         self.assertIn('x-show="!recusar"', html)
         self.assertIn('@click="recusar = true"', html)
@@ -5930,6 +5949,18 @@ class CadastrarNotaTests(TestCase):
         self.assertIn(
             '.workflow-attendance-total-row td:first-child {\n'
             '  text-align: left;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-procedure-convenio--elegivel {\n'
+            '  background: #eaf9f1;\n'
+            '  color: #176c4b;',
+            css,
+        )
+        self.assertIn(
+            '.workflow-procedure-convenio--outro {\n'
+            '  background: #fff1ef;\n'
+            '  color: #a33127;',
             css,
         )
         self.assertIn(
