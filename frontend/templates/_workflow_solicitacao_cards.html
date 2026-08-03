@@ -291,6 +291,7 @@
                 <th>Código</th>
                 <th>Procedimento / exame</th>
                 <th>Grupo</th>
+                {% if workflow_mode == "validacao" %}<th>Convênio</th>{% endif %}
                 <th>Quantidade</th>
                 <th>Valor total</th>
                 <th>Realizado em</th>
@@ -303,6 +304,13 @@
                 <td>{{ item.codigo|default:"Não informado" }}</td>
                 <td><strong>{{ item.descricao }}</strong></td>
                 <td>{{ item.grupo|default:"Não informado" }}</td>
+                {% if workflow_mode == "validacao" %}
+                <td>
+                  <span class="workflow-procedure-convenio workflow-procedure-convenio--{% if item.convenio_elegivel_nfse %}elegivel{% else %}outro{% endif %}">
+                    {{ item.convenio|default:"Não informado" }}
+                  </span>
+                </td>
+                {% endif %}
                 <td>{{ item.quantidade|default_if_none:"Não informada" }}</td>
                 <td>R$ {{ item.valor_total|br_currency }}</td>
                 <td>{{ item.realizado_em_formatado }}</td>
@@ -312,7 +320,7 @@
             </tbody>
             <tfoot>
               <tr class="workflow-attendance-total-row">
-                <td colspan="4"><strong>Total geral</strong></td>
+                <td colspan="{% if workflow_mode == "validacao" %}5{% else %}4{% endif %}"><strong>Total geral</strong></td>
                 <td><strong>{{ solicitacao.valor_total_procedimentos_formatado }}</strong></td>
                 <td colspan="2"></td>
               </tr>
