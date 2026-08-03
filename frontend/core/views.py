@@ -871,6 +871,9 @@ def _carregar_fila_solicitacoes(
             procedimento["realizado_em_formatado"] = (
                 format_api_datetime(procedimento.get("realizado_em"))
             )
+            procedimento["convenio_elegivel_nfse"] = (
+                _procedimento_elegivel_nfse(procedimento)
+            )
         procedimentos_atendimento = (
             solicitacao.get("procedimentos_atendimento") or []
         )
