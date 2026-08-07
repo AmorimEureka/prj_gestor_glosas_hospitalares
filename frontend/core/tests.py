@@ -6553,3 +6553,118 @@ class CadastrarNotaTests(TestCase):
             'PDF da NFS-e não encontrado.',
             status_code=404,
         )
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_exibe_nfse_emitida_diretamente_no_iss(
+        self,
+        api_get,
+    ):
+        payload = self.acompanhamento_particular_payload()
+        atendimento = {
+            'codigo_atendimento': 123459,
+            'codigo_paciente': 792,
+            'codigo_convenio': 3,
+            'nome_paciente': 'CLARA NOTA EXTERNA',
+            'nr_cpf': '12345678901',
+            'convenio': 'PARTICULAR',
+            'tipo_atendimento': 'Ambulatório',
+            'data_atendimento': '2026-07-29T08:00:00',
+            'data_alta': None,
+            'valor_conta': '385.50',
+            'quantidade_lancamentos': 1,
+            'status': 'EMITIDA_DIRETAMENTE_ISS',
+            'solicitacao_id': None,
+            'workflow_status': None,
+            'emissao_id': None,
+            'emissao_status': None,
+            'cnpj_emissor': '59932105000121',
+            'razao_social_emissor': 'CLINICA PRONTOCARDIO LTDA',
+            'numero_nfse': '54321',
+            'codigo_verificacao_nfse': '123456789',
+            'valor_nfse': '385.50',
+            'nfse_externa_row_hash': 'nfse-externa-iss',
+            'arquivo_disponivel': True,
+            'emissao_atualizada_em': '2026-07-29T10:15:00',
+            'solicitacao': None,
+        }
+        payload['atendimentos'] = [atendimento]
+        payload['total'] = 1
+        payload['total_periodo'] = 1
+        payload['valor_total_periodo'] = '385.50'
+        payload['resumo_status'] = [{
+            'status': 'EMITIDA_DIRETAMENTE_ISS',
+            'quantidade': 1,
+            'valor_total': '385.50',
+        }]
+        payload['resumo_diario'] = [{
+            'data': '2026-07-29',
+            'total': 1,
+            'emitidas': 1,
+            'pendentes': 0,
+            'valor_total': '385.50',
+            'resumo_status': payload['resumo_status'],
+            'pacientes': [{
+                'nome': 'CLARA NOTA EXTERNA',
+                'inicial': 'C',
+                'status': 'EMITIDA_DIRETAMENTE_ISS',
+            }],
+            'pacientes_restantes': 0,
+        }]
+        self.configurar_api_acompanhamento(api_get, payload)
+
+        response = self.client.get(
+            '/requisicao/acompanhamento-particular/'
+            '?data_referencia=2026-07-15&data_selecionada=2026-07-29'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Emitida diretamente no ISS')
+        self.assertContains(
+            response,
+            'NFS-e emitida diretamente no ISS Fortaleza',
+        )
+        self.assertContains(response, '12345678901')
+        self.assertContains(response, '54321')
+        self.assertContains(response, '123456789')
+        self.assertContains(response, 'R$ 385,50')
+        self.assertContains(
+            response,
+            '/requisicao/nfse-externas/nfse-externa-iss/pdf/'
+            '?download=false',
+        )
+        self.assertContains(response, 'Baixar PDF do ISS')
+        self.assertNotContains(response, '>Solicitar nota</a>')
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_pdf_nfse_externa_encaminha_hash_e_entrega_stream(
+        self,
+        api_get_stream,
+    ):
+        upstream = Mock()
+        upstream.headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'inline; filename="nfse-iss.pdf"',
+            'Content-Length': '17',
+        }
+        upstream.iter_content.return_value = [
+            b'%PDF-1.7',
+            b' externa',
+        ]
+        api_get_stream.return_value = upstream
+
+        response = self.client.get(
+            '/requisicao/nfse-externas/nfse-externa-iss/pdf/'
+            '?download=false'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'%PDF-1.7 externa',
+        )
+        api_get_stream.assert_called_once_with(
+            '/app_glosas/requisicoes/'
+            'nfse-externas/nfse-externa-iss/pdf',
+            {'download': 'false'},
+        )
+        upstream.close.assert_called_once_with()
