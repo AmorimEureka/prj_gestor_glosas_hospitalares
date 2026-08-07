@@ -67,6 +67,7 @@ WORKFLOW_SOLICITACOES_PATH = (
     f"{REQUISICOES_NOTA_PATH}/solicitacoes-nota/workflow"
 )
 EMISSOES_NFSE_PATH = f"{REQUISICOES_NOTA_PATH}/emissoes-nfse"
+NFSE_EXTERNAS_PATH = f"{REQUISICOES_NOTA_PATH}/nfse-externas"
 ACOMPANHAMENTO_PARTICULAR_PATH = (
     f"{REQUISICOES_NOTA_PATH}/acompanhamento-particular"
 )
@@ -101,6 +102,10 @@ STATUS_ACOMPANHAMENTO_PARTICULAR = {
     "PENDENTE_EMISSAO": ("Aguardando emissão", "emissao"),
     "PROCESSANDO": ("Em processamento", "processando"),
     "EMITIDA": ("NFS-e emitida", "emitida"),
+    "EMITIDA_DIRETAMENTE_ISS": (
+        "Emitida diretamente no ISS",
+        "emitida",
+    ),
     "ERRO_EMISSAO": ("Erro na emissão", "erro"),
     "INATIVA": ("Solicitação inativa", "inativa"),
 }
@@ -1516,6 +1521,7 @@ def acompanhamento_particular(request):
             "nm_paciente",
             atendimento.get("nome_paciente"),
         )
+        solicitacao.setdefault("nr_cpf", atendimento.get("nr_cpf"))
         solicitacao.setdefault(
             "tipo_atendimento",
             atendimento.get("tipo_atendimento"),
@@ -1577,7 +1583,16 @@ def acompanhamento_particular(request):
             solicitacao["id"]
             and status == "PENDENTE_VALIDACAO"
         )
-        solicitacao["pode_solicitar"] = not solicitacao["id"]
+        solicitacao["pode_solicitar"] = bool(
+            not solicitacao["id"] and status == "SEM_SOLICITACAO"
+        )
+        solicitacao["nfse_emitida"] = status in {
+            "EMITIDA",
+            "EMITIDA_DIRETAMENTE_ISS",
+        }
+        solicitacao["nfse_externa"] = (
+            status == "EMITIDA_DIRETAMENTE_ISS"
+        )
         solicitacao["emissao_id"] = atendimento.get("emissao_id")
         solicitacao["lote_id"] = atendimento.get("lote_id")
         solicitacao["status_emissao"] = atendimento.get(
@@ -1599,6 +1614,16 @@ def acompanhamento_particular(request):
             "arquivo_disponivel"
         )
         solicitacao["numero_nfse"] = atendimento.get("numero_nfse")
+        solicitacao["codigo_verificacao_nfse"] = atendimento.get(
+            "codigo_verificacao_nfse"
+        )
+        solicitacao["valor_nfse_formatado"] = (
+            format_brl_input(atendimento.get("valor_nfse"))
+            or solicitacao["valor_nota_formatado"]
+        )
+        solicitacao["nfse_externa_row_hash"] = atendimento.get(
+            "nfse_externa_row_hash"
+        )
         solicitacao["protocolo"] = atendimento.get("protocolo")
         solicitacao["erro_emissao"] = atendimento.get("erro_emissao")
         solicitacao["emissao_atualizada_em_formatada"] = (
@@ -1660,6 +1685,12 @@ def acompanhamento_particular(request):
         ("PENDENTE_EMISSAO", "Aguardando emissão", "emissao", False),
         ("PROCESSANDO", "Em processamento", "emissao", False),
         ("EMITIDA", "Com nota emitida", "emitida", True),
+        (
+            "EMITIDA_DIRETAMENTE_ISS",
+            "Emitidas diretamente no ISS",
+            "emitida",
+            True,
+        ),
         ("INATIVA", "Solicitações inativas", "inativa", False),
     )
     for status, label, classe, exibir_sem_registros in (
@@ -1675,7 +1706,10 @@ def acompanhamento_particular(request):
             "classe": classe,
         })
 
-    valor_emitido = valor_status("EMITIDA")
+    valor_emitido = valor_status(
+        "EMITIDA",
+        "EMITIDA_DIRETAMENTE_ISS",
+    )
     try:
         valor_total_mes_decimal = Decimal(str(valor_total_mes or "0"))
     except (InvalidOperation, TypeError, ValueError):
@@ -1684,7 +1718,10 @@ def acompanhamento_particular(request):
         valor_total_mes_decimal - valor_emitido,
         Decimal("0"),
     )
-    quantidade_emitida = quantidade_status("EMITIDA")
+    quantidade_emitida = quantidade_status(
+        "EMITIDA",
+        "EMITIDA_DIRETAMENTE_ISS",
+    )
     quantidade_nao_emitida = max(
         total_mes - quantidade_emitida,
         0,
@@ -2049,6 +2086,56 @@ def emissao_nfse_pdf(request, emissao_id):
         or (
             f'{"attachment" if download == "true" else "inline"}; '
             f'filename="nfse-{emissao_id}.pdf"'
+        )
+    )
+    if content_length := upstream.headers.get("Content-Length"):
+        response["Content-Length"] = content_length
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def nfse_externa_pdf(request, row_hash):
+    download = (
+        "true"
+        if (request.GET.get("download") or "").strip().lower()
+        in {"1", "true", "yes", "on"}
+        else "false"
+    )
+    try:
+        upstream = api_get_stream(
+            f"{NFSE_EXTERNAS_PATH}/{row_hash}/pdf",
+            {"download": download},
+        )
+    except ApiError as exc:
+        status_code = exc.status_code or 502
+        if not 400 <= status_code <= 599:
+            status_code = 502
+        return HttpResponse(
+            f"PDF da NFS-e externa: {extract_api_error_message(exc)}",
+            status=status_code,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    def iter_pdf():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = StreamingHttpResponse(
+        iter_pdf(),
+        content_type=(
+            upstream.headers.get("Content-Type")
+            or "application/pdf"
+        ),
+    )
+    response["Content-Disposition"] = (
+        upstream.headers.get("Content-Disposition")
+        or (
+            f'{"attachment" if download == "true" else "inline"}; '
+            f'filename="nfse-iss-{row_hash[:12]}.pdf"'
         )
     )
     if content_length := upstream.headers.get("Content-Length"):

@@ -70,6 +70,11 @@ urlpatterns = [
         name="emissao_nfse_pdf",
     ),
     path(
+        "requisicao/nfse-externas/<str:row_hash>/pdf/",
+        views.nfse_externa_pdf,
+        name="nfse_externa_pdf",
+    ),
+    path(
         "requisicao/cadastrar-nota/",
         views.solicitacao_nota,
         name="cadastrar_nota",
