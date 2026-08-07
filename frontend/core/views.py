@@ -1149,6 +1149,10 @@ def workflow_solicitacoes(request):
             request.GET.get("tipo_atendimento") or ""
         ).strip(),
         "local": (request.GET.get("local") or "").strip(),
+        "data_inicio": (
+            request.GET.get("data_inicio") or ""
+        ).strip(),
+        "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
     if filtros["tipo_atendimento"] not in TIPOS_ATENDIMENTO:
         filtros["tipo_atendimento"] = ""

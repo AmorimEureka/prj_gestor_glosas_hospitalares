@@ -9440,7 +9440,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns:
     minmax(8rem, 0.7fr) minmax(13rem, 1.25fr)
     minmax(9rem, 0.8fr) minmax(12rem, 1fr)
-    minmax(11rem, 0.95fr) minmax(9rem, 0.8fr) auto;
+    minmax(11rem, 0.95fr) minmax(9rem, 0.8fr);
   gap: 0.65rem;
   align-items: end;
 }
@@ -9448,6 +9448,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .workflow-request-filters .filter-actions {
   display: flex;
   gap: 0.45rem;
+  grid-column: 3 / -1;
+  justify-content: flex-end;
 }
 
 .workflow-request-toolbar {
