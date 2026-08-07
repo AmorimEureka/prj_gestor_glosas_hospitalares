@@ -4144,7 +4144,7 @@ class CadastrarNotaTests(TestCase):
         self.assertIn('data_selecionada%3D2026-07-29', solicitar_nota_url)
 
     @patch('core.views.api_get')
-    def test_acompanhamento_particular_exibe_quantidade_e_valor_nos_cards(
+    def test_acompanhamento_particular_atualiza_resumo_pelo_dia_selecionado(
         self,
         api_get,
     ):
@@ -4202,43 +4202,43 @@ class CadastrarNotaTests(TestCase):
             cards['Total Particular + Prontorede'],
             {
                 'label': 'Total Particular + Prontorede',
-                'quantidade': 10,
-                'detalhe': 'Valor total: R$ 2.250,75',
+                'quantidade': 3,
+                'detalhe': 'Valor total: R$ 715,50',
                 'classe': 'total',
             },
         )
         self.assertEqual(
             cards['Sem solicitação']['quantidade'],
-            4,
+            0,
         )
         self.assertEqual(
             cards['Sem solicitação']['detalhe'],
-            'Valor total: R$ 650,25',
+            'Valor total: R$ 0,00',
         )
         self.assertEqual(
             cards['Aguardando validação'],
             {
                 'label': 'Aguardando validação',
                 'quantidade': 1,
-                'detalhe': 'Valor total: R$ 75,00',
+                'detalhe': 'Valor total: R$ 385,50',
                 'classe': 'pendente',
             },
         )
         self.assertEqual(
             cards['Atendimentos validados']['quantidade'],
-            3,
+            0,
         )
         self.assertEqual(
             cards['Atendimentos validados']['detalhe'],
-            'Valor total: R$ 725,50',
+            'Valor total: R$ 0,00',
         )
         self.assertEqual(
             cards['Com nota emitida']['quantidade'],
-            2,
+            1,
         )
         self.assertEqual(
             cards['Com nota emitida']['detalhe'],
-            'Valor total: R$ 800,00',
+            'Valor total: R$ 210,00',
         )
         self.assertEqual(
             cards['Emissões com erro'],
@@ -4258,14 +4258,14 @@ class CadastrarNotaTests(TestCase):
             cards['Total Particular + Prontorede']['quantidade'],
         )
         self.assertEqual(
-            response.context['emissao_mes'],
+            response.context['emissao_dia'],
             {
-                'percentual': 20.0,
-                'angulo': 36.0,
-                'valor_emitido': 'R$ 800,00',
-                'valor_nao_emitido': 'R$ 1.450,75',
-                'quantidade_emitida': 2,
-                'quantidade_nao_emitida': 8,
+                'percentual': 33.3,
+                'angulo': 60.0,
+                'valor_emitido': 'R$ 210,00',
+                'valor_nao_emitido': 'R$ 505,50',
+                'quantidade_emitida': 1,
+                'quantidade_nao_emitida': 2,
             },
         )
         self.assertContains(response, 'Total Particular + Prontorede')
@@ -4274,17 +4274,17 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, 'Atendimentos validados')
         self.assertContains(response, 'Emissões com erro')
         self.assertContains(response, 'Com nota emitida')
-        self.assertContains(response, 'Resumo mensal de 07/2026')
+        self.assertContains(response, 'Resumo do dia 29/07/2026')
         self.assertContains(response, 'Emissão de NFS-e')
-        self.assertContains(response, 'Progresso por quantidade no mês')
+        self.assertContains(response, 'Progresso por quantidade no dia')
         self.assertNotContains(response, 'Progresso financeiro do mês')
         self.assertContains(response, 'Emitido em NFS-e')
         self.assertContains(response, 'Não emitido em NFS-e')
         self.assertContains(response, '<span>NFS-e emitidas</span>')
+        self.assertContains(response, '<strong>1 atendimento</strong>')
+        self.assertContains(response, '<span>Valor: R$ 210,00</span>')
         self.assertContains(response, '<strong>2 atendimentos</strong>')
-        self.assertContains(response, '<span>Valor: R$ 800,00</span>')
-        self.assertContains(response, '<strong>8 atendimentos</strong>')
-        self.assertContains(response, '<span>Valor: R$ 1.450,75</span>')
+        self.assertContains(response, '<span>Valor: R$ 505,50</span>')
         self.assertNotContains(response, '<span>emitido</span>')
         self.assertNotContains(response, 'Faturamento NFS-e')
         self.assertNotContains(response, 'Faturado em NFS-e')
@@ -4293,8 +4293,8 @@ class CadastrarNotaTests(TestCase):
             response,
             'class="particular-billing-gauge-progress"',
         )
-        self.assertContains(response, 'stroke-dasharray: 20.0 100;')
-        self.assertContains(response, 'rotate(36.0 60 58)')
+        self.assertContains(response, 'stroke-dasharray: 33.3 100;')
+        self.assertContains(response, 'rotate(60.0 60 58)')
         html = response.content.decode()
         self.assertLess(
             html.index('Atendimentos validados'),
@@ -4310,11 +4310,11 @@ class CadastrarNotaTests(TestCase):
         )
         self.assertContains(
             response,
-            'Selecione um dia para atualizar a fila.',
+            'Selecione um dia para atualizar os indicadores e a fila.',
         )
         self.assertNotContains(
             response,
-            'Selecione um dia para atualizar os indicadores e a fila.',
+            'Selecione um dia para atualizar a fila.',
         )
 
     @patch('core.views.api_get')
