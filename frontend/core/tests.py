@@ -6028,6 +6028,8 @@ class CadastrarNotaTests(TestCase):
                 'convenio': 'CONVÊNIO TESTE',
                 'tipo_atendimento': 'Ambulatório',
                 'local': 'Clinica 1',
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-31',
                 'page': '2',
             },
         )
@@ -6048,6 +6050,16 @@ class CadastrarNotaTests(TestCase):
             response,
             '<option value="Clinica 1" selected>',
         )
+        self.assertContains(response, '<label>Data inicial</label>')
+        self.assertContains(response, '<label>Data final</label>')
+        self.assertContains(
+            response,
+            'name="data_inicio"\n        value="2026-07-01"',
+        )
+        self.assertContains(
+            response,
+            'name="data_fim"\n        value="2026-07-31"',
+        )
         self.assertContains(
             response,
             'href="/requisicao/workflow-solicitacoes/"',
@@ -6064,6 +6076,8 @@ class CadastrarNotaTests(TestCase):
                 'convenio': 'CONVÊNIO TESTE',
                 'tipo_atendimento': 'Ambulatório',
                 'local': 'Clinica 1',
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-31',
             },
         )
         self.assertEqual(
@@ -6075,6 +6089,8 @@ class CadastrarNotaTests(TestCase):
                 'convenio': 'CONVÊNIO TESTE',
                 'tipo_atendimento': 'Ambulatório',
                 'local': 'Clinica 1',
+                'data_inicio': '2026-07-01',
+                'data_fim': '2026-07-31',
             },
         )
 
