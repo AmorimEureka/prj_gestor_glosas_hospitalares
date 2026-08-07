@@ -88,7 +88,7 @@
     </div>
 
     <div class="workflow-request-body" x-show="open" x-cloak>
-      {% if workflow_mode == "emissao" or workflow_mode == "acompanhamento" and solicitacao.status == "EMITIDA" %}
+      {% if workflow_mode == "emissao" or workflow_mode == "acompanhamento" and solicitacao.nfse_emitida %}
       <div class="workflow-detail-sections{% if workflow_mode == 'acompanhamento' %} workflow-detail-sections--emitted{% endif %}">
         <section class="workflow-detail-section workflow-detail-section--issuer">
           <h3>Empresa emissora</h3>
@@ -97,6 +97,19 @@
             <span class="is-wide"><small>Razão social</small><strong>{{ solicitacao.razao_social_emissor|default:"Não informada" }}</strong></span>
           </div>
         </section>
+        {% if solicitacao.nfse_externa %}
+        <section class="workflow-detail-section workflow-detail-section--external-nfse">
+          <h3>NFS-e emitida diretamente no ISS Fortaleza</h3>
+          <div class="workflow-request-details">
+            <span><small>Origem</small><strong>ISS Fortaleza</strong></span>
+            <span><small>CPF cruzado</small><strong>{{ solicitacao.nr_cpf|default:"Não informado" }}</strong></span>
+            <span><small>Número da NFS-e</small><strong>{{ solicitacao.numero_nfse|default:"Não informado" }}</strong></span>
+            <span><small>Código de verificação</small><strong>{{ solicitacao.codigo_verificacao_nfse|default:"Não informado" }}</strong></span>
+            <span><small>Valor da NFS-e</small><strong>{{ solicitacao.valor_nfse_formatado }}</strong></span>
+            <span><small>Emitida em</small><strong>{{ solicitacao.emissao_atualizada_em_formatada|default:"Não informado" }}</strong></span>
+          </div>
+        </section>
+        {% else %}
         <section class="workflow-detail-section">
           <h3>Paciente e contato</h3>
           <div class="workflow-request-details">
@@ -139,6 +152,7 @@
             {% endif %}
           </div>
         </section>
+        {% endif %}
         {% endif %}
       </div>
       {% elif workflow_mode == "acompanhamento" %}
@@ -452,7 +466,18 @@
           href="{% url 'solicitacoes_nota' %}?codigo_atendimento={{ solicitacao.codigo_atendimento }}"
         >Ver solicitação</a>
         {% endif %}
-        {% if solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
+        {% if solicitacao.arquivo_disponivel and solicitacao.nfse_externa_row_hash %}
+        <a
+          class="workflow-action workflow-action--view"
+          href="{% url 'nfse_externa_pdf' solicitacao.nfse_externa_row_hash %}?download=false"
+          target="_blank"
+          rel="noopener"
+        >Visualizar NFS-e do ISS</a>
+        <a
+          class="workflow-action workflow-action--download"
+          href="{% url 'nfse_externa_pdf' solicitacao.nfse_externa_row_hash %}?download=true"
+        >Baixar PDF do ISS</a>
+        {% elif solicitacao.arquivo_disponivel and solicitacao.emissao_id %}
         <a
           class="workflow-action workflow-action--view"
           href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=false"
@@ -463,6 +488,8 @@
           class="workflow-action workflow-action--download"
           href="{% url 'emissao_nfse_pdf' solicitacao.emissao_id %}?download=true"
         >Baixar PDF</a>
+        {% elif solicitacao.nfse_externa %}
+        <span class="workflow-emission-file-unavailable">PDF não disponível no ISS Fortaleza.</span>
         {% endif %}
       </div>
       {% endif %}
