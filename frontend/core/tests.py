@@ -6054,11 +6054,23 @@ class CadastrarNotaTests(TestCase):
         self.assertContains(response, '<label>Data final</label>')
         self.assertContains(
             response,
-            'name="data_inicio"\n        value="2026-07-01"',
+            'class="workflow-request-date-filters"',
         )
         self.assertContains(
             response,
-            'name="data_fim"\n        value="2026-07-31"',
+            'name="data_inicio"\n          value="2026-07-01"',
+        )
+        self.assertContains(
+            response,
+            'name="data_fim"\n          value="2026-07-31"',
+        )
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.workflow-request-date-filters {\n'
+            '  display: grid;\n'
+            '  grid-template-columns: repeat(2, minmax(0, 1fr));\n'
+            '  grid-column: 1 / span 2;',
+            css,
         )
         self.assertContains(
             response,
