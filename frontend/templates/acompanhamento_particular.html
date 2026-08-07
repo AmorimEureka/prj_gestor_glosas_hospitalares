@@ -57,7 +57,7 @@
     </form>
   </section>
 
-  <section class="particular-month-overview" aria-label="Resumo mensal de {{ periodo_formatado }}">
+  <section class="particular-month-overview" aria-label="Resumo do dia {{ data_selecionada_formatada }}">
     <div class="particular-monitor-summary">
       {% for card in resumo_cards %}
       <article class="particular-summary-card particular-summary-card--{{ card.classe }}">
@@ -72,15 +72,15 @@
       <header>
         <div>
           <span>Emissão de NFS-e</span>
-          <small>Progresso por quantidade no mês</small>
+          <small>Progresso por quantidade no dia</small>
         </div>
-        <strong>{{ periodo_formatado }}</strong>
+        <strong>{{ data_selecionada_formatada }}</strong>
       </header>
       <div class="particular-billing-gauge-body">
         <div
           class="particular-billing-gauge"
           role="img"
-          aria-label="{{ emissao_mes.percentual|floatformat:1 }}% dos atendimentos com NFS-e emitida"
+          aria-label="{{ emissao_dia.percentual|floatformat:1 }}% dos atendimentos com NFS-e emitida"
         >
           <svg viewBox="0 0 120 66" aria-hidden="true">
             <path class="particular-billing-gauge-track" pathLength="100" d="M 10 58 A 50 50 0 0 1 110 58"></path>
@@ -88,7 +88,7 @@
               class="particular-billing-gauge-progress"
               pathLength="100"
               d="M 10 58 A 50 50 0 0 1 110 58"
-              style="stroke-dasharray: {{ emissao_mes.percentual|unlocalize }} 100;"
+              style="stroke-dasharray: {{ emissao_dia.percentual|unlocalize }} 100;"
             ></path>
             <line
               class="particular-billing-gauge-needle"
@@ -96,12 +96,12 @@
               y1="58"
               x2="35"
               y2="58"
-              transform="rotate({{ emissao_mes.angulo|unlocalize }} 60 58)"
+              transform="rotate({{ emissao_dia.angulo|unlocalize }} 60 58)"
             ></line>
             <circle class="particular-billing-gauge-center" cx="60" cy="58" r="3.6"></circle>
           </svg>
           <div class="particular-billing-gauge-readout">
-            <strong>{{ emissao_mes.percentual|floatformat:1 }}%</strong>
+            <strong>{{ emissao_dia.percentual|floatformat:1 }}%</strong>
             <span>NFS-e emitidas</span>
           </div>
         </div>
@@ -109,15 +109,15 @@
           <div class="is-billed">
             <dt>Emitido em NFS-e</dt>
             <dd>
-              <strong>{{ emissao_mes.quantidade_emitida }} atendimento{{ emissao_mes.quantidade_emitida|pluralize }}</strong>
-              <span>Valor: {{ emissao_mes.valor_emitido }}</span>
+              <strong>{{ emissao_dia.quantidade_emitida }} atendimento{{ emissao_dia.quantidade_emitida|pluralize }}</strong>
+              <span>Valor: {{ emissao_dia.valor_emitido }}</span>
             </dd>
           </div>
           <div class="is-unbilled">
             <dt>Não emitido em NFS-e</dt>
             <dd>
-              <strong>{{ emissao_mes.quantidade_nao_emitida }} atendimento{{ emissao_mes.quantidade_nao_emitida|pluralize }}</strong>
-              <span>Valor: {{ emissao_mes.valor_nao_emitido }}</span>
+              <strong>{{ emissao_dia.quantidade_nao_emitida }} atendimento{{ emissao_dia.quantidade_nao_emitida|pluralize }}</strong>
+              <span>Valor: {{ emissao_dia.valor_nao_emitido }}</span>
             </dd>
           </div>
         </dl>
@@ -130,7 +130,7 @@
       <header class="particular-section-head particular-calendar-heading">
         <div>
           <span class="panel-title">Mapa diário do período</span>
-          <small>Selecione um dia para atualizar a fila.</small>
+          <small>Selecione um dia para atualizar os indicadores e a fila.</small>
         </div>
         <nav class="particular-month-navigation" aria-label="Navegação entre meses">
           <a href="{{ anterior_url }}" rel="prev" aria-label="Mês anterior" title="Mês anterior">&#8249;</a>

@@ -1327,11 +1327,11 @@ def acompanhamento_particular(request):
         "offset": offset,
     }
     atendimentos = []
-    resumo_mes_api = []
+    resumo_dia_selecionado_api = []
     resumo_diario_api = []
     total = 0
-    total_mes = 0
-    valor_total_mes = 0
+    total_dia_selecionado = 0
+    valor_total_dia_selecionado = 0
     empresas_emissoras = []
     try:
         calendario_cache_key = build_api_cache_key(
@@ -1418,14 +1418,14 @@ def acompanhamento_particular(request):
         resumo_diario_api = (
             payload_calendario.get("resumo_diario") or []
         )
-        resumo_mes_api = (
-            payload_calendario.get("resumo_status") or []
+        resumo_dia_selecionado_api = (
+            payload_dia.get("resumo_status") or []
         )
-        total_mes = as_int_or_zero(
-            payload_calendario.get("total_periodo")
+        total_dia_selecionado = as_int_or_zero(
+            payload_dia.get("total_periodo")
         )
-        valor_total_mes = (
-            payload_calendario.get("valor_total_periodo") or 0
+        valor_total_dia_selecionado = (
+            payload_dia.get("valor_total_periodo") or 0
         )
         atendimentos = payload_dia.get("atendimentos") or []
         total = as_int_or_zero(payload_dia.get("total"))
@@ -1639,7 +1639,7 @@ def acompanhamento_particular(request):
 
     resumo_por_status = {
         str(item.get("status") or ""): item
-        for item in resumo_mes_api
+        for item in resumo_dia_selecionado_api
     }
 
     def quantidade_status(*status):
@@ -1672,8 +1672,8 @@ def acompanhamento_particular(request):
 
     resumo_cards = [{
         "label": "Total Particular + Prontorede",
-        "quantidade": total_mes,
-        "detalhe": detalhe_valor(valor_total_mes),
+        "quantidade": total_dia_selecionado,
+        "detalhe": detalhe_valor(valor_total_dia_selecionado),
         "classe": "total",
     }]
     configuracao_cards_status = (
@@ -1711,11 +1711,13 @@ def acompanhamento_particular(request):
         "EMITIDA_DIRETAMENTE_ISS",
     )
     try:
-        valor_total_mes_decimal = Decimal(str(valor_total_mes or "0"))
+        valor_total_dia_decimal = Decimal(
+            str(valor_total_dia_selecionado or "0")
+        )
     except (InvalidOperation, TypeError, ValueError):
-        valor_total_mes_decimal = Decimal("0")
+        valor_total_dia_decimal = Decimal("0")
     valor_nao_emitido = max(
-        valor_total_mes_decimal - valor_emitido,
+        valor_total_dia_decimal - valor_emitido,
         Decimal("0"),
     )
     quantidade_emitida = quantidade_status(
@@ -1723,21 +1725,21 @@ def acompanhamento_particular(request):
         "EMITIDA_DIRETAMENTE_ISS",
     )
     quantidade_nao_emitida = max(
-        total_mes - quantidade_emitida,
+        total_dia_selecionado - quantidade_emitida,
         0,
     )
     percentual_emitido = (
         min(
             max(
-                quantidade_emitida / total_mes * 100,
+                quantidade_emitida / total_dia_selecionado * 100,
                 0,
             ),
             100,
         )
-        if total_mes > 0
+        if total_dia_selecionado > 0
         else 0
     )
-    emissao_mes = {
+    emissao_dia = {
         "percentual": round(percentual_emitido, 1),
         "angulo": round(percentual_emitido * 1.8, 2),
         "valor_emitido": (
@@ -1915,7 +1917,7 @@ def acompanhamento_particular(request):
                 in STATUS_ACOMPANHAMENTO_PARTICULAR.items()
             ],
             "resumo_cards": resumo_cards,
-            "emissao_mes": emissao_mes,
+            "emissao_dia": emissao_dia,
             "dias_grade": dias_grade,
             "pagination": pagination,
             "periodo_formatado": periodo_formatado,
