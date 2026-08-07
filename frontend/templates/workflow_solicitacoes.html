@@ -52,6 +52,26 @@
         {% endfor %}
       </select>
     </div>
+    <div class="filter-group">
+      <label>Data inicial</label>
+      <input
+        type="date"
+        name="data_inicio"
+        value="{{ filtros.data_inicio }}"
+        class="form-control"
+        aria-label="Data inicial de criação da solicitação"
+      >
+    </div>
+    <div class="filter-group">
+      <label>Data final</label>
+      <input
+        type="date"
+        name="data_fim"
+        value="{{ filtros.data_fim }}"
+        class="form-control"
+        aria-label="Data final de criação da solicitação"
+      >
+    </div>
     <div class="filter-actions">
       <button class="btn btn-primary">Filtrar</button>
       <a href="{% url 'workflow_solicitacoes' %}" class="btn btn-outline-secondary">Limpar</a>
