@@ -1423,16 +1423,42 @@ class FollowUpGlosasTests(TestCase):
                     'conciliacao_remessa_id': 12,
                     'cd_remessa': 987,
                     'convenio': 'Convênio Teste',
+                    'data_competencia': '2026-07-01',
                     'data_entrega': '2026-07-10',
                     'numero_nfse': 'NFS-5333',
                     'valor_remessa': '1000.00',
+                    'valor_itens': '150.00',
                     'valor_glosado': '150.00',
                     'valor_glosa_pendente': '100.00',
                     'valor_total_tratado': '50.00',
+                    'processo': {
+                        'numero_processo': 'CONC-12',
+                        'data_abertura': '2026-07-09',
+                        'status_processo': 'Em análise',
+                        'motivo_finalizacao': None,
+                    },
+                    'recebimentos': [
+                        {
+                            'banco': 'Banco Teste',
+                            'conta': '12345-6',
+                            'codigo_agencia': '0001',
+                            'empenho': 'EMPENHO-12.pdf',
+                        }
+                    ],
+                    'fiscal': {
+                        'numero_nfse': 'NFS-5333',
+                        'valor_servicos': '1000.00',
+                        'impostos': '50.00',
+                        'valor_liquido_nfse': '950.00',
+                        'data_emissao': '2026-07-10T12:30:00',
+                    },
                     'pacientes': [
                         {
                             'codigo_paciente': 51,
                             'nm_paciente': 'Maria da Silva',
+                            'valor_itens': '150.00',
+                            'valor_glosado': '150.00',
+                            'valor_total_tratado': '50.00',
                             'itens': [
                                 {
                                     'cd_paciente': 51,
@@ -1447,6 +1473,8 @@ class FollowUpGlosasTests(TestCase):
                                     'nm_convenio': 'Convênio Teste',
                                     'tp_atendimento': 'Internação',
                                     'cd_pro_fat': 'PROC-10',
+                                    'cd_tuss': '1714',
+                                    'codigo_servico': '1714',
                                     'cd_gru_pro': 10,
                                     'ds_gru_pro': 'Diagnóstico',
                                     'cd_gru_fat': 1,
@@ -1458,6 +1486,18 @@ class FollowUpGlosasTests(TestCase):
                                     'dt_lancamento': '2026-07-02T09:30:00',
                                     'qt_lancamento': '2.00',
                                     'vl_total_conta': '150.00',
+                                    'valor_processado': '150.00',
+                                    'valor_glosa': '150.00',
+                                    'valor_liberado': '0.00',
+                                    'valor_total_tratado': '50.00',
+                                    'valor_pendente': '100.00',
+                                    'motivo_glosa_codigo': '1714',
+                                    'motivo_glosa_descricao': (
+                                        'VALOR GLOSADO INDEVIDAMENTE'
+                                    ),
+                                    'criterios_correspondencia': [
+                                        'competencia_tuss_carteira_valor'
+                                    ],
                                     'registro_glosa': {
                                         'id': 71,
                                         'sn_ativo': 'true',
@@ -1465,7 +1505,7 @@ class FollowUpGlosasTests(TestCase):
                                         'processo_controle_fatura_gab': 'CONC-12',
                                         'processo_recurso': None,
                                         'data_glosa': '2026-07-10',
-                                        'motivo_glosa': 'Pendente de classificação',
+                                        'motivo_glosa': '1714',
                                         'descricao_glosa': '',
                                         'qtd_recursado': None,
                                         'valor_recursado': None,
@@ -1479,6 +1519,7 @@ class FollowUpGlosasTests(TestCase):
                 }
             ],
             'total': 1,
+            'quantidade_glosas': 1,
             'valor_total_glosado': '150.00',
             'valor_total_pendente': '100.00',
             'valor_total_tratado': '50.00',
@@ -1517,8 +1558,12 @@ class FollowUpGlosasTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '#987')
-        self.assertContains(response, 'name="numero_nfse"')
+        self.assertContains(response, 'name="processo_original"')
+        self.assertContains(response, 'name="processo_recurso"')
+        self.assertContains(response, 'name="paciente"')
         self.assertContains(response, 'name="cd_remessa"')
+        self.assertContains(response, 'name="cd_atendimento"')
+        self.assertContains(response, 'name="tipo_atendimento"')
         self.assertContains(
             response,
             'id="follow-up-glosa-convenio" '
@@ -1540,9 +1585,9 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'id="follow-up-page-select"')
         self.assertContains(response, '<option value="1" selected>1</option>')
         self.assertContains(response, '<span>de 1</span>')
-        self.assertContains(response, 'Total tratado')
-        self.assertContains(response, 'TOTAL TRATADO')
-        self.assertContains(response, 'R$ 50,00', count=2)
+        self.assertContains(response, 'Valor tratado')
+        self.assertContains(response, 'VALOR TRATADO')
+        self.assertContains(response, 'R$ 50,00', count=3)
         self.assertEqual(
             response.context['resumo']['valor_total_tratado'],
             50.0,
@@ -1559,8 +1604,197 @@ class FollowUpGlosasTests(TestCase):
                 'limit': 10,
                 'offset': 0,
                 'incluir_detalhes': 'false',
+                'agrupar_por_processo': 'true',
             },
         )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_card_cogestao_sem_demonstrativo_exibe_aviso(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['processo']['numero_processo'] = 'P249767/2026'
+        card['processo']['status_processo'] = 'TRAMITANDO'
+        card['pacientes'] = []
+        payload['valor_total_tratado'] = '0.00'
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'P249767/2026')
+        self.assertContains(
+            response,
+            'Ainda não há detalhamento no portal SPU Virtual do IPM.',
+        )
+        self.assertNotContains(response, 'detalhar_vinculo=')
+        self.assertEqual(
+            response.context['cards'][0]['detalhe_dom_id'],
+            'cogestao-987',
+        )
+        self.assertTrue(
+            response.context['cards'][0]['detalhes_carregados']
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_processo_aberto_preserva_detalhes_do_demonstrativo(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['processo']['numero_processo'] = 'P249767/2026'
+        card['processo']['status_processo'] = 'TRAMITANDO'
+        item = card['pacientes'][0]['itens'][0]
+        item['registro_glosa'] = None
+        item['registro_recusa'] = None
+        item['registro_acato'] = None
+        item['tratativa_disponivel'] = True
+        item['data_glosa'] = '2026-05-10'
+        item['dt_pagamento'] = None
+        item['valor_limite_tratativa'] = '25.00'
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'P249767/2026')
+        self.assertContains(response, 'Maria da Silva')
+        self.assertNotContains(
+            response,
+            'Ainda não há detalhamento no portal SPU Virtual do IPM.',
+        )
+        self.assertContains(response, '>+RECUSAR</button>')
+        self.assertContains(response, '>+ACATO</button>')
+        self.assertContains(
+            response,
+            'name="processo_controle_fatura_gab" value="P249767/2026"',
+        )
+        self.assertContains(
+            response,
+            'name="data_glosa" value="2026-05-10"',
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_pagina_dois_renderiza_item_sem_processo_e_sem_registro(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        payload['total'] = 11
+        payload['offset'] = 10
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['processo']['numero_processo'] = None
+        item = card['pacientes'][0]['itens'][0]
+        item['registro_glosa'] = None
+        item['registro_recusa'] = None
+        item['registro_acato'] = None
+        item['tratativa_disponivel'] = True
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/?page=2')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'name="processo_controle_fatura_gab" value=""',
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            params={
+                'limit': 10,
+                'offset': 10,
+                'incluir_detalhes': 'false',
+                'agrupar_por_processo': 'true',
+            },
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_agrupa_remessas_do_mesmo_processo_e_totaliza_itens_no_cabecalho(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        segunda_remessa = {
+            **payload['cards'][0],
+            'conciliacao_remessa_id': 13,
+            'cd_remessa': 988,
+            'numero_nfse': 'NFS-5444',
+            'valor_remessa': '2000.00',
+            'valor_itens': '75.00',
+            'valor_glosado': '25.00',
+            'valor_glosa_pendente': '15.00',
+            'valor_total_tratado': '10.00',
+            'pacientes': [],
+        }
+        payload['cards'].append(segunda_remessa)
+        payload['total'] = 1
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['processos']), 1)
+        processo = response.context['processos'][0]
+        self.assertEqual(processo['processo']['numero_processo'], 'CONC-12')
+        self.assertEqual(processo['total_remessas'], 2)
+        self.assertEqual(processo['valor_total'], 225.0)
+        self.assertEqual(processo['valor_glosado'], 175.0)
+        self.assertEqual(processo['valor_total_tratado'], 60.0)
+        self.assertEqual(processo['valor_glosa_pendente'], 115.0)
+        cabecalho = response.content.decode().split(
+            'class="follow-up-glosa-card-header"',
+            1,
+        )[1].split('</button>', 1)[0]
+        rotulos = (
+            'PROCESSO',
+            'CONVÊNIO',
+            'DT. ABERTURA',
+            'STATUS',
+            'VALOR TOTAL',
+            'VALOR GLOSADO',
+            'VALOR TRATADO',
+            'VALOR PENDENTE',
+        )
+        self.assertEqual(
+            [cabecalho.index(rotulo) for rotulo in rotulos],
+            sorted(cabecalho.index(rotulo) for rotulo in rotulos),
+        )
+        self.assertContains(response, '#987')
+        self.assertContains(response, '#988')
+        self.assertContains(
+            response,
+            '<small>DT. ABERTURA</small><strong>09/07/2026</strong>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<small>STATUS</small><strong>Em análise</strong>',
+            html=True,
+        )
+        self.assertContains(response, 'R$ 225,00')
+        self.assertContains(response, 'R$ 175,00')
+        self.assertContains(response, 'R$ 60,00')
+        self.assertContains(response, 'R$ 115,00')
+        self.assertContains(response, 'VALOR TRATADO')
+        self.assertContains(response, 'VALOR PENDENTE')
 
     def test_lista_follow_up_preserva_altura_natural_dos_cards(self):
         css = Path(finders.find('css/app.css')).read_text()
@@ -1578,7 +1812,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260730-rotulo-atendimentos-10',
+            '?v=20260812-follow-up-glosas-18',
             base_template.read_text(),
         )
 
@@ -1608,16 +1842,24 @@ class FollowUpGlosasTests(TestCase):
         response = self.client.get(
             '/follow-up-glosas/',
             {
-                'numero_nfse': '5333',
+                'processo_original': 'CONC-12',
+                'processo_recurso': 'REC-71',
+                'paciente': 'Maria',
                 'cd_remessa': '987',
                 'convenio': 'IPM',
+                'cd_atendimento': '789',
+                'tipo_atendimento': 'Internação',
                 'page': '2',
             },
         )
 
         self.assertEqual(response.status_code, 200)
         pagination = response.context['pagination']
-        query = 'numero_nfse=5333&cd_remessa=987&convenio=IPM'
+        query = (
+            'processo_original=CONC-12&processo_recurso=REC-71&'
+            'convenio=IPM&paciente=Maria&cd_remessa=987&'
+            'cd_atendimento=789&tipo_atendimento=Interna%C3%A7%C3%A3o'
+        )
         self.assertEqual(pagination['previous_url'], f'?{query}&page=1')
         self.assertEqual(pagination['next_url'], f'?{query}&page=3')
         self.assertContains(response, '<option value="2" selected>2</option>')
@@ -1643,9 +1885,14 @@ class FollowUpGlosasTests(TestCase):
                 'limit': 10,
                 'offset': 10,
                 'incluir_detalhes': 'false',
-                'numero_nfse': '5333',
+                'agrupar_por_processo': 'true',
+                'processo_original': 'CONC-12',
+                'processo_recurso': 'REC-71',
+                'paciente': 'Maria',
                 'cd_remessa': '987',
                 'convenio': 'IPM',
+                'cd_atendimento': '789',
+                'tipo_atendimento': 'Internação',
             },
         )
 
@@ -1707,38 +1954,106 @@ class FollowUpGlosasTests(TestCase):
         )
         for expected in (
             'REMESSA',
+            'COMPETÊNCIA',
+            '07/2026',
             '#987',
             'CONVÊNIO',
             'Convênio Teste',
-            'DATA ENTREGA',
-            '10/07/2026',
-            'NFS-5333',
-            'VALOR DA REMESSA',
-            'R$ 1.000,00',
+            'PROCESSO',
             'VALOR GLOSADO',
             'R$ 150,00',
             'TOTAL TRATADO',
             'R$ 50,00',
             'Maria da Silva',
             'Procedimento analítico',
-            'Atendimento <strong>#789</strong>',
+            'CÓD. ATENDIMENTO',
+            'DT. ATENDIMENTO',
+            'DT. ALTA',
+            'TIPO ATENDIMENTO',
             'EXAMES E DIAGNÓSTICOS',
-            'Data da alta',
-            'DT Lanç.',
-            'Tipo Atendimento',
-            'Qtd Lanç.',
-            '+Recusar',
-            '+ Acatar',
+            'CÓD. ITEM',
+            'VALOR PROCESSADO',
+            'VALOR LIBERADO',
+            'Descrição do motivo',
+            'VALOR GLOSADO INDEVIDAMENTE',
+            'Processo Origem',
+            'Qtd item',
+            'Valor item',
+            '+RECUSAR',
+            '+ACATO',
             'follow-up-glosa-records-scroll',
             '<template x-if="patientOpen">',
-            '<template x-if="atdOpen">',
-            'followUpTissReasonSelect',
-            'data-tiss-reason',
-            'role="listbox"',
-            'BENEFICIARIO COM ATENDIMENTO SUSPENSO',
-            'CONTA SEM ASSINATURA DO PACIENTE',
         ):
             self.assertContains(response, expected)
+        self.assertNotContains(response, 'GRUPO DO PROCEDIMENTO ·')
+        for removed_detail in (
+            'Dados do Processo',
+            'Dados do Recebimento',
+            'Dados Fiscais',
+            'EMPENHO-12.pdf',
+            'Valor líquido NFS-e',
+        ):
+            self.assertNotContains(response, removed_detail)
+        self.assertNotContains(response, 'atdOpen')
+        remessa_header = content.split(
+            'class="follow-up-glosa-remessa-header"',
+            1,
+        )[1].split('</button>', 1)[0]
+        remessa_rotulos = (
+            'REMESSA',
+            'COMPETÊNCIA',
+            'VALOR TOTAL',
+            'VALOR GLOSADO',
+            'VALOR TRATADO',
+            'TOTAL PENDENTE',
+        )
+        self.assertEqual(
+            [remessa_header.index(rotulo) for rotulo in remessa_rotulos],
+            sorted(remessa_header.index(rotulo) for rotulo in remessa_rotulos),
+        )
+        self.assertIn(
+            '<small>VALOR TOTAL</small><strong>R$ 150,00</strong>',
+            remessa_header,
+        )
+        self.assertNotIn('NFS-E', remessa_header)
+        self.assertNotIn('R$ 1.000,00', remessa_header)
+        paciente_header = content.split(
+            'class="follow-up-glosa-patient-header"',
+            1,
+        )[1].split('</button>', 1)[0]
+        paciente_rotulos = (
+            'PACIENTE',
+            'CÓD. ATENDIMENTO',
+            'TIPO ATENDIMENTO',
+            'DT. ATENDIMENTO',
+            'DT. ALTA',
+        )
+        self.assertEqual(
+            [paciente_header.index(rotulo) for rotulo in paciente_rotulos],
+            sorted(
+                paciente_header.index(rotulo)
+                for rotulo in paciente_rotulos
+            ),
+        )
+        self.assertIn('cell-mono">1714</td>', content)
+        self.assertContains(
+            response,
+            'class="col-valor follow-up-glosa-value-heading"',
+            count=2,
+        )
+        self.assertContains(
+            response,
+            'value="VALOR GLOSADO INDEVIDAMENTE" readonly',
+        )
+        self.assertNotContains(
+            response,
+            '<textarea class="form-control form-control-readonly"',
+        )
+        self.assertContains(
+            response,
+            "editingExisting ? 'Salvar alterações' : "
+            "(modal === 'acatar' ? 'Registrar acato' : 'Registrar recurso')",
+        )
         self.assertNotContains(response, 'list="tiss-motivo-options"')
         self.assertNotContains(
             response,
@@ -1769,7 +2084,13 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'data-max-quantity="2.00"')
         self.assertContains(response, 'data-max-value="150.00"')
         paciente = response.context['cards'][0]['pacientes'][0]
+        atendimentos_paciente = response.context['cards'][0][
+            'atendimentos_paciente'
+        ]
         self.assertEqual(paciente['total_atendimentos'], 1)
+        self.assertEqual(len(atendimentos_paciente), 1)
+        self.assertEqual(atendimentos_paciente[0]['nm_paciente'], 'Maria da Silva')
+        self.assertEqual(atendimentos_paciente[0]['cd_atendimento'], 789)
         self.assertEqual(paciente['atendimentos'][0]['total_grupos'], 1)
         self.assertEqual(
             paciente['atendimentos'][0]['grupos_procedimento'][0][
@@ -1786,6 +2107,69 @@ class FollowUpGlosasTests(TestCase):
                 'conciliacao_remessa_id': 12,
             },
         )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_separa_cards_por_atendimento_e_codigo_item_tem_fallback(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        paciente = payload['cards'][0]['pacientes'][0]
+        item_original = paciente['itens'][0]
+        segundo_item = {
+            **item_original,
+            'cd_atendimento': 790,
+            'cd_pro_fat': 'PROC-20',
+            'cd_tuss': '',
+            'codigo_servico': '',
+            'descricao': 'Procedimento sem código TUSS',
+            'dt_atendimento': '2026-07-05T08:00:00',
+            'dt_alta': '2026-07-06T10:00:00',
+            'tp_atendimento': 'Urgência',
+            'cd_gru_fat': 2,
+            'ds_gru_fat': 'PROCEDIMENTOS CLÍNICOS',
+            'registro_glosa': {
+                **item_original['registro_glosa'],
+                'id': 72,
+            },
+        }
+        paciente['itens'].append(segundo_item)
+        paciente['valor_itens'] = '300.00'
+        payload['cards'][0]['valor_itens'] = '300.00'
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        agrupamentos = response.context['cards'][0][
+            'atendimentos_paciente'
+        ]
+        self.assertEqual(len(agrupamentos), 2)
+        self.assertEqual(
+            [item['cd_atendimento'] for item in agrupamentos],
+            [789, 790],
+        )
+        self.assertEqual(
+            agrupamentos[1]['dt_atendimento_formatada'],
+            '05/07/2026',
+        )
+        self.assertEqual(agrupamentos[1]['dt_alta_formatada'], '06/07/2026')
+        self.assertEqual(agrupamentos[1]['tp_atendimento'], 'Urgência')
+        codigos = [
+            item['codigo_item']
+            for atendimento in agrupamentos
+            for grupo in atendimento['grupos_procedimento']
+            for item in grupo['itens']
+        ]
+        self.assertEqual(codigos, ['1714', 'PROC-20'])
+        self.assertContains(response, 'PROCEDIMENTOS CLÍNICOS')
+        self.assertContains(response, 'cell-mono">PROC-20</td>')
 
     @patch('core.views.api_put')
     def test_recursar_atualiza_registro_analitico_existente(self, api_put):
@@ -1822,6 +2206,7 @@ class FollowUpGlosasTests(TestCase):
                 'data_glosa': '2026-07-10',
                 'dt_pagamento': '2026-07-10',
                 'motivo_glosa': '1016 - Motivo TISS',
+                'cd_tuss': '1714',
                 'processo_recurso': 'REC-71',
                 'dt_recurso': '2026-07-11',
                 'qtd_glosada': '1',
@@ -1852,8 +2237,70 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['ds_gru_pro'], 'Diagnóstico')
         self.assertEqual(payload['cd_gru_fat'], 1)
         self.assertEqual(payload['ds_gru_fat'], 'EXAMES E DIAGNÓSTICOS')
+        self.assertEqual(payload['cd_tuss'], '1714')
+        self.assertEqual(payload['motivo_glosa'], '1016')
         self.assertEqual(payload['processo_recurso'], 'REC-71')
         self.assertEqual(payload['valor_recursado'], 75.0)
+
+    @patch('core.views.api_put')
+    def test_acatar_registra_tratamento_no_item_existente(self, api_put):
+        api_put.return_value = {'id': 72, 'sn_glosado': 'not'}
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'registro_glosa_id': '71',
+                'sn_glosado': 'not',
+                'motivo_glosa': '1714',
+                'dt_recurso': '2026-07-11',
+                'qtd_glosada': '1',
+                'valor_glosado': 'R$ 25,00',
+                'descricao_glosa': 'Valor acatado pelo hospital',
+                'form_action': 'salvar',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content,
+            {
+                'ok': True,
+                'message': 'Valor acatado no Follow-Up de Glosas.',
+                'tag': 'warning',
+                'payload': {'id': 72, 'sn_glosado': 'not'},
+            },
+        )
+        path, payload = api_put.call_args.args
+        self.assertTrue(path.endswith('/71'))
+        self.assertEqual(payload['sn_glosado'], 'not')
+        self.assertEqual(payload['motivo_glosa'], '1714')
+        self.assertEqual(payload['qtd_recursado'], 1)
+        self.assertEqual(payload['valor_recursado'], 25.0)
+
+    @patch('core.views.api_delete')
+    def test_excluir_tratamento_desfaz_registro_existente(self, api_delete):
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'registro_glosa_id': '72',
+                'form_action': 'desfazer',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content,
+            {
+                'ok': True,
+                'message': 'Tratamento desfeito no Follow-Up de Glosas.',
+                'tag': 'warning',
+                'payload': None,
+            },
+        )
+        api_delete.assert_called_once()
+        self.assertTrue(api_delete.call_args.args[0].endswith('/72'))
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
@@ -1909,14 +2356,10 @@ class FollowUpGlosasTests(TestCase):
         )
         self.assertContains(
             response,
-            "this.motivoTratado = acato ? "
-            "this.motivoAcato : this.motivoRecusa;",
+            "this.motivoTratado = (acato ? "
+            "this.motivoAcato : this.motivoRecusa) || this.motivoOrigem;",
         )
-        self.assertContains(
-            response,
-            "@follow-up-tiss-reason.window=",
-        )
-        self.assertContains(response, ':required="modal !== \'acatar\'"', count=3)
+        self.assertContains(response, ':required="modal !== \'acatar\'"')
 
 
 class ConciliacaoFaturamentoTests(TestCase):
