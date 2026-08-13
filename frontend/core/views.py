@@ -2189,6 +2189,31 @@ def format_api_date(value):
     return text
 
 
+def format_api_month_year(value):
+    if not value:
+        return "-"
+    if isinstance(value, datetime | date):
+        return value.strftime("%m/%Y")
+
+    text = str(value).strip()
+    if not text:
+        return "-"
+
+    normalized = text.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).strftime("%m/%Y")
+    except ValueError:
+        pass
+
+    if len(text) >= 7 and text[4:5] == "-":
+        try:
+            return datetime.strptime(text[:7], "%Y-%m").strftime("%m/%Y")
+        except ValueError:
+            return text
+
+    return text
+
+
 def format_api_date_input(value):
     if not value:
         return ""
@@ -3056,6 +3081,8 @@ def attach_registros_glosa(contas, filtros):
 
 
 def build_registro_glosa_payload(data):
+    motivo_glosa = str(data.get("motivo_glosa") or "").strip()
+    motivo_glosa_codigo = motivo_glosa.split(" - ", 1)[0].strip()
     return {
         "codigo_paciente": as_int_or_zero(data.get("cd_paciente")),
         "nm_paciente": data.get("nm_paciente") or None,
@@ -3067,6 +3094,7 @@ def build_registro_glosa_payload(data):
         "cd_convenio": as_int_or_zero(data.get("cd_convenio")),
         "tp_atendimento": data.get("tp_atendimento") or "",
         "procedimento": str(data.get("cd_pro_fat") or ""),
+        "cd_tuss": str(data.get("cd_tuss") or "").strip() or None,
         "convenio": data.get("nm_convenio") or "",
         "guia": str(data.get("nr_guia") or data.get("cd_guia") or ""),
         "prestador": data.get("nm_prestador") or "",
@@ -3078,7 +3106,7 @@ def build_registro_glosa_payload(data):
         "processo_controle_fatura_gab": data.get("processo_controle_fatura_gab") or "",
         "processo_recurso": data.get("processo_recurso") or None,
         "data_glosa": data.get("data_glosa") or None,
-        "motivo_glosa": data.get("motivo_glosa") or "",
+        "motivo_glosa": motivo_glosa_codigo,
         "descricao_glosa": data.get("descricao_glosa") or "",
         "qtd_registro": as_float_or_none(data.get("qt_lancamento")),
         "descricao_item": data.get("descricao") or None,
@@ -3099,10 +3127,29 @@ def prepare_follow_up_glosas_cards(cards):
     prepared_cards = []
     for card_data in cards:
         card = dict(card_data)
+        card["data_competencia_formatada"] = format_api_month_year(
+            card.get("data_competencia")
+        )
         card["data_entrega_formatada"] = format_api_date(
             card.get("data_entrega")
         )
+        card["detalhe_dom_id"] = (
+            str(card.get("conciliacao_remessa_id"))
+            if card.get("conciliacao_remessa_id")
+            else f"cogestao-{card.get('cd_remessa') or 'sem-remessa'}"
+        )
+        processo = dict(card.get("processo") or {})
+        processo["data_abertura_formatada"] = format_api_date(
+            processo.get("data_abertura")
+        )
+        card["processo"] = processo
+        fiscal = dict(card.get("fiscal") or {})
+        fiscal["data_emissao_formatada"] = format_api_date(
+            fiscal.get("data_emissao")
+        )
+        card["fiscal"] = fiscal
         pacientes = []
+        atendimentos_paciente = []
         total_itens = 0
         for paciente_data in card.get("pacientes") or []:
             paciente = dict(paciente_data)
@@ -3135,6 +3182,18 @@ def prepare_follow_up_glosas_cards(cards):
                 item["registro_acato"] = registro_acato
                 item["registro_glosa_id"] = registro.get("id")
                 item["registro_glosa_status"] = canonical_glosa_status(registro)
+                item["processo_origem"] = (
+                    processo.get("numero_processo")
+                    or registro.get("processo_controle_fatura_gab")
+                    or item.get("processo_controle_fatura_gab")
+                    or ""
+                )
+                item["data_glosa_input"] = format_api_date_input(
+                    item.get("data_glosa")
+                )
+                item["dt_pagamento_input"] = format_api_date_input(
+                    item.get("dt_pagamento")
+                )
                 item["dt_alta_formatada"] = format_api_date(
                     item.get("dt_alta")
                 )
@@ -3144,15 +3203,29 @@ def prepare_follow_up_glosas_cards(cards):
                 item["dt_atendimento_formatada"] = format_api_date(
                     item.get("dt_atendimento")
                 )
+                item["codigo_item"] = (
+                    str(item.get("cd_tuss") or "").strip()
+                    or str(item.get("cd_pro_fat") or "").strip()
+                    or str(item.get("codigo_servico") or "").strip()
+                )
                 itens.append(item)
-                atendimento_key = item.get("cd_atendimento") or 0
+                atendimento_key = (
+                    item.get("cd_atendimento") or 0,
+                    item.get("dt_atendimento") or "",
+                    item.get("dt_alta") or "",
+                    item.get("tp_atendimento") or "",
+                )
                 if atendimento_key not in atendimentos:
                     atendimentos[atendimento_key] = {
-                        "cd_atendimento": atendimento_key,
+                        "codigo_paciente": paciente.get("codigo_paciente"),
+                        "nm_paciente": paciente.get("nm_paciente"),
+                        "cd_atendimento": item.get("cd_atendimento") or 0,
                         "tp_atendimento": item.get("tp_atendimento"),
                         "dt_atendimento_formatada": item.get(
                             "dt_atendimento_formatada"
                         ),
+                        "dt_alta_formatada": item.get("dt_alta_formatada"),
+                        "nm_convenio": item.get("nm_convenio"),
                         "grupos_procedimento_map": {},
                         "ordem_grupos_procedimento": [],
                         "total_itens": 0,
@@ -3188,6 +3261,7 @@ def prepare_follow_up_glosas_cards(cards):
                 atendimento["grupos_procedimento"] = grupos_procedimento
                 atendimento["total_grupos"] = len(grupos_procedimento)
                 atendimentos_preparados.append(atendimento)
+                atendimentos_paciente.append(atendimento)
             paciente["itens"] = itens
             paciente["atendimentos"] = atendimentos_preparados
             paciente["total_atendimentos"] = len(atendimentos_preparados)
@@ -3195,10 +3269,58 @@ def prepare_follow_up_glosas_cards(cards):
             total_itens += len(itens)
             pacientes.append(paciente)
         card["pacientes"] = pacientes
+        card["atendimentos_paciente"] = atendimentos_paciente
         card["total_pacientes"] = len(pacientes)
         card["total_itens"] = total_itens
         prepared_cards.append(card)
     return prepared_cards
+
+
+def group_follow_up_glosas_by_process(cards):
+    grouped = {}
+    order = []
+    for card in cards:
+        processo = dict(card.get("processo") or {})
+        numero_processo = str(
+            processo.get("numero_processo") or ""
+        ).strip()
+        key = (
+            f"processo:{numero_processo.casefold()}"
+            if numero_processo
+            else f"remessa:{card.get('conciliacao_remessa_id')}"
+        )
+        if key not in grouped:
+            grouped[key] = {
+                "processo": processo,
+                "convenio": "-",
+                "valor_total": 0.0,
+                "valor_glosado": 0.0,
+                "valor_total_tratado": 0.0,
+                "valor_glosa_pendente": 0.0,
+                "remessas": [],
+            }
+            order.append(key)
+
+        group = grouped[key]
+        group["remessas"].append(card)
+        group["valor_total"] += as_float_or_zero(card.get("valor_itens"))
+        group["valor_glosado"] += as_float_or_zero(card.get("valor_glosado"))
+        group["valor_total_tratado"] += as_float_or_zero(
+            card.get("valor_total_tratado")
+        )
+        group["valor_glosa_pendente"] += as_float_or_zero(
+            card.get("valor_glosa_pendente")
+        )
+
+    process_groups = []
+    for key in order:
+        group = grouped[key]
+        group["convenio"] = unique_join(
+            card.get("convenio") for card in group["remessas"]
+        )
+        group["total_remessas"] = len(group["remessas"])
+        process_groups.append(group)
+    return process_groups
 
 
 def normalize_flag(value):
@@ -5637,13 +5759,6 @@ def follow_up_glosas(request):
     if request.method == "POST":
         registro_id = request.POST.get("registro_glosa_id")
         form_action = request.POST.get("form_action") or "salvar"
-        if not registro_id:
-            return modal_action_response(
-                request,
-                "Registro analítico da glosa não encontrado.",
-                "error",
-                status=400,
-            )
         try:
             if form_action == "desfazer":
                 api_delete(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}")
@@ -5656,10 +5771,16 @@ def follow_up_glosas(request):
 
             payload = build_registro_glosa_payload(request.POST)
             is_acatar = payload.get("sn_glosado") == "not"
-            api_payload = api_put(
-                f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}",
-                payload,
-            )
+            if registro_id:
+                api_payload = api_put(
+                    f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}",
+                    payload,
+                )
+            else:
+                api_payload = api_post(
+                    settings.API_REGISTRO_GLOSA_PATH,
+                    payload,
+                )
             clear_filter_caches()
             return modal_action_response(
                 request,
@@ -5687,9 +5808,21 @@ def follow_up_glosas(request):
             )
 
     filtros = {
-        "numero_nfse": (request.GET.get("numero_nfse") or "").strip(),
-        "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
+        "processo_original": (
+            request.GET.get("processo_original") or ""
+        ).strip(),
+        "processo_recurso": (
+            request.GET.get("processo_recurso") or ""
+        ).strip(),
         "convenio": (request.GET.get("convenio") or "").strip(),
+        "paciente": (request.GET.get("paciente") or "").strip(),
+        "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
+        "cd_atendimento": (
+            request.GET.get("cd_atendimento") or ""
+        ).strip(),
+        "tipo_atendimento": (
+            request.GET.get("tipo_atendimento") or ""
+        ).strip(),
     }
     detalhar_vinculo = as_int_or_zero(
         request.GET.get("detalhar_vinculo")
@@ -5700,7 +5833,7 @@ def follow_up_glosas(request):
     cards = []
     total = 0
     resumo = {
-        "remessas": 0,
+        "quantidade_glosas": 0,
         "valor_total_glosado": 0,
         "valor_total_pendente": 0,
         "valor_total_tratado": 0,
@@ -5715,6 +5848,7 @@ def follow_up_glosas(request):
         if detalhar_vinculo:
             api_params["conciliacao_remessa_id"] = detalhar_vinculo
         else:
+            api_params["agrupar_por_processo"] = "true"
             api_params.update(
                 {
                     key: value
@@ -5726,17 +5860,29 @@ def follow_up_glosas(request):
         cards_api = response.get("cards") or []
         if not detalhar_vinculo:
             cards_api = [
-                {**card, "pacientes": []}
+                {
+                    **card,
+                    "pacientes": (
+                        []
+                        if card.get("conciliacao_remessa_id")
+                        else card.get("pacientes") or []
+                    ),
+                }
                 for card in cards_api
             ]
         cards = prepare_follow_up_glosas_cards(cards_api)
         for card in cards:
-            card["detalhes_carregados"] = bool(detalhar_vinculo)
+            card["detalhes_carregados"] = (
+                bool(detalhar_vinculo)
+                or not card.get("conciliacao_remessa_id")
+            )
         total = as_int_or_zero(response.get("total"))
         limit = as_positive_int(response.get("limit"), limit)
         offset = as_int_or_zero(response.get("offset"))
         resumo = {
-            "remessas": total,
+            "quantidade_glosas": as_int_or_zero(
+                response.get("quantidade_glosas")
+            ),
             "valor_total_glosado": as_float_or_zero(
                 response.get("valor_total_glosado")
             ),
@@ -5753,18 +5899,7 @@ def follow_up_glosas(request):
         else:
             messages.error(request, format_api_error(exc, "Follow-Up de Glosas"))
 
-    tiss_motivos = []
-    try:
-        payload_tiss = get_cached_api_payload(
-            CONTA_TISS_CACHE_KEY,
-            settings.API_TISS_PATH,
-            {"limit": 600},
-        )
-        if isinstance(payload_tiss, dict):
-            tiss_motivos = payload_tiss.get("itens", [])
-    except ApiError as exc:
-        messages.error(request, format_api_error(exc, "Consulta TISS"))
-
+    processos = group_follow_up_glosas_by_process(cards)
     base_query = {key: value for key, value in filtros.items() if value}
     total_pages = max(ceil(total / limit), 1)
     if page > total_pages:
@@ -5791,7 +5926,7 @@ def follow_up_glosas(request):
             else ""
         ),
         "start": offset + 1 if cards and total else 0,
-        "end": min(offset + len(cards), total),
+        "end": min(offset + len(processos), total),
         "total": total,
         "query": base_query,
     }
@@ -5800,6 +5935,7 @@ def follow_up_glosas(request):
         "follow_up_glosas.html",
         {
             "cards": cards,
+            "processos": processos,
             "filtros": filtros,
             "convenios": get_convenio_dropdown_options(
                 filtros["convenio"]
@@ -5807,7 +5943,7 @@ def follow_up_glosas(request):
             "resumo": resumo,
             "pagination": pagination,
             "consulta_indisponivel": consulta_indisponivel,
-            "tiss_motivos": tiss_motivos,
+            "tipos_atendimento": TIPOS_ATENDIMENTO,
         },
     )
 
