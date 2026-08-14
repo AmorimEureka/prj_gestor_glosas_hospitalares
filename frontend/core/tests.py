@@ -2362,6 +2362,118 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, ':required="modal !== \'acatar\'"')
 
 
+class AssociacoesRemessasIpmTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Núcleo de Glosas',
+            'email': 'glosas@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+    @patch('core.views.api_get')
+    def test_renderiza_processo_e_remessas_oracle(self, api_get):
+        api_get.return_value = {
+            'total': 1,
+            'processos': [
+                {
+                    'numero_processo': 'P123/2026',
+                    'competencia_producao': '05/2026',
+                    'data_abertura': '2026-06-01',
+                    'convenio': 'IPM',
+                    'status': 'FINALIZADO',
+                    'valor_protocolado': '1000.00',
+                    'valor_aprovado': '900.00',
+                    'valor_glosado': '100.00',
+                    'nrs': [
+                        {
+                            'nr': 'NR-100',
+                            'valor_protocolado': '1000.00',
+                            'valor_aprovado': '900.00',
+                            'valor_glosado': '100.00',
+                            'associacoes': [],
+                            'remessas': [
+                                {
+                                    'cd_remessa': 16040,
+                                    'competencia': '05/2026',
+                                    'nm_convenio': 'IPM',
+                                    'valor_total': '1000.00',
+                                    'associacao_id': None,
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+
+        response = self.client.get('/associacoes-remessas-ipm/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'P123/2026')
+        self.assertContains(response, '#16040')
+        self.assertContains(response, 'Associar')
+        self.assertContains(response, '<small>NR</small>')
+        self.assertContains(response, 'NR-100')
+
+    @patch('core.views.api_post')
+    def test_associa_remessa_ao_processo(self, api_post):
+        response = self.client.post(
+            '/associacoes-remessas-ipm/',
+            {
+                'acao': 'associar',
+                'numero_processo': 'P123/2026',
+                'competencia_producao': '05/2026',
+                'nr': 'NR-100',
+                'cd_remessa': '16040',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-remessas-ipm',
+            {
+                'numero_processo': 'P123/2026',
+                'competencia_producao': '05/2026',
+                'nr': 'NR-100',
+                'cd_remessa': 16040,
+            },
+        )
+
+    @patch('core.views.api_put')
+    def test_edita_associacao(self, api_put):
+        response = self.client.post(
+            '/associacoes-remessas-ipm/',
+            {
+                'acao': 'editar',
+                'associacao_id': '9',
+                'cd_remessa': '16041',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_put.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-remessas-ipm/9',
+            {'cd_remessa': 16041},
+        )
+
+    @patch('core.views.api_delete')
+    def test_exclui_associacao(self, api_delete):
+        response = self.client.post(
+            '/associacoes-remessas-ipm/',
+            {'acao': 'excluir', 'associacao_id': '9'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_delete.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-remessas-ipm/9'
+        )
+
+
 class ConciliacaoFaturamentoTests(TestCase):
     def setUp(self):
         cache.clear()
