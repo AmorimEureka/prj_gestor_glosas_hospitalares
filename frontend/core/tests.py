@@ -1812,7 +1812,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260814-associacoes-remessas-1',
+            '?v=20260814-associacoes-remessas-2',
             base_template.read_text(),
         )
 
@@ -2379,6 +2379,14 @@ class AssociacoesRemessasIpmTests(TestCase):
     def test_renderiza_processo_e_remessas_oracle(self, api_get):
         api_get.return_value = {
             'total': 1,
+            'limit': 10,
+            'offset': 0,
+            'resumo': {
+                'processos_pendentes': 1,
+                'nrs_pendentes': 1,
+                'associacoes_realizadas': 0,
+                'remessas_disponiveis': 1,
+            },
             'processos': [
                 {
                     'numero_processo': 'P123/2026',
@@ -2421,6 +2429,16 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, 'Associar')
         self.assertContains(response, '<small>NR</small>')
         self.assertContains(response, 'NR-100')
+        self.assertContains(response, 'Processos pendentes')
+        self.assertContains(response, 'NRs pendentes')
+        self.assertContains(response, 'Associações realizadas')
+        self.assertContains(response, 'Remessas disponíveis')
+        self.assertContains(response, '>Expandir</button>')
+        self.assertContains(response, '>Colapsar todos</button>')
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-remessas-ipm',
+            params={'limit': 10, 'offset': 0},
+        )
         css = Path(finders.find('css/app.css')).read_text()
         self.assertIn(
             '.ipm-association-page {\n'
@@ -2430,11 +2448,44 @@ class AssociacoesRemessasIpmTests(TestCase):
         )
         self.assertIn(
             '.ipm-association-list {\n'
+            '  flex: 1 1 0;\n'
             '  min-height: 0;\n'
             '  padding-right: 4px;\n'
             '  overflow-x: hidden;\n'
             '  overflow-y: auto;',
             css,
+        )
+
+    @patch('core.views.api_get')
+    def test_pagina_processos_preservando_filtros(self, api_get):
+        api_get.return_value = {
+            'total': 21,
+            'limit': 10,
+            'offset': 10,
+            'processos': [
+                {
+                    'numero_processo': 'P456/2026',
+                    'competencia_producao': '06/2026',
+                    'nrs': [],
+                }
+            ],
+        }
+
+        response = self.client.get(
+            '/associacoes-remessas-ipm/',
+            {'page': 2, 'competencia': '06/2026'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '11-11 de 21 processos exibidos')
+        self.assertContains(response, 'Página 2 de 3')
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-remessas-ipm',
+            params={
+                'competencia': '06/2026',
+                'limit': 10,
+                'offset': 10,
+            },
         )
 
     @patch('core.views.api_post')

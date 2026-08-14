@@ -4699,12 +4699,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .ipm-association-list {
+  flex: 1 1 0;
   min-height: 0;
   padding-right: 4px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.ipm-association-page > .pagination-footer {
+  flex: 0 0 auto;
 }
 
 .ipm-association-list,
