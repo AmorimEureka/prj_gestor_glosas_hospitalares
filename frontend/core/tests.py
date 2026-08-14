@@ -1812,7 +1812,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260812-follow-up-glosas-18',
+            '?v=20260814-associacoes-remessas-1',
             base_template.read_text(),
         )
 
@@ -2414,11 +2414,28 @@ class AssociacoesRemessasIpmTests(TestCase):
         response = self.client.get('/associacoes-remessas-ipm/')
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>Associações de Remessas</h1>')
+        self.assertNotContains(response, 'Associações de Remessas IPM')
         self.assertContains(response, 'P123/2026')
         self.assertContains(response, '#16040')
         self.assertContains(response, 'Associar')
         self.assertContains(response, '<small>NR</small>')
         self.assertContains(response, 'NR-100')
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            '.ipm-association-page {\n'
+            '  display: flex;\n'
+            '  flex: 1 1 auto;',
+            css,
+        )
+        self.assertIn(
+            '.ipm-association-list {\n'
+            '  min-height: 0;\n'
+            '  padding-right: 4px;\n'
+            '  overflow-x: hidden;\n'
+            '  overflow-y: auto;',
+            css,
+        )
 
     @patch('core.views.api_post')
     def test_associa_remessa_ao_processo(self, api_post):
