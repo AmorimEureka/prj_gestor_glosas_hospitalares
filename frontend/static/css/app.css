@@ -4686,6 +4686,126 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 /* ── Follow-Up de Glosas ─────────────────────────────── */
+.association-filter-row {
+  grid-template-columns: minmax(180px, 0.4fr) minmax(280px, 1fr) auto;
+}
+
+.ipm-association-list,
+.ipm-process-body,
+.ipm-remittance-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ipm-process-card,
+.ipm-nr-card {
+  overflow: hidden;
+  border: 1px solid #cddce5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ipm-process-header,
+.ipm-nr-header {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ipm-process-header {
+  grid-template-columns: 18px repeat(5, minmax(105px, 1fr)) repeat(3, minmax(110px, 0.9fr));
+  border-left: 4px solid #d98c2b;
+  background: #fbfdfe;
+  padding: 14px 16px 14px 12px;
+}
+
+.ipm-process-body {
+  border-top: 1px solid #dce6ec;
+  background: #f5f8fa;
+  padding: 12px;
+}
+
+.ipm-nr-header {
+  grid-template-columns: 18px minmax(130px, 1fr) repeat(3, minmax(120px, 1fr)) minmax(140px, auto);
+  border-left: 4px solid #5e91a5;
+  background: #eef6f8;
+  padding: 11px 14px 11px 10px;
+}
+
+.ipm-nr-body {
+  border-top: 1px solid #d8e5eb;
+  padding: 10px;
+}
+
+.ipm-remittance-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr)) minmax(130px, 1fr) minmax(190px, auto);
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #d6e2e8;
+  border-radius: 7px;
+  background: #fff;
+  padding: 11px 14px;
+}
+
+.ipm-remittance-card--selected {
+  border-color: #4d9b73;
+  background: #f0faf5;
+  box-shadow: inset 4px 0 0 #2f855a;
+}
+
+.ipm-remittance-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.association-status,
+.association-linked-label {
+  justify-self: end;
+  border: 1px solid #e4b56d;
+  border-radius: 999px;
+  background: #fff7e8;
+  color: #915b08;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.association-status--linked,
+.association-linked-label {
+  border-color: #91c7aa;
+  background: #edf9f2;
+  color: #24734f;
+}
+
+.association-no-remittance {
+  border: 1px dashed #cbd9e1;
+  border-radius: 7px;
+  color: var(--muted);
+  padding: 14px;
+  text-align: center;
+}
+
+@media (max-width: 1200px) {
+  .ipm-process-header,
+  .ipm-nr-header,
+  .ipm-remittance-card {
+    grid-template-columns: 18px repeat(2, minmax(150px, 1fr));
+  }
+
+  .ipm-remittance-actions {
+    justify-content: flex-start;
+  }
+}
+
 .follow-up-glosa-search {
   flex: 1 1 480px;
   max-width: 720px;

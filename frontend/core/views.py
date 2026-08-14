@@ -59,6 +59,9 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
     f"{CONCILIACAO_FATURAMENTO_PATH}/conciliacoes"
 )
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
+ASSOCIACOES_REMESSAS_IPM_PATH = (
+    "/app_glosas/financeiro/associacoes-remessas-ipm"
+)
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
 REQUISICOES_NOTA_PATH = "/app_glosas/requisicoes"
@@ -5944,6 +5947,92 @@ def follow_up_glosas(request):
             "pagination": pagination,
             "consulta_indisponivel": consulta_indisponivel,
             "tipos_atendimento": TIPOS_ATENDIMENTO,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def associacoes_remessas_ipm(request):
+    if request.method == "POST":
+        acao = (request.POST.get("acao") or "associar").strip()
+        associacao_id = as_int_or_zero(request.POST.get("associacao_id"))
+        try:
+            if acao == "excluir":
+                api_delete(
+                    f"{ASSOCIACOES_REMESSAS_IPM_PATH}/{associacao_id}"
+                )
+                messages.success(request, "Associação manual excluída.")
+            else:
+                payload = {
+                    "numero_processo": request.POST.get(
+                        "numero_processo", ""
+                    ),
+                    "competencia_producao": request.POST.get(
+                        "competencia_producao", ""
+                    ),
+                    "nr": request.POST.get("nr", ""),
+                    "cd_remessa": as_int_or_zero(
+                        request.POST.get("cd_remessa")
+                    ),
+                }
+                if associacao_id:
+                    api_put(
+                        f"{ASSOCIACOES_REMESSAS_IPM_PATH}/{associacao_id}",
+                        {"cd_remessa": payload["cd_remessa"]},
+                    )
+                    messages.success(request, "Associação manual atualizada.")
+                else:
+                    api_post(ASSOCIACOES_REMESSAS_IPM_PATH, payload)
+                    messages.success(request, "Remessa associada ao NR.")
+            clear_filter_caches()
+            query = {}
+            if request.POST.get("competencia"):
+                query["competencia"] = request.POST["competencia"]
+            if request.POST.get("numero_processo_filtro"):
+                query["numero_processo"] = request.POST[
+                    "numero_processo_filtro"
+                ]
+            return redirect(
+                f"{request.path}?{urlencode(query)}" if query else request.path
+            )
+        except ApiError as exc:
+            messages.error(
+                request,
+                format_api_error(exc, "Associação manual de remessa"),
+            )
+
+    filtros = {
+        "competencia": (request.GET.get("competencia") or "").strip(),
+        "numero_processo": (
+            request.GET.get("numero_processo") or ""
+        ).strip(),
+    }
+    processos = []
+    consulta_indisponivel = False
+    try:
+        payload = api_get(
+            ASSOCIACOES_REMESSAS_IPM_PATH,
+            params={key: value for key, value in filtros.items() if value},
+        )
+        processos = payload.get("processos") or []
+        for processo in processos:
+            processo["data_abertura_formatada"] = format_api_date(
+                processo.get("data_abertura")
+            )
+    except ApiError as exc:
+        consulta_indisponivel = is_service_unavailable_error(exc)
+        if not consulta_indisponivel:
+            messages.error(
+                request,
+                format_api_error(exc, "Associações manuais IPM"),
+            )
+    return render(
+        request,
+        "associacoes_remessas_ipm.html",
+        {
+            "processos": processos,
+            "filtros": filtros,
+            "consulta_indisponivel": consulta_indisponivel,
         },
     )
 
