@@ -4701,6 +4701,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .ipm-association-list {
   flex: 1 1 0;
   min-height: 0;
+  align-content: start;
+  grid-auto-rows: max-content;
   padding-right: 4px;
   overflow-x: hidden;
   overflow-y: auto;
@@ -4852,7 +4854,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .follow-up-glosa-card-header {
   display: grid;
-  grid-template-columns: 18px minmax(105px, 0.9fr) minmax(130px, 1.1fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr) repeat(4, minmax(105px, 0.85fr));
+  grid-template-columns: 18px minmax(105px, 0.9fr) minmax(120px, 1fr) repeat(2, minmax(85px, 0.7fr)) minmax(105px, 0.85fr) repeat(4, minmax(100px, 0.8fr));
   align-items: center;
   gap: 12px;
   width: 100%;

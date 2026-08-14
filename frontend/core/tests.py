@@ -1766,6 +1766,7 @@ class FollowUpGlosasTests(TestCase):
         rotulos = (
             'PROCESSO',
             'CONVÊNIO',
+            'COMP. PROD.',
             'DT. ABERTURA',
             'STATUS',
             'VALOR TOTAL',
@@ -1779,6 +1780,11 @@ class FollowUpGlosasTests(TestCase):
         )
         self.assertContains(response, '#987')
         self.assertContains(response, '#988')
+        self.assertContains(
+            response,
+            '<small>COMP. PROD.</small><strong>07/2026</strong>',
+            html=True,
+        )
         self.assertContains(
             response,
             '<small>DT. ABERTURA</small><strong>09/07/2026</strong>',
@@ -1812,7 +1818,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260814-associacoes-remessas-2',
+            '?v=20260814-associacoes-remessas-3',
             base_template.read_text(),
         )
 
@@ -2450,6 +2456,8 @@ class AssociacoesRemessasIpmTests(TestCase):
             '.ipm-association-list {\n'
             '  flex: 1 1 0;\n'
             '  min-height: 0;\n'
+            '  align-content: start;\n'
+            '  grid-auto-rows: max-content;\n'
             '  padding-right: 4px;\n'
             '  overflow-x: hidden;\n'
             '  overflow-y: auto;',
