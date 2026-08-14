@@ -3321,6 +3321,10 @@ def group_follow_up_glosas_by_process(cards):
         group["convenio"] = unique_join(
             card.get("convenio") for card in group["remessas"]
         )
+        group["competencia_producao"] = unique_join(
+            card.get("data_competencia_formatada")
+            for card in group["remessas"]
+        )
         group["total_remessas"] = len(group["remessas"])
         process_groups.append(group)
     return process_groups
