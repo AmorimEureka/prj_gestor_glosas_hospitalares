@@ -4690,6 +4690,23 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns: minmax(180px, 0.4fr) minmax(280px, 1fr) auto;
 }
 
+.ipm-association-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ipm-association-list {
+  min-height: 0;
+  padding-right: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .ipm-association-list,
 .ipm-process-body,
 .ipm-remittance-list {
