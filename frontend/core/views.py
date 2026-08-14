@@ -5992,6 +5992,8 @@ def associacoes_remessas_ipm(request):
                 query["numero_processo"] = request.POST[
                     "numero_processo_filtro"
                 ]
+            if request.POST.get("page"):
+                query["page"] = request.POST["page"]
             return redirect(
                 f"{request.path}?{urlencode(query)}" if query else request.path
             )
@@ -6008,13 +6010,31 @@ def associacoes_remessas_ipm(request):
         ).strip(),
     }
     processos = []
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    total = 0
+    resumo = {
+        "processos_pendentes": 0,
+        "nrs_pendentes": 0,
+        "associacoes_realizadas": 0,
+        "remessas_disponiveis": 0,
+    }
     consulta_indisponivel = False
     try:
         payload = api_get(
             ASSOCIACOES_REMESSAS_IPM_PATH,
-            params={key: value for key, value in filtros.items() if value},
+            params={
+                **{key: value for key, value in filtros.items() if value},
+                "limit": limit,
+                "offset": offset,
+            },
         )
         processos = payload.get("processos") or []
+        total = as_int_or_zero(payload.get("total"))
+        limit = as_positive_int(payload.get("limit"), limit)
+        offset = as_int_or_zero(payload.get("offset"))
+        resumo.update(payload.get("resumo") or {})
         for processo in processos:
             processo["data_abertura_formatada"] = format_api_date(
                 processo.get("data_abertura")
@@ -6026,12 +6046,44 @@ def associacoes_remessas_ipm(request):
                 request,
                 format_api_error(exc, "Associações manuais IPM"),
             )
+    base_query = {key: value for key, value in filtros.items() if value}
+    total_pages = max(ceil(total / limit), 1)
+    if page > total_pages:
+        return redirect(
+            f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
+        )
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**base_query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**base_query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "start": offset + 1 if processos and total else 0,
+        "end": min(offset + len(processos), total),
+        "total": total,
+        "query": base_query,
+    }
     return render(
         request,
         "associacoes_remessas_ipm.html",
         {
             "processos": processos,
             "filtros": filtros,
+            "resumo": resumo,
+            "pagination": pagination,
             "consulta_indisponivel": consulta_indisponivel,
         },
     )

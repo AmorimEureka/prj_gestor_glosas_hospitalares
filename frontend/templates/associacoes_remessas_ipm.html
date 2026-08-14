@@ -23,11 +23,43 @@
   </form>
 </section>
 
-<section class="panel ipm-association-page">
+<section class="panel results-summary-panel ipm-association-page">
   <div class="panel-header">
-    <div>
-      <span class="panel-title">Processos pendentes de associação</span>
-      <span class="results-subtitle">{{ processos|length }} processo{{ processos|length|pluralize }} sem remessa Oracle definida</span>
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Processos pendentes de associação</span>
+        {% if pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} processos exibidos</span>
+        {% endif %}
+      </div>
+      {% if processos %}
+      <div class="collapse-actions">
+        <button type="button" class="collapse-action" onclick="window.associationExpandLevel = Math.min((window.associationExpandLevel || 0) + 1, 2); window.dispatchEvent(new CustomEvent('expand-association-level-' + window.associationExpandLevel))">Expandir</button>
+        <button type="button" class="collapse-action" onclick="window.associationExpandLevel = 0; window.dispatchEvent(new CustomEvent('collapse-all-associations'))">Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total"><span>Processos pendentes</span><strong>{{ resumo.processos_pendentes }}</strong></span>
+        <span class="result-total"><span>NRs pendentes</span><strong>{{ resumo.nrs_pendentes }}</strong></span>
+        <span class="result-total result-total--treated"><span>Associações realizadas</span><strong>{{ resumo.associacoes_realizadas }}</strong></span>
+        <span class="result-total"><span>Remessas disponíveis</span><strong>{{ resumo.remessas_disponiveis }}</strong></span>
+      </div>
+      {% if pagination.total %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="association-page-select">Página</label>
+          <select id="association-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+      </div>
+      {% endif %}
     </div>
   </div>
 
@@ -41,7 +73,7 @@
   {% else %}
   <div class="ipm-association-list">
     {% for processo in processos %}
-    <article class="ipm-process-card" x-data="{ open: false }">
+    <article class="ipm-process-card" x-data="{ open: false }" @expand-association-level-1.window="open = true" @collapse-all-associations.window="open = false">
       <button type="button" class="ipm-process-header" @click="open = !open" :aria-expanded="open">
         <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
         <span class="follow-up-glosa-card-field"><small>PROCESSO</small><strong>{{ processo.numero_processo }}</strong></span>
@@ -56,7 +88,7 @@
 
       <div class="ipm-process-body" x-show="open" x-cloak>
         {% for nr in processo.nrs %}
-        <article class="ipm-nr-card" x-data="{ openNr: false }">
+        <article class="ipm-nr-card" x-data="{ openNr: (window.associationExpandLevel || 0) >= 2 }" @expand-association-level-2.window="openNr = true" @collapse-all-associations.window="openNr = false">
           <button type="button" class="ipm-nr-header" @click="openNr = !openNr" :aria-expanded="openNr">
             <span class="follow-up-glosa-chevron" :class="{ 'is-open': openNr }">&#9654;</span>
             <span class="follow-up-glosa-card-field"><small>NR</small><strong>{{ nr.nr }}</strong></span>
@@ -82,6 +114,7 @@
                 <input type="hidden" name="associacao_id" value="{{ remessa.associacao_id }}">
                 <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
                 <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                <input type="hidden" name="page" value="{{ pagination.page }}">
                 <select name="cd_remessa" class="form-select form-select-sm" aria-label="Alterar remessa associada">
                   {% for opcao in nr.remessas %}
                   <option value="{{ opcao.cd_remessa }}" {% if opcao.cd_remessa == remessa.cd_remessa %}selected{% endif %}>#{{ opcao.cd_remessa }} · R$ {{ opcao.valor_total|br_currency }}</option>
@@ -95,6 +128,7 @@
                 <input type="hidden" name="associacao_id" value="{{ remessa.associacao_id }}">
                 <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
                 <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                <input type="hidden" name="page" value="{{ pagination.page }}">
                 <button class="btn btn-outline-danger btn-sm">Excluir</button>
               </form>
               {% else %}
@@ -107,6 +141,7 @@
                 <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
                 <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
                 <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                <input type="hidden" name="page" value="{{ pagination.page }}">
                 <button class="btn btn-primary btn-sm">Associar</button>
               </form>
               {% endif %}
@@ -126,6 +161,13 @@
     </article>
     {% endfor %}
   </div>
+  {% if pagination.total_pages > 1 %}
+  <div class="pagination-footer">
+    {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
+    <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}
+  </div>
+  {% endif %}
   {% endif %}
 </section>
 {% endblock %}
