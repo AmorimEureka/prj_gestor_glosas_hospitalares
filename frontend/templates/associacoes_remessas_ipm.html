@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
+{% block page_title %}Associações de Remessas IPM{% endblock %}
+{% block content %}
+
+<section class="panel filter-panel">
+  <form class="remessa-filters" method="get">
+    <div class="filter-row association-filter-row">
+      <div class="filter-group">
+        <label for="association-competencia">Competência de produção</label>
+        <input id="association-competencia" name="competencia" value="{{ filtros.competencia }}" class="form-control" inputmode="numeric" placeholder="MM/AAAA">
+      </div>
+      <div class="filter-group association-process-filter">
+        <label for="association-processo">Processo</label>
+        <input id="association-processo" name="numero_processo" value="{{ filtros.numero_processo }}" class="form-control" placeholder="Número do processo">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary">Filtrar</button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel ipm-association-page">
+  <div class="panel-header">
+    <div>
+      <span class="panel-title">Processos pendentes de associação</span>
+      <span class="results-subtitle">{{ processos|length }} processo{{ processos|length|pluralize }} sem remessa Oracle definida</span>
+    </div>
+  </div>
+
+  {% if consulta_indisponivel %}
+  <div class="service-unavailable">
+    <div class="service-unavailable-icon" aria-hidden="true">!</div>
+    <div><strong>Consulta temporariamente indisponível</strong><p>Não foi possível consultar as associações IPM.</p></div>
+  </div>
+  {% elif not processos %}
+  <div class="empty-state"><strong>Nenhum processo pendente</strong><p>Não há processos em <code>glossas_nao_vinculadas_ipm</code> aguardando associação com remessas.</p></div>
+  {% else %}
+  <div class="ipm-association-list">
+    {% for processo in processos %}
+    <article class="ipm-process-card" x-data="{ open: false }">
+      <button type="button" class="ipm-process-header" @click="open = !open" :aria-expanded="open">
+        <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
+        <span class="follow-up-glosa-card-field"><small>PROCESSO</small><strong>{{ processo.numero_processo }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA PRODUÇÃO</small><strong>{{ processo.competencia_producao }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>DT. ABERTURA</small><strong>{{ processo.data_abertura_formatada|default:"-" }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ processo.convenio }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>STATUS</small><strong>{{ processo.status|default:"-" }}</strong></span>
+        <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROTOCOLADO</small><strong>R$ {{ processo.valor_protocolado|br_currency }}</strong></span>
+        <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>APROVADO</small><strong>R$ {{ processo.valor_aprovado|br_currency }}</strong></span>
+        <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ processo.valor_glosado|br_currency }}</strong></span>
+      </button>
+
+      <div class="ipm-process-body" x-show="open" x-cloak>
+        {% for nr in processo.nrs %}
+        <article class="ipm-nr-card" x-data="{ openNr: false }">
+          <button type="button" class="ipm-nr-header" @click="openNr = !openNr" :aria-expanded="openNr">
+            <span class="follow-up-glosa-chevron" :class="{ 'is-open': openNr }">&#9654;</span>
+            <span class="follow-up-glosa-card-field"><small>NR</small><strong>{{ nr.nr }}</strong></span>
+            <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROTOCOLADO</small><strong>R$ {{ nr.valor_protocolado|br_currency }}</strong></span>
+            <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>APROVADO</small><strong>R$ {{ nr.valor_aprovado|br_currency }}</strong></span>
+            <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ nr.valor_glosado|br_currency }}</strong></span>
+            {% if nr.associacoes %}<span class="association-status association-status--linked">Remessa associada</span>{% else %}<span class="association-status">Aguardando associação</span>{% endif %}
+          </button>
+          <div class="ipm-nr-body" x-show="openNr" x-cloak>
+          {% if nr.remessas %}
+          <div class="ipm-remittance-list">
+          {% for remessa in nr.remessas %}
+          <div class="ipm-remittance-card {% if remessa.associacao_id %}ipm-remittance-card--selected{% endif %}">
+            <span class="follow-up-glosa-card-field"><small>REMESSA ORACLE</small><strong>#{{ remessa.cd_remessa }}</strong></span>
+            <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ remessa.competencia }}</strong></span>
+            <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ remessa.nm_convenio|default:"IPM" }}</strong></span>
+            <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ remessa.valor_total|br_currency }}</strong></span>
+            <div class="ipm-remittance-actions">
+              {% if remessa.associacao_id %}
+              <form method="post" class="association-edit-form">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="editar">
+                <input type="hidden" name="associacao_id" value="{{ remessa.associacao_id }}">
+                <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
+                <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                <select name="cd_remessa" class="form-select form-select-sm" aria-label="Alterar remessa associada">
+                  {% for opcao in nr.remessas %}
+                  <option value="{{ opcao.cd_remessa }}" {% if opcao.cd_remessa == remessa.cd_remessa %}selected{% endif %}>#{{ opcao.cd_remessa }} · R$ {{ opcao.valor_total|br_currency }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary btn-sm">Editar</button>
+              </form>
+              <form method="post" onsubmit="return confirm('Excluir esta associação manual?')">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="excluir">
+                <input type="hidden" name="associacao_id" value="{{ remessa.associacao_id }}">
+                <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
+                <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                <button class="btn btn-outline-danger btn-sm">Excluir</button>
+              </form>
+              {% else %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="associar">
+                <input type="hidden" name="numero_processo" value="{{ processo.numero_processo }}">
+                <input type="hidden" name="competencia_producao" value="{{ processo.competencia_producao }}">
+                <input type="hidden" name="nr" value="{{ nr.nr }}">
+                <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
+                <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
+                <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                <button class="btn btn-primary btn-sm">Associar</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+          </div>
+          {% else %}
+          <div class="association-no-remittance">Nenhuma remessa Oracle livre foi encontrada para {{ processo.competencia_producao }} e o convênio {{ processo.convenio }}.</div>
+          {% endif %}
+          </div>
+        </article>
+        {% empty %}
+        <div class="association-no-remittance">Nenhum NR pendente foi localizado no demonstrativo.</div>
+        {% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -26,6 +26,11 @@ urlpatterns = [
         name="user_access_management",
     ),
     path("follow-up-glosas/", views.follow_up_glosas, name="follow_up_glosas"),
+    path(
+        "associacoes-remessas-ipm/",
+        views.associacoes_remessas_ipm,
+        name="associacoes_remessas_ipm",
+    ),
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),
     path(
