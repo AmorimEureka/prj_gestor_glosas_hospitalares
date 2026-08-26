@@ -9,14 +9,16 @@ from math import ceil, log10
 from hashlib import sha256
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
+import requests
 from django.contrib import messages
 from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
-from django.urls import Resolver404, resolve
+from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .access import (
     ROUTE_PERMISSIONS,
@@ -35,6 +37,10 @@ from .services import (
     api_patch,
     api_post,
     api_put,
+)
+from .spu_recaptcha import (
+    SpuNovncUnavailable,
+    get_spu_recaptcha_status,
 )
 
 PATIENTS_PER_PAGE = 10
@@ -61,8 +67,14 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
 )
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
+DESCRICOES_AGRUPADAS_GLOSA_PATH = (
+    "/app_glosas/glosas/descricoes-agrupadas"
+)
 PROCESSOS_RECURSO_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/recursos-processos"
 PROCESSOS_RECURSO_TIMEOUT = 60
+PROCESSOS_RECURSO_CACHE_SECONDS = int(
+    getattr(settings, "RECURSOS_CACHE_SECONDS", 300)
+)
 ASSOCIACOES_REMESSAS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-remessas-ipm"
 )
@@ -78,6 +90,110 @@ NFSE_EXTERNAS_PATH = f"{REQUISICOES_NOTA_PATH}/nfse-externas"
 ACOMPANHAMENTO_PARTICULAR_PATH = (
     f"{REQUISICOES_NOTA_PATH}/acompanhamento-particular"
 )
+
+
+@require_GET
+def spu_recaptcha_status(request):
+    try:
+        status = get_spu_recaptcha_status()
+    except SpuNovncUnavailable:
+        status = {
+            "active": False,
+            "challenge_id": "",
+            "dag_id": "",
+            "task_id": "",
+            "started_at": None,
+            "expires_at": None,
+        }
+        available = False
+    else:
+        available = True
+
+    response = JsonResponse(
+        {
+            **status,
+            "available": available,
+            "configured": bool(settings.SPU_NOVNC_PASSWORD),
+            "poll_seconds": settings.SPU_RECAPTCHA_POLL_SECONDS,
+        }
+    )
+    response["Cache-Control"] = "no-store, private"
+    return response
+
+
+@xframe_options_sameorigin
+@require_GET
+def spu_recaptcha_viewer(request):
+    try:
+        status = get_spu_recaptcha_status()
+    except SpuNovncUnavailable as exc:
+        return HttpResponse(str(exc), status=503, content_type="text/plain")
+    if not status["active"]:
+        return HttpResponse(
+            "Não há reCAPTCHA do SPU aguardando resolução.",
+            status=409,
+            content_type="text/plain",
+        )
+    if not settings.SPU_NOVNC_PASSWORD:
+        return HttpResponse(
+            "SPU_NOVNC_PASSWORD não foi configurada no Receita Certa.",
+            status=503,
+            content_type="text/plain",
+        )
+
+    novnc_path = reverse(
+        "spu_novnc_asset",
+        kwargs={"asset_path": "vnc.html"},
+    )
+    query = urlencode(
+        {
+            "autoconnect": "true",
+            "resize": "scale",
+            "reconnect": "true",
+            "path": "automacao/spu/vnc/websockify",
+        }
+    )
+    password_fragment = urlencode(
+        {"password": settings.SPU_NOVNC_PASSWORD}
+    )
+    return redirect(f"{novnc_path}?{query}#{password_fragment}")
+
+
+@xframe_options_sameorigin
+@require_GET
+def spu_novnc_asset(request, asset_path):
+    parts = asset_path.split("/")
+    if not asset_path or any(part in {"", ".", ".."} for part in parts):
+        return HttpResponse(status=404)
+    if asset_path == "websockify":
+        return HttpResponse(status=426)
+
+    try:
+        upstream = requests.get(
+            f"{settings.SPU_NOVNC_INTERNAL_URL}/{asset_path}",
+            params=list(request.GET.lists()),
+            timeout=settings.SPU_NOVNC_TIMEOUT,
+        )
+    except requests.RequestException:
+        return HttpResponse(
+            "O desktop do SPU não está disponível.",
+            status=502,
+            content_type="text/plain",
+        )
+
+    response = HttpResponse(
+        upstream.content,
+        status=upstream.status_code,
+        content_type=upstream.headers.get(
+            "Content-Type",
+            "application/octet-stream",
+        ),
+    )
+    for header in ("Cache-Control", "ETag", "Last-Modified"):
+        if value := upstream.headers.get(header):
+            response[header] = value
+    upstream.close()
+    return response
 ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY = (
     "acompanhamento_particular_calendario"
 )
@@ -3187,6 +3303,14 @@ def prepare_follow_up_glosas_cards(cards):
                 item["registro_glosa"] = registro
                 item["registro_recusa"] = registro_recusa
                 item["registro_acato"] = registro_acato
+                item["recurso_preenchido"] = bool(
+                    registro_recusa.get("id")
+                    and registro_recusa.get("dt_recurso")
+                )
+                item["acato_preenchido"] = bool(
+                    registro_acato.get("id")
+                    and registro_acato.get("dt_recurso")
+                )
                 item["registro_glosa_id"] = registro.get("id")
                 item["registro_glosa_status"] = canonical_glosa_status(registro)
                 item["processo_origem"] = (
@@ -3236,6 +3360,12 @@ def prepare_follow_up_glosas_cards(cards):
                         "grupos_procedimento_map": {},
                         "ordem_grupos_procedimento": [],
                         "total_itens": 0,
+                        "total_recursos": 0,
+                        "total_acatos": 0,
+                        "estado_dom_id": (
+                            f"{card['detalhe_dom_id']}-atendimento-"
+                            f"{len(ordem_atendimentos) + 1}"
+                        ),
                     }
                     ordem_atendimentos.append(atendimento_key)
                 atendimento = atendimentos[atendimento_key]
@@ -3254,6 +3384,10 @@ def prepare_follow_up_glosas_cards(cards):
                     "itens"
                 ].append(item)
                 atendimento["total_itens"] += 1
+                if item["recurso_preenchido"]:
+                    atendimento["total_recursos"] += 1
+                if item["acato_preenchido"]:
+                    atendimento["total_acatos"] += 1
             atendimentos_preparados = []
             for atendimento_key in ordem_atendimentos:
                 atendimento = atendimentos[atendimento_key]
@@ -5474,18 +5608,32 @@ def build_api_cache_key(namespace, path, params=None):
     return f"api:{namespace}:{digest}"
 
 
-def get_cached_api_payload(namespace, path, params=None, force_refresh=False):
+def get_cached_api_payload(
+    namespace,
+    path,
+    params=None,
+    force_refresh=False,
+    timeout=None,
+    cache_seconds=None,
+):
     cache_key = build_api_cache_key(namespace, path, params)
     if force_refresh:
         cache.delete(cache_key)
 
     payload = cache.get(cache_key)
     if payload is None:
-        payload = api_get(path, params)
+        if timeout is None:
+            payload = api_get(path, params)
+        else:
+            payload = api_get(path, params, timeout=timeout)
         cache.set(
             cache_key,
             payload,
-            getattr(settings, "APP_FILTER_CACHE_SECONDS", 45),
+            (
+                cache_seconds
+                if cache_seconds is not None
+                else getattr(settings, "APP_FILTER_CACHE_SECONDS", 45)
+            ),
         )
     return payload
 
@@ -5947,6 +6095,88 @@ def follow_up_glosas(request):
     if request.method == "POST":
         registro_id = request.POST.get("registro_glosa_id")
         form_action = request.POST.get("form_action") or "salvar"
+        if form_action == "salvar_descricoes_agrupadas":
+            selecionados = list(
+                dict.fromkeys(
+                    request.POST.getlist("registros_selecionados")
+                )
+            )
+            registros_por_tipo = {"recurso": [], "acato": []}
+            tipos_invalidos = set()
+            for selecionado in selecionados:
+                tipo, _, registro_id_selecionado = selecionado.partition(":")
+                registro_id_normalizado = as_int_or_zero(
+                    registro_id_selecionado
+                )
+                if tipo not in registros_por_tipo or not registro_id_normalizado:
+                    tipos_invalidos.add(tipo or "pendente")
+                    continue
+                registros_por_tipo[tipo].append(registro_id_normalizado)
+            tipos_selecionados = {
+                tipo for tipo, ids in registros_por_tipo.items() if ids
+            }
+            descricao_lote = (
+                request.POST.get("descricao_lote") or ""
+            ).strip()
+            if tipos_invalidos:
+                return modal_action_response(
+                    request,
+                    "Preencha o recurso ou o acato dos itens selecionados "
+                    "antes de salvar a descrição coletiva.",
+                    "error",
+                    status=400,
+                )
+            if len(tipos_selecionados) != 1:
+                return modal_action_response(
+                    request,
+                    "Todos os registros selecionados devem ser do mesmo "
+                    "tipo: somente recursos ou somente acatos.",
+                    "error",
+                    status=400,
+                )
+            if not descricao_lote:
+                return modal_action_response(
+                    request,
+                    "Informe a descrição dos registros selecionados.",
+                    "error",
+                    status=400,
+                )
+            tipo_selecionado = tipos_selecionados.pop()
+            recursos_ids = registros_por_tipo["recurso"]
+            acatos_ids = registros_por_tipo["acato"]
+            try:
+                api_payload = api_patch(
+                    DESCRICOES_AGRUPADAS_GLOSA_PATH,
+                    {
+                        "recursos_ids": recursos_ids,
+                        "descricao_recurso": (
+                            descricao_lote
+                            if tipo_selecionado == "recurso"
+                            else None
+                        ),
+                        "acatos_ids": acatos_ids,
+                        "descricao_acato": (
+                            descricao_lote
+                            if tipo_selecionado == "acato"
+                            else None
+                        ),
+                    },
+                )
+                clear_filter_caches()
+                return modal_action_response(
+                    request,
+                    "Descrições dos tratamentos selecionados foram salvas.",
+                    "success",
+                    api_payload=api_payload,
+                )
+            except ApiError as exc:
+                return modal_action_response(
+                    request,
+                    "Falha ao salvar as descrições: "
+                    + extract_api_error_message(exc),
+                    "error",
+                    status=400,
+                )
         try:
             if form_action == "desfazer":
                 api_delete(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}")
@@ -6002,6 +6232,9 @@ def follow_up_glosas(request):
         "processo_recurso": (
             request.GET.get("processo_recurso") or ""
         ).strip(),
+        "numero_protocolo": (
+            request.GET.get("numero_protocolo") or ""
+        ).strip(),
         "convenio": (request.GET.get("convenio") or "").strip(),
         "paciente": (request.GET.get("paciente") or "").strip(),
         "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
@@ -6044,7 +6277,11 @@ def follow_up_glosas(request):
                     if value
                 }
             )
-        response = api_get(FOLLOW_UP_GLOSAS_PATH, params=api_params)
+        response = api_get(
+            FOLLOW_UP_GLOSAS_PATH,
+            params=api_params,
+            timeout=60,
+        )
         cards_api = response.get("cards") or []
         if not detalhar_vinculo:
             cards_api = [
@@ -6733,10 +6970,8 @@ def recursos(request):
 
     filtros = {
         "processo_original": (request.GET.get("processo_original") or "").strip(),
-        "processo_recurso": (request.GET.get("processo_recurso") or "").strip(),
         "paciente": (request.GET.get("paciente") or "").strip(),
         "periodo": (request.GET.get("periodo") or "").strip(),
-        "situacao": (request.GET.get("situacao") or "").strip(),
     }
     page = as_positive_int(request.GET.get("page"), 1)
     limit = 10
@@ -6752,10 +6987,12 @@ def recursos(request):
                "quantidade_com_processo_recurso": 0,
                "quantidade_sem_processo_recurso": 0}
     try:
-        payload = api_get(
+        payload = get_cached_api_payload(
+            "recursos-processos",
             PROCESSOS_RECURSO_PATH,
             params=params,
             timeout=PROCESSOS_RECURSO_TIMEOUT,
+            cache_seconds=PROCESSOS_RECURSO_CACHE_SECONDS,
         )
     except ApiError as exc:
         messages.error(request, format_api_error(exc, "Recursos"))

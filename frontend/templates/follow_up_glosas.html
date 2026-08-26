@@ -16,6 +16,10 @@
         <input id="follow-up-glosa-processo-recurso" name="processo_recurso" value="{{ filtros.processo_recurso }}" class="form-control" placeholder="Número do recurso">
       </div>
       <div class="filter-group">
+        <label for="follow-up-glosa-numero-protocolo">Protocolo TRUE</label>
+        <input id="follow-up-glosa-numero-protocolo" name="numero_protocolo" value="{{ filtros.numero_protocolo }}" class="form-control" inputmode="numeric" placeholder="Número do protocolo">
+      </div>
+      <div class="filter-group">
         <label for="follow-up-glosa-paciente">Paciente</label>
         <input id="follow-up-glosa-paciente" name="paciente" value="{{ filtros.paciente }}" class="form-control" placeholder="Nome parcial">
       </div>
@@ -141,7 +145,9 @@
       {% for processo_card in processos %}
       <article
         class="follow-up-glosa-card"
-        x-data="{ open: false }"
+        data-follow-up-expansion-kind="processo"
+        data-follow-up-expansion-key="processo-{{ forloop.counter }}"
+        x-data="{ open: window.isFollowUpExpanded('processo', 'processo-{{ forloop.counter }}') }"
         @expand-follow-up-level-1.window="open = true"
         @collapse-all-follow-up.window="open = false"
       >
@@ -164,16 +170,18 @@
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ processo_card.valor_total_tratado|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR PENDENTE</small><strong>R$ {{ processo_card.valor_glosa_pendente|br_currency }}</strong></span>
           </button>
-          {% if processo_card.possui_recurso %}
-          <a
-            class="follow-up-glosa-pdf-action"
-            href="{% url 'follow_up_glosas_recurso_pdf' %}?processo_original={{ processo_card.processo.numero_processo|urlencode }}"
-            target="_blank"
-            rel="noopener"
-            title="Gerar PDF consolidado do recurso"
-            aria-label="Gerar PDF dos recursos do processo {{ processo_card.processo.numero_processo }}"
-          >PDF</a>
-          {% endif %}
+          <span class="follow-up-glosa-pdf-slot">
+            {% if processo_card.possui_recurso %}
+            <a
+              class="follow-up-glosa-pdf-action"
+              href="{% url 'follow_up_glosas_recurso_pdf' %}?processo_original={{ processo_card.processo.numero_processo|urlencode }}"
+              target="_blank"
+              rel="noopener"
+              title="Gerar PDF consolidado do recurso"
+              aria-label="Gerar PDF dos recursos do processo {{ processo_card.processo.numero_processo }}"
+            >PDF</a>
+            {% endif %}
+          </span>
         </div>
 
         <div id="follow-up-process-remessas-{{ forloop.counter }}" class="follow-up-glosa-card-body" x-show="open" x-cloak>
@@ -181,8 +189,10 @@
           {% for card in processo_card.remessas %}
           <section
             class="follow-up-glosa-remessa"
+            data-follow-up-expansion-kind="remessa"
+            data-follow-up-expansion-key="{{ card.detalhe_dom_id }}"
             x-data="{
-              remessaOpen: (window.followUpExpandLevel || 0) >= 2,
+              remessaOpen: window.isFollowUpExpanded('remessa', '{{ card.detalhe_dom_id }}') || (window.followUpExpandLevel || 0) >= 2,
               loadDetails() {
                 this.$nextTick(() => htmx.trigger(this.$refs.remessaHeader, 'follow-up-load'));
               },
@@ -195,6 +205,7 @@
                 this.loadDetails();
               }
             }"
+            x-init="if (remessaOpen) loadDetails()"
             @expand-follow-up-level-2.window="expandRemessa()"
             @collapse-all-follow-up.window="remessaOpen = false"
           >
@@ -228,7 +239,29 @@
           {% for atendimento in card.atendimentos_paciente %}
           <section
             class="follow-up-glosa-patient"
-            x-data="{ patientOpen: (window.followUpExpandLevel || 0) >= 3 }"
+            data-follow-up-expansion-kind="paciente"
+            data-follow-up-expansion-key="{{ atendimento.estado_dom_id }}"
+            x-data="{
+              patientOpen: window.isFollowUpExpanded('paciente', '{{ atendimento.estado_dom_id }}') || (window.followUpExpandLevel || 0) >= 3,
+              selectedItems: 0,
+              selectedType: '',
+              selectionError: '',
+              updateBatchSelection() {
+                const checked = Array.from(this.$root.querySelectorAll('input[name=registros_selecionados]:checked'));
+                const types = new Set(checked.map((input) => input.dataset.treatmentType));
+                this.selectedItems = checked.length;
+                this.selectedType = types.size === 1 ? Array.from(types)[0] : '';
+                if (types.has('pendente')) {
+                  this.selectionError = 'Preencha o recurso ou o acato dos itens selecionados antes de salvar.';
+                } else if (types.has('misto')) {
+                  this.selectionError = 'Há item com recurso e acato preenchidos. Mantenha apenas uma tratativa por item na seleção.';
+                } else if (types.size > 1) {
+                  this.selectionError = 'Selecione somente registros do mesmo tipo: todos recursos ou todos acatos.';
+                } else {
+                  this.selectionError = '';
+                }
+              }
+            }"
             @expand-follow-up-level-3.window="patientOpen = true"
             @collapse-all-follow-up.window="patientOpen = false"
           >
@@ -327,6 +360,20 @@
                           <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+RECUSAR</button>
                           <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ACATO</button>
                           {% endif %}
+                          {% if atendimento.total_itens > 1 %}
+                          <label class="follow-up-glosa-batch-check" title="Selecionar registro para descrição coletiva">
+                            {% if item.recurso_preenchido and not item.acato_preenchido %}
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="recurso:{{ item.registro_recusa.id }}" data-treatment-type="recurso" @change="updateBatchSelection()">
+                            {% elif item.acato_preenchido and not item.recurso_preenchido %}
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="acato:{{ item.registro_acato.id }}" data-treatment-type="acato" @change="updateBatchSelection()">
+                            {% elif item.recurso_preenchido and item.acato_preenchido %}
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="misto:{{ item.registro_glosa.id|default:'0' }}" data-treatment-type="misto" @change="updateBatchSelection()">
+                            {% else %}
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="pendente:{{ item.registro_glosa.id|default:'0' }}" data-treatment-type="pendente" @change="updateBatchSelection()">
+                            {% endif %}
+                            <span>Selecionar</span>
+                          </label>
+                          {% endif %}
                         </div>
 
                         {% if item.tratativa_disponivel or item.registro_glosa.id %}
@@ -410,6 +457,14 @@
                                       <input type="text" class="form-control form-control-readonly" value="R$ {{ item.vl_total_conta|br_currency }}" readonly aria-readonly="true">
                                     </div>
                                     <div class="glosa-field">
+                                      <label>Qtd glosada</label>
+                                      <input type="text" class="form-control form-control-readonly" value="{{ item.qtd_glosada|default:item.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Valor glosado</label>
+                                      <input type="text" class="form-control form-control-readonly" value="R$ {{ item.valor_glosa|br_currency }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
                                       <label x-text="modal === 'acatar' ? 'Qtd Acatada *' : 'Qtd Recursada *'"></label>
                                       <input type="number" step="1" min="1" max="{{ item.qt_lancamento }}" data-max-quantity="{{ item.qt_lancamento }}" inputmode="numeric" name="qtd_glosada" class="form-control" x-model="qtdTratada" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                     </div>
@@ -445,6 +500,39 @@
                 </section>
                 {% endfor %}
                 </div>
+                {% if atendimento.total_itens > 1 %}
+                <form
+                  id="follow-up-batch-{{ atendimento.estado_dom_id }}"
+                  method="post"
+                  class="follow-up-glosa-batch-form"
+                  data-has-registro="false"
+                  data-reload-on-success="true"
+                  onsubmit="return window.handleGlosaSubmit(this, event);"
+                >
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="salvar_descricoes_agrupadas">
+                  <div class="follow-up-glosa-batch-heading">
+                    <div>
+                      <strong>Descrição coletiva dos itens selecionados</strong>
+                      <span>A descrição individual informada no modal terá prioridade no PDF.</span>
+                    </div>
+                    <span x-text="`${selectedItems} selecionado(s)`"></span>
+                  </div>
+                  <div class="follow-up-glosa-batch-grid">
+                    <div class="glosa-field">
+                      <label for="descricao-lote-{{ atendimento.estado_dom_id }}" x-text="selectedType === 'acato' ? 'Descrição dos acatos selecionados' : (selectedType === 'recurso' ? 'Descrição dos recursos selecionados' : 'Descrição dos registros selecionados')"></label>
+                      <textarea id="descricao-lote-{{ atendimento.estado_dom_id }}" name="descricao_lote" class="form-control" rows="3" :required="selectedItems > 0 && !selectionError" :disabled="selectedItems === 0 || Boolean(selectionError)" placeholder="Descrição única para os registros marcados"></textarea>
+                    </div>
+                  </div>
+                  <p class="follow-up-glosa-batch-error" x-show="selectionError" x-text="selectionError" role="alert"></p>
+                  <div class="follow-up-glosa-batch-actions">
+                    <button class="btn btn-primary" :disabled="selectedItems === 0 || Boolean(selectionError)">
+                      <span class="submit-label">Salvar descrições</span>
+                      <span class="loading-label">Salvando...</span>
+                    </button>
+                  </div>
+                </form>
+                {% endif %}
               </div>
             </template>
           </section>
@@ -479,6 +567,39 @@
   {% endif %}
 </section>
 <script>
+  window.followUpExpansionStorageKey = 'followUpGlosasExpansionState';
+  window.followUpExpansionState = (() => {
+    try {
+      const state = JSON.parse(sessionStorage.getItem(window.followUpExpansionStorageKey) || '{}');
+      return state.url === window.location.pathname + window.location.search ? state : {};
+    } catch (_error) {
+      return {};
+    }
+  })();
+  window.isFollowUpExpanded = (kind, key) => (
+    window.followUpExpansionState[kind] || []
+  ).includes(String(key));
+  window.captureFollowUpExpansionState = () => {
+    const state = {
+      url: window.location.pathname + window.location.search,
+      processo: [],
+      remessa: [],
+      paciente: []
+    };
+    const selectors = {
+      processo: '.follow-up-glosa-card-header',
+      remessa: '.follow-up-glosa-remessa-header',
+      paciente: '.follow-up-glosa-patient-header'
+    };
+    document.querySelectorAll('[data-follow-up-expansion-kind]').forEach((element) => {
+      const kind = element.dataset.followUpExpansionKind;
+      const button = element.querySelector(selectors[kind]);
+      if (button?.getAttribute('aria-expanded') === 'true') {
+        state[kind].push(String(element.dataset.followUpExpansionKey));
+      }
+    });
+    sessionStorage.setItem(window.followUpExpansionStorageKey, JSON.stringify(state));
+  };
   window.followUpExpandLevel = 0;
 </script>
 {% endblock %}
