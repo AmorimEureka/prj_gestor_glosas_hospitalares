@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import date
 from pathlib import Path
 from threading import Barrier
@@ -5,7 +6,7 @@ from unittest.mock import Mock, call, patch
 
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 
 from core.access import SCREEN_KEYS
 from core.services import ApiError
@@ -957,6 +958,102 @@ class DashboardIndicadoresTests(TestCase):
         self.assertIn('Motivo B: 1 acato', indicadores['mensal'][0]['motivos_tooltip'])
 
 
+@override_settings(
+    SPU_NOVNC_PASSWORD='vnc12345',
+    SPU_RECAPTCHA_POLL_SECONDS=5,
+)
+class SpuRecaptchaModalTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Usuário SPU',
+            'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+    @patch('core.views.get_spu_recaptcha_status')
+    def test_status_expõe_desafio_ao_usuario_logado(self, get_status):
+        get_status.return_value = {
+            'active': True,
+            'challenge_id': 'desafio-123',
+            'dag_id': 'extracao_processos_virtuais_spu',
+            'task_id': 'carregar_processos',
+            'started_at': '2026-08-24T08:00:00+00:00',
+            'expires_at': '2099-08-24T08:30:00+00:00',
+        }
+
+        response = self.client.get('/automacao/spu/recaptcha/status/')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['active'])
+        self.assertTrue(payload['configured'])
+        self.assertEqual(payload['challenge_id'], 'desafio-123')
+        self.assertEqual(response['Cache-Control'], 'no-store, private')
+
+    @patch('core.views.get_spu_recaptcha_status')
+    def test_tela_conecta_sem_exibir_prompt_de_senha(self, get_status):
+        get_status.return_value = {
+            'active': True,
+            'challenge_id': 'desafio-123',
+        }
+
+        response = self.client.get('/automacao/spu/recaptcha/tela/')
+
+        self.assertEqual(response.status_code, 302)
+        location = response['Location']
+        self.assertIn('/automacao/spu/vnc/vnc.html?', location)
+        self.assertIn('autoconnect=true', location)
+        self.assertIn('path=automacao%2Fspu%2Fvnc%2Fwebsockify', location)
+        self.assertIn('#password=vnc12345', location)
+        self.assertEqual(response['X-Frame-Options'], 'SAMEORIGIN')
+
+    @patch('core.views.requests.get')
+    def test_assets_novnc_passam_pelo_frontend_autenticado(self, get):
+        upstream = Mock()
+        upstream.content = b'export const client = true;'
+        upstream.status_code = 200
+        upstream.headers = {'Content-Type': 'text/javascript'}
+        get.return_value = upstream
+
+        response = self.client.get('/automacao/spu/vnc/app/ui.js')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'export const client = true;')
+        self.assertEqual(response['X-Frame-Options'], 'SAMEORIGIN')
+        get.assert_called_once()
+        self.assertEqual(
+            get.call_args.args[0],
+            'http://spu-novnc:6080/app/ui.js',
+        )
+        upstream.close.assert_called_once_with()
+
+    def test_rotas_do_modal_exigem_login(self):
+        session = self.client.session
+        session.flush()
+
+        response = self.client.get('/automacao/spu/recaptcha/status/')
+
+        self.assertRedirects(
+            response,
+            '/login/?next=%2Fautomacao%2Fspu%2Frecaptcha%2Fstatus%2F',
+            fetch_redirect_response=False,
+        )
+
+    def test_template_base_contem_modal_minimizavel(self):
+        template = (
+            Path(__file__).resolve().parent.parent / 'templates' / 'base.html'
+        ).read_text(encoding='utf-8')
+
+        self.assertIn('id="spu-recaptcha-layer"', template)
+        self.assertIn('id="spu-recaptcha-frame"', template)
+        self.assertIn('Resolver reCAPTCHA do SPU', template)
+        self.assertIn("window.setTimeout(poll, pollDelay)", template)
+
+
 class LoginFlowTests(TestCase):
     def test_renderiza_tela_de_login(self):
         response = self.client.get('/login/')
@@ -1725,6 +1822,13 @@ class FollowUpGlosasTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, '>PDF</a>')
+        self.assertContains(response, 'class="follow-up-glosa-pdf-slot"')
+
+        css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn(
+            'grid-template-columns: minmax(0, 1fr) 74px;',
+            css,
+        )
 
     @patch('core.views.api_get_stream')
     def test_proxy_entrega_pdf_do_recurso_autenticado(
@@ -1873,6 +1977,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(response.context['cards'][0]['pacientes'], [])
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 0,
@@ -1988,6 +2093,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 10,
@@ -2091,7 +2197,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260821-recursos-sem-sublinhado',
+            '?v=20260826-follow-up-single-select',
             base_template.read_text(),
         )
 
@@ -2123,6 +2229,7 @@ class FollowUpGlosasTests(TestCase):
             {
                 'processo_original': 'CONC-12',
                 'processo_recurso': 'REC-71',
+                'numero_protocolo': '5028418',
                 'paciente': 'Maria',
                 'cd_remessa': '987',
                 'convenio': 'IPM',
@@ -2136,7 +2243,8 @@ class FollowUpGlosasTests(TestCase):
         pagination = response.context['pagination']
         query = (
             'processo_original=CONC-12&processo_recurso=REC-71&'
-            'convenio=IPM&paciente=Maria&cd_remessa=987&'
+            'numero_protocolo=5028418&convenio=IPM&paciente=Maria&'
+            'cd_remessa=987&'
             'cd_atendimento=789&tipo_atendimento=Interna%C3%A7%C3%A3o'
         )
         self.assertEqual(pagination['previous_url'], f'?{query}&page=1')
@@ -2145,6 +2253,10 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(
             response,
             '<option value="IPM" selected>IPM</option>',
+        )
+        self.assertContains(
+            response,
+            'name="numero_protocolo" value="5028418"',
         )
         self.assertContains(response, 'Página 2 de 3')
         escaped_query = query.replace('&', '&amp;')
@@ -2160,6 +2272,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 10,
@@ -2167,6 +2280,7 @@ class FollowUpGlosasTests(TestCase):
                 'agrupar_por_processo': 'true',
                 'processo_original': 'CONC-12',
                 'processo_recurso': 'REC-71',
+                'numero_protocolo': '5028418',
                 'paciente': 'Maria',
                 'cd_remessa': '987',
                 'convenio': 'IPM',
@@ -2385,6 +2499,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 1,
                 'offset': 0,
@@ -2645,9 +2760,216 @@ class FollowUpGlosasTests(TestCase):
         )
         self.assertNotContains(response, ':required="modal !== \'acatar\'"')
 
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_modal_exibe_quantidade_e_valor_glosados_somente_leitura(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        item = payload['cards'][0]['pacientes'][0]['itens'][0]
+        item['qtd_glosada'] = '2.00'
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<label>Qtd glosada</label>', html=True)
+        self.assertContains(response, '<label>Valor glosado</label>', html=True)
+        self.assertContains(response, 'value="2" readonly aria-readonly="true"')
+        self.assertContains(
+            response,
+            'value="R$ 150,00" readonly aria-readonly="true"',
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_exibe_selecao_coletiva_em_todos_os_itens_do_paciente(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        paciente = payload['cards'][0]['pacientes'][0]
+        segundo = deepcopy(paciente['itens'][0])
+        segundo.update(
+            {
+                'cd_lancamento': 4,
+                'cd_pro_fat': 'PROC-11',
+                'descricao': 'Segundo procedimento',
+            }
+        )
+        segundo['registro_glosa']['id'] = 72
+        paciente['itens'].append(segundo)
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'name="registros_selecionados" value="pendente:71"',
+        )
+        self.assertContains(
+            response,
+            'name="registros_selecionados" value="pendente:72"',
+        )
+        self.assertContains(response, 'name="descricao_lote"')
+        self.assertContains(
+            response,
+            "querySelectorAll('input[name=registros_selecionados]:checked')",
+        )
+        self.assertNotContains(
+            response,
+            'querySelectorAll(\'input[name="registros_selecionados"]:checked\')',
+        )
+        self.assertEqual(
+            response.content.count(b'name="registros_selecionados"'),
+            2,
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_item_com_dois_tipos_exibe_apenas_uma_marcacao_com_validacao(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        paciente = payload['cards'][0]['pacientes'][0]
+        primeiro = paciente['itens'][0]
+        primeiro['registro_recusa'] = {
+            **primeiro['registro_glosa'],
+            'id': 71,
+            'sn_glosado': 'true',
+            'dt_recurso': '2026-07-11',
+        }
+        primeiro['registro_acato'] = {
+            **primeiro['registro_glosa'],
+            'id': 81,
+            'sn_glosado': 'not',
+            'dt_recurso': '2026-07-11',
+        }
+        segundo = deepcopy(primeiro)
+        segundo.update(
+            {
+                'cd_lancamento': 4,
+                'cd_pro_fat': 'PROC-11',
+                'descricao': 'Segundo procedimento',
+            }
+        )
+        segundo['registro_glosa']['id'] = 72
+        segundo['registro_recusa']['id'] = 72
+        segundo['registro_acato']['id'] = 82
+        paciente['itens'].append(segundo)
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        atendimento = response.context['cards'][0][
+            'atendimentos_paciente'
+        ][0]
+        self.assertEqual(atendimento['total_recursos'], 2)
+        self.assertEqual(atendimento['total_acatos'], 2)
+        self.assertContains(response, 'data-treatment-type="misto"', count=2)
+        self.assertEqual(
+            response.content.count(b'name="registros_selecionados"'),
+            2,
+        )
+        self.assertContains(response, 'name="descricao_lote"')
+        self.assertContains(
+            response,
+            'Selecione somente registros do mesmo tipo: todos recursos ou todos acatos.',
+        )
+        self.assertContains(
+            response,
+            'A descrição individual informada no modal terá prioridade no PDF.',
+        )
+        self.assertContains(response, 'captureFollowUpExpansionState')
+        self.assertContains(
+            response,
+            'data-follow-up-expansion-kind="paciente"',
+        )
+
+    @patch('core.views.api_patch')
+    def test_salva_descricao_coletiva_de_um_unico_tipo(self, api_patch):
+        api_patch.return_value = {
+            'recursos_atualizados': [71, 72],
+            'acatos_atualizados': [],
+        }
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'form_action': 'salvar_descricoes_agrupadas',
+                'registros_selecionados': ['recurso:71', 'recurso:72'],
+                'descricao_lote': 'Descrição única dos recursos',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        api_patch.assert_called_once_with(
+            '/app_glosas/glosas/descricoes-agrupadas',
+            {
+                'recursos_ids': [71, 72],
+                'descricao_recurso': 'Descrição única dos recursos',
+                'acatos_ids': [],
+                'descricao_acato': None,
+            },
+        )
+        self.assertJSONEqual(
+            response.content,
+            {
+                'ok': True,
+                'message': (
+                    'Descrições dos tratamentos selecionados foram salvas.'
+                ),
+                'tag': 'success',
+                'payload': {
+                    'recursos_atualizados': [71, 72],
+                    'acatos_atualizados': [],
+                },
+            },
+        )
+
+    @patch('core.views.api_patch')
+    def test_rejeita_selecao_coletiva_com_recurso_e_acato(self, api_patch):
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'form_action': 'salvar_descricoes_agrupadas',
+                'registros_selecionados': ['recurso:71', 'acato:81'],
+                'descricao_lote': 'Descrição inválida para tipos mistos',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        api_patch.assert_not_called()
+        self.assertIn(
+            'devem ser do mesmo tipo',
+            response.json()['message'],
+        )
+
 
 class RecursosProcessosTests(TestCase):
     def setUp(self):
+        cache.clear()
         session = self.client.session
         session['api_access_token'] = 'token-seguro'
         session['api_user'] = {
@@ -2697,11 +3019,32 @@ class RecursosProcessosTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/'
             'recursos-processos',
-            params={
+            {
                 'periodo': '07/2026',
                 'limit': 10,
                 'offset': 0,
             },
+            timeout=60,
+        )
+
+    @patch('core.views.api_get')
+    def test_limpar_reutiliza_listagem_recente(self, api_get):
+        api_get.return_value = {
+            'processos': [],
+            'total': 0,
+            'quantidade_com_processo_recurso': 0,
+            'quantidade_sem_processo_recurso': 0,
+        }
+
+        primeira = self.client.get('/recursos/')
+        segunda = self.client.get('/recursos/')
+
+        self.assertEqual(primeira.status_code, 200)
+        self.assertEqual(segunda.status_code, 200)
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/'
+            'recursos-processos',
+            {'limit': 10, 'offset': 0},
             timeout=60,
         )
 
