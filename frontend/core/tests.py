@@ -2762,6 +2762,34 @@ class FollowUpGlosasTests(TestCase):
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
+    def test_item_pendente_nao_aparece_como_recurso_salvo(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        item_context = response.context['cards'][0]['pacientes'][0][
+            'itens'
+        ][0]
+        self.assertFalse(item_context['registro_recusa'].get('id'))
+        self.assertFalse(item_context['recurso_preenchido'])
+        self.assertContains(response, "registroRecusaId: ''")
+        self.assertNotContains(
+            response,
+            'class="btn-glosar btn-glosar--filled"',
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
     def test_modal_exibe_quantidade_e_valor_glosados_somente_leitura(
         self,
         api_get,
