@@ -3147,6 +3147,7 @@ class AssociacoesRemessasIpmTests(TestCase):
                                     'nm_convenio': 'IPM',
                                     'valor_total': '1000.00',
                                     'associacao_id': None,
+                                    'indicada_pelo_portal': True,
                                 }
                             ],
                         }
@@ -3158,10 +3159,11 @@ class AssociacoesRemessasIpmTests(TestCase):
         response = self.client.get('/associacoes-remessas-ipm/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '<h1>Associações de Remessas</h1>')
+        self.assertContains(response, '<h1>Associação Manual</h1>')
         self.assertNotContains(response, 'Associações de Remessas IPM')
         self.assertContains(response, 'P123/2026')
         self.assertContains(response, '#16040')
+        self.assertContains(response, 'Indicada pelos portais')
         self.assertContains(response, 'Associar')
         self.assertContains(response, '<small>NR</small>')
         self.assertContains(response, 'NR-100')
