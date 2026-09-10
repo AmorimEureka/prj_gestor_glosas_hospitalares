@@ -852,6 +852,7 @@
         'dt_pagamento',
         'motivo_glosa',
         'processo_recurso',
+        'numero_lote',
         'dt_recurso',
         'qtd_glosada',
         'valor_glosado',
@@ -987,6 +988,7 @@
       const payload = data.payload || {};
       const glosarButton = row.querySelector('.btn-glosar');
       const acatarButton = row.querySelector('.btn-acatar');
+      const triagemPdfLink = row.querySelector('[data-triagem-pdf-link]');
       const forms = row.querySelectorAll('.glosa-modal-form');
 
       if (payload.id) {
@@ -1000,6 +1002,17 @@
           glosarButton?.classList.add('btn-glosar--filled');
           acatarButton?.classList.remove('btn-acatar--filled');
         }
+        const processoOriginal = payload.processo_controle_fatura_gab || '';
+        if (
+          triagemPdfLink
+          && payload.sn_glosado !== 'not'
+          && processoOriginal
+        ) {
+          triagemPdfLink.href = `${triagemPdfLink.dataset.pdfBase}?processo_original=${encodeURIComponent(processoOriginal)}`;
+          triagemPdfLink.hidden = false;
+        } else if (triagemPdfLink) {
+          triagemPdfLink.hidden = true;
+        }
       } else {
         forms.forEach((modalForm) => {
           window.updateRegistroFormActions(modalForm, false, '');
@@ -1007,6 +1020,9 @@
         });
         glosarButton?.classList.remove('btn-glosar--filled');
         acatarButton?.classList.remove('btn-acatar--filled');
+        if (triagemPdfLink) {
+          triagemPdfLink.hidden = true;
+        }
       }
     };
   </script>

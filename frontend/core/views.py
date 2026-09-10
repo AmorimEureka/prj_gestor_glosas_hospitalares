@@ -67,6 +67,7 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
 )
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
+TRIAGEM_RECURSO_PDF_PATH = "/app_glosas/glosas/recurso.pdf"
 DESCRICOES_AGRUPADAS_GLOSA_PATH = (
     "/app_glosas/glosas/descricoes-agrupadas"
 )
@@ -3393,6 +3394,7 @@ def build_registro_glosa_payload(data):
         "sn_glosado": data.get("sn_glosado") or None,
         "processo_controle_fatura_gab": data.get("processo_controle_fatura_gab") or "",
         "processo_recurso": data.get("processo_recurso") or None,
+        "numero_lote": str(data.get("numero_lote") or "").strip() or None,
         "data_glosa": data.get("data_glosa") or None,
         "motivo_glosa": motivo_glosa_codigo,
         "descricao_glosa": data.get("descricao_glosa") or "",
@@ -6614,6 +6616,59 @@ def follow_up_glosas_recurso_pdf(request):
     ) or (
         'inline; filename="recurso-glosa-processo.pdf"'
     )
+    if content_length := upstream.headers.get("Content-Length"):
+        response["Content-Length"] = content_length
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@require_http_methods(["GET"])
+def conta_atendimento_recurso_pdf(request):
+    processo_original = (
+        request.GET.get("processo_original") or ""
+    ).strip()
+    if not processo_original:
+        return HttpResponse(
+            "Informe o processo original para gerar o PDF.",
+            status=400,
+            content_type="text/plain; charset=utf-8",
+        )
+    try:
+        upstream = api_get_stream(
+            TRIAGEM_RECURSO_PDF_PATH,
+            {
+                "processo_original": processo_original,
+                "download": "false",
+            },
+        )
+    except ApiError as exc:
+        status_code = exc.status_code or 502
+        if not 400 <= status_code <= 599:
+            status_code = 502
+        return HttpResponse(
+            "PDF do recurso da Triagem: "
+            + extract_api_error_message(exc),
+            status=status_code,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    def iter_pdf():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = StreamingHttpResponse(
+        iter_pdf(),
+        content_type=(
+            upstream.headers.get("Content-Type") or "application/pdf"
+        ),
+    )
+    response["Content-Disposition"] = upstream.headers.get(
+        "Content-Disposition"
+    ) or 'inline; filename="recurso-glosa-triagem.pdf"'
     if content_length := upstream.headers.get("Content-Length"):
         response["Content-Length"] = content_length
     response["X-Content-Type-Options"] = "nosniff"
