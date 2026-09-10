@@ -46,6 +46,24 @@ from core.views import (
 
 
 class ContaAtendimentoRegistroTests(TestCase):
+    def test_cache_da_api_e_isolado_por_ambiente(self):
+        params = {'cd_remessa': 18890, 'limit': 5000}
+
+        with override_settings(API_BASE_URL='https://api-producao.example'):
+            chave_producao = build_api_cache_key(
+                'conta-atendimento:registros-glosa',
+                '/app_glosas/glosas',
+                params,
+            )
+        with override_settings(API_BASE_URL='https://api-teste.example'):
+            chave_teste = build_api_cache_key(
+                'conta-atendimento:registros-glosa',
+                '/app_glosas/glosas',
+                params,
+            )
+
+        self.assertNotEqual(chave_producao, chave_teste)
+
     def _conta(self):
         return {
             'cd_remessa': 15588,
