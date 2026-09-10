@@ -27,6 +27,7 @@ from core.views import (
     build_dashboard_indicadores,
     build_geral_indicators,
     build_kanban_columns,
+    build_registro_glosa_payload,
     build_recuperacao_indicators,
     CONCILIACAO_FATURAMENTO_PATH,
     contextualize_registro_glosa_error,
@@ -1691,6 +1692,18 @@ class FollowUpGlosasTests(TestCase):
         }
         session.save()
 
+    def test_payload_preserva_identidade_da_linha_do_demonstrativo(self):
+        payload = build_registro_glosa_payload(
+            {
+                'demonstrativo_id_registro': '  linha-303-48  ',
+            }
+        )
+
+        self.assertEqual(
+            payload['demonstrativo_id_registro'],
+            'linha-303-48',
+        )
+
     def _api_payload(self):
         return {
             'cards': [
@@ -1744,6 +1757,9 @@ class FollowUpGlosasTests(TestCase):
                                     'cd_atendimento': 789,
                                     'cd_reg': 456,
                                     'cd_lancamento': 3,
+                                    'demonstrativo_id_registro': (
+                                        'linha-demonstrativo-15000'
+                                    ),
                                     'cd_prestador': 4,
                                     'nm_prestador': 'Hospital Prontocardio',
                                     'cd_convenio': 5,
@@ -1803,6 +1819,28 @@ class FollowUpGlosasTests(TestCase):
             'limit': 10,
             'offset': 0,
         }
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_formulario_envia_identidade_da_linha_do_demonstrativo(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        api_get.return_value = self._api_payload()
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'name="demonstrativo_id_registro" '
+            'value="linha-demonstrativo-15000"',
+        )
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')

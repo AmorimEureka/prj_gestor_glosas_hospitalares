@@ -3374,6 +3374,10 @@ def build_registro_glosa_payload(data):
         "cd_atendimento": as_int_or_zero(data.get("cd_atendimento")),
         "conta": as_int_or_zero(data.get("cd_reg")),
         "cd_lancamento": as_int_or_none(data.get("cd_lancamento")),
+        "demonstrativo_id_registro": (
+            str(data.get("demonstrativo_id_registro") or "").strip()
+            or None
+        ),
         "cd_prestador": as_int_or_zero(data.get("cd_prestador")),
         "cd_convenio": as_int_or_zero(data.get("cd_convenio")),
         "tp_atendimento": data.get("tp_atendimento") or "",
