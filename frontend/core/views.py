@@ -5754,7 +5754,10 @@ def build_api_cache_key(namespace, path, params=None):
         sorted((key, value) for key, value in (params or {}).items() if value),
         doseq=True,
     )
-    digest = sha256(f"{path}?{query}".encode("utf-8")).hexdigest()
+    api_origin = str(settings.API_BASE_URL).rstrip("/")
+    digest = sha256(
+        f"{api_origin}{path}?{query}".encode("utf-8")
+    ).hexdigest()
     return f"api:{namespace}:{digest}"
 
 
