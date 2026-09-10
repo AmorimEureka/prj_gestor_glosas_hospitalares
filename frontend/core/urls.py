@@ -52,6 +52,11 @@ urlpatterns = [
         name="associacoes_remessas_ipm",
     ),
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
+    path(
+        "conta-atendimento/recurso-pdf/",
+        views.conta_atendimento_recurso_pdf,
+        name="conta_atendimento_recurso_pdf",
+    ),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),
     path(
         "requisicao/solicitacao-nota/",

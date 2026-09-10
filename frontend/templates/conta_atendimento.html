@@ -292,6 +292,7 @@
                           <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar
                           </button>
+                          <a class="account-action-pdf" data-triagem-pdf-link data-pdf-base="{% url 'conta_atendimento_recurso_pdf' %}" href="{% url 'conta_atendimento_recurso_pdf' %}?processo_original={{ conta.registro_recusa.processo_controle_fatura_gab|urlencode }}" target="_blank" rel="noopener" title="Gerar PDF consolidado do recurso" {% if not conta.registro_recusa.id or not conta.registro_recusa.processo_controle_fatura_gab %}hidden{% endif %}>PDF</a>
                           </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
@@ -353,6 +354,10 @@
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
                                         <input name="processo_recurso" class="form-control" value="{{ conta.registro_recusa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>LOTE</label>
+                                        <input name="numero_lote" class="form-control" maxlength="255" value="{{ conta.registro_recusa.numero_lote|default:'' }}" placeholder="Informe o lote, se houver">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
@@ -457,6 +462,10 @@
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
                                         <input name="processo_recurso" class="form-control" value="{{ conta.registro_acato.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>LOTE</label>
+                                        <input name="numero_lote" class="form-control" maxlength="255" value="{{ conta.registro_acato.numero_lote|default:'' }}" placeholder="Informe o lote, se houver">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
