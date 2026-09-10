@@ -122,6 +122,7 @@ ROUTE_PERMISSIONS = {
     "associacoes_remessas_ipm": "follow_up_glosas",
     "glosas": "follow_up_glosas",
     "conta_atendimento": "triagem",
+    "conta_atendimento_recurso_pdf": "triagem",
     "acompanhamento": "acompanhamento",
     "recursos": ("recursos_processos", "follow_up_glosas"),
     "conciliacao_faturamento": "conciliacao_manual",

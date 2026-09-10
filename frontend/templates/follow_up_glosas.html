@@ -314,6 +314,8 @@
                     registroAcatoId: '{{ item.registro_acato.id|default:"" }}',
                     processoRecusa: '{{ item.registro_recusa.processo_recurso|default:""|escapejs }}',
                     processoAcato: '{{ item.registro_acato.processo_recurso|default:""|escapejs }}',
+                    loteRecusa: '{{ item.registro_recusa.numero_lote|default:item.numero_lote|default:""|escapejs }}',
+                    loteAcato: '{{ item.registro_acato.numero_lote|default:item.numero_lote|default:""|escapejs }}',
                     qtdRecusada: '{{ item.registro_recusa.qtd_glosada_input|default:""|escapejs }}',
                     qtdAcatada: '{{ item.registro_acato.qtd_glosada_input|default:""|escapejs }}',
                     valorRecusado: '{{ item.registro_recusa.valor_glosado_input|default:""|escapejs }}',
@@ -327,6 +329,7 @@
                     descricaoAcato: '{{ item.registro_acato.descricao_glosa|default:""|escapejs }}',
                     registroTratadoId: '',
                     processoTratado: '',
+                    loteTratado: '',
                     qtdTratada: '',
                     valorTratado: '',
                     dataTratada: '',
@@ -339,6 +342,7 @@
                       this.editingExisting = Boolean(actionId);
                       this.registroTratadoId = actionId || this.registroBaseId;
                       this.processoTratado = acato ? this.processoAcato : this.processoRecusa;
+                      this.loteTratado = acato ? this.loteAcato : this.loteRecusa;
                       this.qtdTratada = acato ? this.qtdAcatada : this.qtdRecusada;
                       this.valorTratado = acato ? this.valorAcatado : this.valorRecusado;
                       this.dataTratada = acato ? this.dataAcato : this.dataRecusa;
@@ -450,6 +454,10 @@
                                     <div class="glosa-field glosa-field--wide">
                                       <label>Processo Origem</label>
                                       <input class="form-control form-control-readonly" value="{{ item.processo_origem }}" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>LOTE</label>
+                                      <input name="numero_lote" class="form-control" maxlength="255" x-model="loteTratado" placeholder="Informe o lote, se houver">
                                     </div>
                                     <div class="glosa-field">
                                       <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>

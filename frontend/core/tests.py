@@ -144,6 +144,29 @@ class ContaAtendimentoRegistroTests(TestCase):
             )
             self.assertNotIn(':required="modal !== \'acatar\'"', template)
 
+    def test_modais_de_triagem_e_follow_up_exibem_lote_opcional(self):
+        templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
+
+        self.assertEqual(triagem.count('name="numero_lote"'), 2)
+        self.assertEqual(follow_up.count('name="numero_lote"'), 1)
+        self.assertNotIn('name="numero_lote" required', triagem)
+        self.assertNotIn('name="numero_lote" required', follow_up)
+        self.assertIn("url 'conta_atendimento_recurso_pdf'", triagem)
+        base = (templates_dir / 'base.html').read_text()
+        self.assertIn("payload.processo_controle_fatura_gab", base)
+        self.assertIn("triagemPdfLink.hidden = false", base)
+
+    def test_payload_normaliza_lote_sem_torna_lo_obrigatorio(self):
+        com_lote = build_registro_glosa_payload(
+            {'numero_lote': '  LOTE-MAIDA-42  '}
+        )
+        sem_lote = build_registro_glosa_payload({'numero_lote': '   '})
+
+        self.assertEqual(com_lote['numero_lote'], 'LOTE-MAIDA-42')
+        self.assertIsNone(sem_lote['numero_lote'])
+
     @patch('core.views.get_cached_api_payload')
     def test_guia_vazia_e_hifen_casam_mesmo_registro(self, get_cached_api_payload):
         conta = {
@@ -1768,6 +1791,7 @@ class FollowUpGlosasTests(TestCase):
                                     'cd_pro_fat': 'PROC-10',
                                     'cd_tuss': '1714',
                                     'codigo_servico': '1714',
+                                    'numero_lote': 'LOTE-MAIDA-42',
                                     'cd_gru_pro': 10,
                                     'ds_gru_pro': 'Diagnóstico',
                                     'cd_gru_fat': 1,
@@ -1841,6 +1865,8 @@ class FollowUpGlosasTests(TestCase):
             'name="demonstrativo_id_registro" '
             'value="linha-demonstrativo-15000"',
         )
+        self.assertContains(response, 'name="numero_lote"')
+        self.assertContains(response, "loteRecusa: 'LOTE-MAIDA-42'")
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
@@ -1929,6 +1955,40 @@ class FollowUpGlosasTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         api_get_stream.assert_not_called()
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_da_triagem_entrega_pdf_do_mesmo_gerador(
+        self,
+        api_get_stream,
+    ):
+        upstream = Mock()
+        upstream.headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': (
+                'inline; filename="recurso-glosa-TRIAGEM-12.pdf"'
+            ),
+        }
+        upstream.iter_content.return_value = [b'%PDF-1.7\ntriagem']
+        api_get_stream.return_value = upstream
+
+        response = self.client.get(
+            '/conta-atendimento/recurso-pdf/',
+            {'processo_original': 'TRIAGEM-12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'%PDF-1.7\ntriagem',
+        )
+        api_get_stream.assert_called_once_with(
+            '/app_glosas/glosas/recurso.pdf',
+            {
+                'processo_original': 'TRIAGEM-12',
+                'download': 'false',
+            },
+        )
+        upstream.close.assert_called_once()
 
     def test_ordena_processos_e_remessas_por_competencia_decrescente(self):
         cards = [
