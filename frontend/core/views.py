@@ -6495,9 +6495,19 @@ def follow_up_glosas(request):
             cards_api = [
                 {
                     **card,
+                    # Em cards com processo, a resposta resumida pode conter
+                    # somente os pacientes que originaram o card. O detalhe
+                    # por processo/remessa é a fonte completa. Cards sem
+                    # processo preservam os dados, pois não possuem essa rota.
                     "pacientes": (
                         []
                         if card.get("conciliacao_remessa_id")
+                        or str(
+                            (card.get("processo") or {}).get(
+                                "numero_processo"
+                            )
+                            or ""
+                        ).strip()
                         else card.get("pacientes") or []
                     ),
                 }
