@@ -3388,29 +3388,39 @@ def build_registro_glosa_payload(data):
         "convenio": data.get("nm_convenio") or "",
         "guia": str(data.get("nr_guia") or data.get("cd_guia") or ""),
         "prestador": data.get("nm_prestador") or "",
-        "data_atendimento": data.get("dt_atendimento")
-        or data.get("dt_lancamento")
-        or None,
+        "data_atendimento": normalize_glosa_match_text(
+            data.get("dt_atendimento") or data.get("dt_lancamento")
+        ) or None,
         "valor": as_float_or_zero(data.get("vl_total_conta")),
         "sn_glosado": data.get("sn_glosado") or None,
         "processo_controle_fatura_gab": data.get("processo_controle_fatura_gab") or "",
         "processo_recurso": data.get("processo_recurso") or None,
         "numero_lote": str(data.get("numero_lote") or "").strip() or None,
-        "data_glosa": data.get("data_glosa") or None,
+        "data_glosa": normalize_glosa_match_text(
+            data.get("data_glosa")
+        ) or None,
         "motivo_glosa": motivo_glosa_codigo,
         "descricao_glosa": data.get("descricao_glosa") or "",
         "qtd_registro": as_float_or_none(data.get("qt_lancamento")),
         "descricao_item": data.get("descricao") or None,
-        "data_alta": data.get("dt_alta") or None,
-        "data_lancamento": data.get("dt_lancamento") or None,
+        "data_alta": normalize_glosa_match_text(
+            data.get("dt_alta")
+        ) or None,
+        "data_lancamento": normalize_glosa_match_text(
+            data.get("dt_lancamento")
+        ) or None,
         "cd_gru_pro": as_int_or_none(data.get("cd_gru_pro")),
         "ds_gru_pro": data.get("ds_gru_pro") or None,
         "cd_gru_fat": as_int_or_none(data.get("cd_gru_fat")),
         "ds_gru_fat": data.get("ds_gru_fat") or None,
         "qtd_recursado": as_int_or_none(data.get("qtd_glosada")),
         "valor_recursado": as_float_or_none(data.get("valor_glosado")),
-        "dt_recurso": data.get("dt_recurso") or None,
-        "dt_pagamento": data.get("dt_pagamento") or None,
+        "dt_recurso": normalize_glosa_match_text(
+            data.get("dt_recurso")
+        ) or None,
+        "dt_pagamento": normalize_glosa_match_text(
+            data.get("dt_pagamento")
+        ) or None,
     }
 
 
