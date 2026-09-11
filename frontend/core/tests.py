@@ -2197,7 +2197,6 @@ class FollowUpGlosasTests(TestCase):
         card['conciliacao_remessa_id'] = None
         card['processo']['numero_processo'] = 'P058752/2026'
         card['cd_remessa'] = 16425
-        card['pacientes'] = []
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
 
@@ -2210,6 +2209,8 @@ class FollowUpGlosasTests(TestCase):
             'P058752/2026&amp;detalhar_remessa=16425"',
         )
         self.assertContains(response, 'Carregando detalhamento da remessa...')
+        self.assertNotContains(response, 'Maria da Silva')
+        self.assertEqual(response.context['cards'][0]['pacientes'], [])
         self.assertFalse(
             response.context['cards'][0]['detalhes_carregados']
         )
@@ -2237,7 +2238,13 @@ class FollowUpGlosasTests(TestCase):
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
 
-        response = self.client.get('/follow-up-glosas/')
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {
+                'detalhar_processo': 'P249767/2026',
+                'detalhar_remessa': '987',
+            },
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'P249767/2026')
