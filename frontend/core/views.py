@@ -67,6 +67,7 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
 )
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
+FOLLOW_UP_RECURSO_PDF_TIMEOUT = 120
 TRIAGEM_RECURSO_PDF_PATH = "/app_glosas/glosas/recurso.pdf"
 DESCRICOES_AGRUPADAS_GLOSA_PATH = (
     "/app_glosas/glosas/descricoes-agrupadas"
@@ -6608,6 +6609,7 @@ def follow_up_glosas_recurso_pdf(request):
                 "processo_original": processo_original,
                 "download": "false",
             },
+            timeout=FOLLOW_UP_RECURSO_PDF_TIMEOUT,
         )
     except ApiError as exc:
         status_code = exc.status_code or 502
