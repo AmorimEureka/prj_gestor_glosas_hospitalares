@@ -1866,7 +1866,32 @@ class FollowUpGlosasTests(TestCase):
             'value="linha-demonstrativo-15000"',
         )
         self.assertContains(response, 'name="numero_lote"')
-        self.assertContains(response, "loteRecusa: 'LOTE-MAIDA-42'")
+        self.assertContains(
+            response,
+            r"loteRecusa: 'LOTE\u002DMAIDA\u002D42'",
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_item_legado_sem_numero_lote_renderiza_modal(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        item = payload['cards'][0]['pacientes'][0]['itens'][0]
+        item.pop('numero_lote')
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="numero_lote"')
+        self.assertContains(response, "loteRecusa: ''")
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')

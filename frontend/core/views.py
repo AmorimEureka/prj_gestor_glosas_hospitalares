@@ -3480,6 +3480,18 @@ def prepare_follow_up_glosas_cards(cards):
                 item["registro_glosa"] = registro
                 item["registro_recusa"] = registro_recusa
                 item["registro_acato"] = registro_acato
+                numero_lote = (
+                    item.get("numero_lote")
+                    or registro.get("numero_lote")
+                    or ""
+                )
+                item["numero_lote"] = numero_lote
+                item["lote_recusa"] = (
+                    registro_recusa.get("numero_lote") or numero_lote
+                )
+                item["lote_acato"] = (
+                    registro_acato.get("numero_lote") or numero_lote
+                )
                 item["recurso_preenchido"] = bool(
                     registro_recusa.get("id")
                     and registro_recusa.get("dt_recurso")
