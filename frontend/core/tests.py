@@ -1989,6 +1989,7 @@ class FollowUpGlosasTests(TestCase):
                 'processo_original': 'CONC-12',
                 'download': 'false',
             },
+            timeout=120,
         )
         upstream.close.assert_called_once()
 
