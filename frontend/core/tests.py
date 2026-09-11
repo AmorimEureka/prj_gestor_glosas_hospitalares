@@ -185,6 +185,26 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(com_lote['numero_lote'], 'LOTE-MAIDA-42')
         self.assertIsNone(sem_lote['numero_lote'])
 
+    def test_payload_remove_datas_nulas_renderizadas_pelo_template(self):
+        payload = build_registro_glosa_payload({
+            'dt_atendimento': '2026-05-02T10:30:00',
+            'dt_alta': 'None',
+            'dt_lancamento': '-',
+            'data_glosa': '2026-09-11',
+            'dt_pagamento': '2026-09-11',
+            'dt_recurso': '2026-09-11',
+        })
+
+        self.assertEqual(
+            payload['data_atendimento'],
+            '2026-05-02T10:30:00',
+        )
+        self.assertIsNone(payload['data_alta'])
+        self.assertIsNone(payload['data_lancamento'])
+        self.assertEqual(payload['data_glosa'], '2026-09-11')
+        self.assertEqual(payload['dt_pagamento'], '2026-09-11')
+        self.assertEqual(payload['dt_recurso'], '2026-09-11')
+
     @patch('core.views.get_cached_api_payload')
     def test_guia_vazia_e_hifen_casam_mesmo_registro(self, get_cached_api_payload):
         conta = {
