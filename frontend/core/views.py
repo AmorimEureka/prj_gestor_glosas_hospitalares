@@ -6949,6 +6949,7 @@ def conta_atendimento(request):
     filtros.pop("offset", None)
     page = as_positive_int(filtros.pop("page", None), 1)
     search_fields = {
+        "processo",
         "cd_remessa",
         "cd_atendimento",
         "cd_reg",

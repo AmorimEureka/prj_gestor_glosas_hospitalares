@@ -158,6 +158,24 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn("payload.processo_controle_fatura_gab", base)
         self.assertIn("triagemPdfLink.hidden = false", base)
 
+    def test_triagem_exibe_processo_como_primeiro_filtro_e_pdf(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'conta_atendimento.html'
+        ).read_text()
+
+        self.assertLess(
+            template.index('name="processo"'),
+            template.index('name="cd_remessa"'),
+        )
+        self.assertIn("'processo', 'cd_remessa'", template)
+        self.assertIn('PDF do processo', template)
+        self.assertIn(
+            "filtros.processo|urlencode",
+            template,
+        )
+
     def test_payload_normaliza_lote_sem_torna_lo_obrigatorio(self):
         com_lote = build_registro_glosa_payload(
             {'numero_lote': '  LOTE-MAIDA-42  '}
