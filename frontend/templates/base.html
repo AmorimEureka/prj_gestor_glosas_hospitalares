@@ -775,6 +775,7 @@
         return;
       }
       form.dataset.submitting = 'true';
+      form._submittedGlosaType = form.querySelector('[name="sn_glosado"]')?.value;
       form.classList.add('is-submitting');
       form.querySelectorAll('input[data-submit-proxy="true"]').forEach((input) => {
         input.remove();
@@ -811,6 +812,7 @@
           if (!response.ok) {
             data.ok = false;
           }
+          data.operationType = form._submittedGlosaType;
           window.showOperationMessage(data, form);
         })
         .catch((error) => {
@@ -874,6 +876,10 @@
       if (form && !data.ok) {
         window.resetGlosaFormToInitialState(form);
       }
+      if (form && data.ok) {
+        window.applyOperationState(form, data);
+        form.closest('.glosa-modal')?.querySelector('.glosa-modal-close')?.click();
+      }
 
       const layer = document.createElement('div');
       layer.className = 'message-dialog-layer';
@@ -911,11 +917,6 @@
       okButton.addEventListener('click', () => {
         layer.remove();
         if (data.ok) {
-          if (form?.dataset.reloadOnSuccess === 'true') {
-            window.location.reload();
-            return;
-          }
-          window.applyOperationState(form, data);
           form.closest('.glosa-modal')?.querySelector('.glosa-modal-close')?.click();
         }
       });
@@ -982,10 +983,59 @@
       }
 
       const payload = data.payload || {};
+      const tipo = payload.sn_glosado || data.operationType;
+      const state = window.Alpine?.$data(row);
+      const followUp = typeof state?.openTreatment === 'function';
+      const savedForms = followUp ? [form] : Array.from(row.querySelectorAll('.glosa-modal-form')).filter(
+        (modalForm) => modalForm.querySelector('[name="sn_glosado"]')?.value === tipo
+      );
+      const valor = payload.valor_recursado == null ? '' : Number(payload.valor_recursado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      const qtd = payload.qtd_recursado == null ? '' : String(Number(payload.qtd_recursado));
+      if (followUp) {
+        const acato = tipo === 'not';
+        const previousValue = acato ? state.valorAcatado : state.valorRecusado;
+        const previousAmount = Number(String(previousValue || '').replace(/\D/g, '')) / 100;
+        const delta = Number(payload.valor_recursado || 0) - previousAmount;
+        const updateTotal = (element) => {
+          if (!element) return;
+          const current = Number(element.textContent.replace(/[^\d-]/g, '')) / 100;
+          element.textContent = (current + delta).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        };
+        updateTotal(row.querySelector('.cell-valor--treated'));
+        ['remessa', 'processo'].forEach((kind) => {
+          updateTotal(row.closest?.(`[data-follow-up-expansion-kind="${kind}"]`)?.querySelector('.follow-up-glosa-card-value--treated strong'));
+        });
+        updateTotal(window.document?.querySelector('[data-glosa-summary-treated]'));
+        const fields = {
+          [acato ? 'registroAcatoId' : 'registroRecusaId']: payload.id || '',
+          [acato ? 'processoAcato' : 'processoRecusa']: payload.processo_recurso || '',
+          [acato ? 'loteAcato' : 'loteRecusa']: payload.numero_lote || '',
+          [acato ? 'qtdAcatada' : 'qtdRecusada']: qtd,
+          [acato ? 'valorAcatado' : 'valorRecusado']: valor,
+          [acato ? 'dataAcato' : 'dataRecusa']: (payload.dt_recurso || '').slice(0, 10),
+          [acato ? 'motivoAcato' : 'motivoRecusa']: payload.motivo_glosa || '',
+          [acato ? 'descricaoAcato' : 'descricaoRecusa']: payload.descricao_glosa || ''
+        };
+        Object.assign(state, fields);
+        state.registroTratadoId = payload.id || state.registroBaseId;
+        state.editingExisting = Boolean(payload.id);
+      }
+      if (payload.id) {
+        const values = { ...payload, qtd_glosada: qtd, valor_glosado: valor };
+        savedForms.forEach((modalForm) => {
+          modalForm.querySelectorAll('input, select, textarea').forEach((field) => {
+            if (!Object.prototype.hasOwnProperty.call(values, field.name)) return;
+            const value = values[field.name] == null ? '' : String(values[field.name]);
+            field.value = field.type === 'date' ? value.slice(0, 10) : value;
+            field.defaultValue = field.value;
+            field._x_model?.set?.(field.value);
+          });
+        });
+      }
       const glosarButton = row.querySelector('.btn-glosar');
       const acatarButton = row.querySelector('.btn-acatar');
       const triagemPdfLink = row.querySelector('[data-triagem-pdf-link]');
-      const forms = row.querySelectorAll('.glosa-modal-form');
+      const forms = savedForms;
 
       if (payload.id) {
         forms.forEach((modalForm) => {
@@ -1019,6 +1069,10 @@
         if (triagemPdfLink) {
           triagemPdfLink.hidden = true;
         }
+      }
+      if (followUp) {
+        glosarButton?.classList.toggle('btn-glosar--filled', Boolean(state.registroRecusaId));
+        acatarButton?.classList.toggle('btn-acatar--filled', Boolean(state.registroAcatoId));
       }
     };
   </script>
