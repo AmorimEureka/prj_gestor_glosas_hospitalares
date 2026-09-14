@@ -7232,7 +7232,7 @@ def recursos(request):
                         "atendimento": item.get("cd_atendimento") or "-",
                         "dt_atendimento": item.get("dt_atendimento_formatada") or "-",
                         "dt_alta": item.get("dt_alta_formatada") or "-",
-                        "grupo": item.get("ds_gru_fat") or "Grupo não informado",
+                        "grupo": item.get("ds_gru_fat") or item.get("ds_gru_pro") or "Grupo não informado",
                         "codigo_item": item.get("codigo_item") or "-",
                         "descricao": item.get("descricao") or "-",
                         "valor_processado": as_float_or_zero(item.get("valor_processado")),
