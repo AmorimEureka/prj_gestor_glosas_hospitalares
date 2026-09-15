@@ -126,6 +126,23 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(contas[0]['registro_recusa'], {})
         self.assertEqual(contas[0]['registro_glosa_status'], 'not')
 
+    @patch('core.views.get_cached_api_payload')
+    def test_consulta_auxiliar_de_glosas_recebe_filtro_guia(
+        self,
+        get_cached_api_payload,
+    ):
+        get_cached_api_payload.return_value = {'glosas': []}
+
+        attach_registros_glosa(
+            [self._conta()],
+            {'nr_guia': 'GUIA-20'},
+        )
+
+        self.assertEqual(
+            get_cached_api_payload.call_args.args[2],
+            {'nr_guia': 'GUIA-20', 'limit': 5000},
+        )
+
     def test_formularios_nao_exigem_processo_do_recurso(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
 
@@ -175,6 +192,47 @@ class ContaAtendimentoRegistroTests(TestCase):
             "filtros.processo|urlencode",
             template,
         )
+
+    def test_triagem_substitui_filtro_conta_por_guia(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'conta_atendimento.html'
+        ).read_text()
+
+        self.assertIn('<label>Guia</label>', template)
+        self.assertIn('name="nr_guia"', template)
+        self.assertIn('value="{{ filtros.nr_guia }}"', template)
+        self.assertNotIn('name="cd_reg" value="{{ filtros.cd_reg }}"', template)
+        self.assertIn("'cd_atendimento', 'nr_guia'", template)
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.get_convenio_filter_options')
+    def test_triagem_encaminha_guia_para_consultas_da_api(
+        self,
+        get_convenio_filter_options,
+        get_cached_api_payload,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+        get_convenio_filter_options.return_value = []
+        get_cached_api_payload.side_effect = [
+            {'itens': []},
+            {'atendimentos': [], 'total': 0, 'limit': 10, 'offset': 0},
+        ]
+
+        response = self.client.get(
+            '/conta-atendimento/',
+            {'nr_guia': 'GUIA-20'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        chamadas = get_cached_api_payload.call_args_list
+        self.assertEqual(chamadas[1].args[2]['nr_guia'], 'GUIA-20')
 
     def test_payload_normaliza_lote_sem_torna_lo_obrigatorio(self):
         com_lote = build_registro_glosa_payload(
