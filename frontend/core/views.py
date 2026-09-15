@@ -3285,7 +3285,14 @@ def attach_registros_glosa(contas, filtros):
     params = {
         key: value
         for key, value in filtros.items()
-        if key in {"cd_remessa", "cd_atendimento", "cd_reg", "tp_atendimento"} and value
+        if key in {
+            "cd_remessa",
+            "cd_atendimento",
+            "cd_reg",
+            "nr_guia",
+            "tp_atendimento",
+        }
+        and value
     }
     params["limit"] = 5000
     payload = get_cached_api_payload(
@@ -6861,7 +6868,7 @@ def conta_atendimento(request):
         "processo",
         "cd_remessa",
         "cd_atendimento",
-        "cd_reg",
+        "nr_guia",
         "nm_paciente",
         "nm_convenio",
         "descricao",
