@@ -15,7 +15,7 @@
   searchError: false,
   submitSearch(event) {
     const formData = new FormData(event.currentTarget);
-    const fields = ['processo', 'cd_remessa', 'cd_atendimento', 'cd_reg', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
+    const fields = ['processo', 'cd_remessa', 'cd_atendimento', 'nr_guia', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
     const hasCriteria = fields.some((field) => String(formData.get(field) || '').trim());
     if (!hasCriteria) {
       event.preventDefault();
@@ -42,8 +42,8 @@
         <input name="cd_atendimento" value="{{ filtros.cd_atendimento }}" class="form-control" placeholder="Ex: 9876">
       </div>
       <div class="filter-group">
-        <label>Conta</label>
-        <input name="cd_reg" value="{{ filtros.cd_reg }}" class="form-control" placeholder="Ex: 456">
+        <label>Guia</label>
+        <input name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Ex: 123456">
       </div>
       <div class="filter-group">
         <label>Paciente</label>
