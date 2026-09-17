@@ -109,6 +109,7 @@ ASSOCIACAO_ITEM_CRITERIOS = {
 }
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
+CONTAS_PAGAR_PATH = "/app_glosas/financeiro/contas-a-pagar"
 REQUISICOES_NOTA_PATH = "/app_glosas/requisicoes"
 ATENDIMENTO_NOTA_CACHE_NAMESPACE = "solicitacao-nota:atendimento"
 WORKFLOW_SOLICITACOES_PATH = (
@@ -8174,6 +8175,97 @@ def conciliacoes_financeiras(request):
             "pagination": pagination,
         },
     )
+
+
+def _contas_pagar(request, modo):
+    route_name = f"contas_pagar_{modo}"
+    if request.method == "POST":
+        codigo = as_int_or_none(request.POST.get("codigo_fornecedor"))
+        action = request.POST.get("form_action")
+        if not codigo:
+            messages.error(request, "Fornecedor inválido.")
+        else:
+            try:
+                if action == "excluir":
+                    api_delete(f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}")
+                    messages.success(request, "Dados operacionais excluídos. Os títulos do Oracle foram preservados.")
+                else:
+                    api_put(
+                        f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}",
+                        {
+                            "critico": bool(request.POST.get("critico")),
+                            "pagamento_imediato": as_float_or_zero(request.POST.get("pagamento_imediato")),
+                            "status": request.POST.get("status") or "PENDENTE",
+                            "responsavel": request.POST.get("responsavel") or None,
+                            "proxima_acao": request.POST.get("proxima_acao") or None,
+                            "data_proxima_acao": request.POST.get("data_proxima_acao") or None,
+                            "condicao_negociada": request.POST.get("condicao_negociada") or None,
+                            "observacao": request.POST.get("observacao") or None,
+                        },
+                    )
+                    messages.success(request, "Tratamento do fornecedor salvo com sucesso.")
+            except ApiError as exc:
+                messages.error(request, format_api_error(exc, "Contas a Pagar"))
+        query = request.GET.urlencode()
+        return redirect(f"{reverse(route_name)}{'?' + query if query else ''}")
+
+    page = as_positive_int(request.GET.get("page"), 1)
+    filtros = {
+        "q": (request.GET.get("q") or "").strip(),
+        "criticidade": request.GET.get("criticidade") or "todos",
+        "status": (request.GET.get("status") or "").strip(),
+    }
+    try:
+        payload = api_get(
+            CONTAS_PAGAR_PATH,
+            params={**filtros, "page": page, "page_size": 20 if modo != "gestao" else 100},
+            timeout=60,
+        )
+    except ApiError as exc:
+        payload = {"fornecedores": [], "total": 0, "total_pages": 1, "resumo": {}, "historico": []}
+        messages.error(request, format_api_error(exc, "Contas a Pagar"))
+    total_pages = max(int(payload.get("total_pages") or 1), 1)
+    if page > total_pages:
+        return redirect(f"{reverse(route_name)}?{urlencode({**filtros, 'page': total_pages})}")
+    query = {key: value for key, value in filtros.items() if value and value != "todos"}
+    pagination = {
+        "page": page,
+        "total": int(payload.get("total") or 0),
+        "total_pages": total_pages,
+        "page_options": [{"number": number, "selected": number == page} for number in range(1, total_pages + 1)],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": f"?{urlencode({**query, 'page': page - 1})}" if page > 1 else "",
+        "next_url": f"?{urlencode({**query, 'page': page + 1})}" if page < total_pages else "",
+        "query": query,
+    }
+    return render(
+        request,
+        "contas_pagar.html",
+        {
+            "modo": modo,
+            "fornecedores": payload.get("fornecedores", []),
+            "resumo": payload.get("resumo", {}),
+            "historico": payload.get("historico", []),
+            "filtros": filtros,
+            "pagination": pagination,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def contas_pagar_operacao(request):
+    return _contas_pagar(request, "operacao")
+
+
+@require_http_methods(["GET"])
+def contas_pagar_acompanhamento(request):
+    return _contas_pagar(request, "acompanhamento")
+
+
+@require_http_methods(["GET"])
+def contas_pagar_gestao(request):
+    return _contas_pagar(request, "gestao")
 
 
 @require_http_methods(["GET"])

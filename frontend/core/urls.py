@@ -135,6 +135,21 @@ urlpatterns = [
         name="conciliacoes_financeiras",
     ),
     path(
+        "financeiro/contas-a-pagar/operacao/",
+        views.contas_pagar_operacao,
+        name="contas_pagar_operacao",
+    ),
+    path(
+        "financeiro/contas-a-pagar/acompanhamento/",
+        views.contas_pagar_acompanhamento,
+        name="contas_pagar_acompanhamento",
+    ),
+    path(
+        "financeiro/contas-a-pagar/gestao/",
+        views.contas_pagar_gestao,
+        name="contas_pagar_gestao",
+    ),
+    path(
         "financeiro/conciliacao-fiscal-faturamento/remessas/<str:nfse_row_hash>/",
         views.conciliacao_faturamento_remessas,
         name="conciliacao_faturamento_remessas",
