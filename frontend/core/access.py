@@ -70,6 +70,21 @@ SCREEN_GROUPS = (
                 "label": "Acompanhamento Particular",
                 "route_name": "acompanhamento_particular",
             },
+            {
+                "key": "contas_pagar_operacao",
+                "label": "Contas a Pagar · Operação",
+                "route_name": "contas_pagar_operacao",
+            },
+            {
+                "key": "contas_pagar_acompanhamento",
+                "label": "Contas a Pagar · Acompanhamento",
+                "route_name": "contas_pagar_acompanhamento",
+            },
+            {
+                "key": "contas_pagar_gestao",
+                "label": "Contas a Pagar · Gestão",
+                "route_name": "contas_pagar_gestao",
+            },
         ),
     },
     {
@@ -144,6 +159,9 @@ ROUTE_PERMISSIONS = {
         "follow_up_solicitacoes",
     ),
     "acompanhamento_particular": "acompanhamento_particular",
+    "contas_pagar_operacao": "contas_pagar_operacao",
+    "contas_pagar_acompanhamento": "contas_pagar_acompanhamento",
+    "contas_pagar_gestao": "contas_pagar_gestao",
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
     "consultar_atendimento_nota": "solicitar_nota",

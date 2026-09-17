@@ -1095,6 +1095,96 @@ class DashboardIndicadoresTests(TestCase):
         self.assertIn('Motivo B: 1 acato', indicadores['mensal'][0]['motivos_tooltip'])
 
 
+class ContasPagarTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Usuário Financeiro',
+            'email': 'financeiro@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': [
+                'contas_pagar_operacao',
+                'contas_pagar_acompanhamento',
+                'contas_pagar_gestao',
+            ],
+        }
+        session.save()
+
+    @staticmethod
+    def payload():
+        return {
+            'fornecedores': [{
+                'codigo_fornecedor': 10,
+                'nome_fornecedor': 'Fornecedor Essencial',
+                'valor_vencido': '500000.00',
+                'valor_corrente': '25000.00',
+                'vencimento_mais_antigo': '2026-06-09',
+                'dias_atraso': 100,
+                'novos_vencidos_7d': '12000.00',
+                'titulos_vencidos': 4,
+                'critico': True,
+                'pagamento_imediato': '100000.00',
+                'saldo_negociar': '400000.00',
+                'status': 'NEGOCIACAO',
+                'responsavel': 'Ana',
+            }],
+            'total': 1,
+            'page': 1,
+            'total_pages': 1,
+            'resumo': {
+                'valor_vencido_inicial': '6000000.00',
+                'valor_vencido_atual': '5000000.00',
+                'novos_vencidos_7d': '12000.00',
+                'pagamento_imediato': '100000.00',
+                'saldo_negociar': '4900000.00',
+                'valor_corrente': '900000.00',
+                'fornecedores_vencidos': 1,
+            },
+            'historico': [],
+        }
+
+    @patch('core.views.api_get')
+    def test_operacao_exibe_fila_e_campos_editaveis(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get('/financeiro/contas-a-pagar/operacao/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fornecedor Essencial')
+        self.assertContains(response, 'Pagamento imediato')
+        self.assertContains(response, 'Excluir dados operacionais')
+        self.assertContains(response, 'HPC_V_CONTAS_A_PAGAR')
+
+    @patch('core.views.api_get')
+    def test_gestao_separa_contas_correntes_da_divida(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get('/financeiro/contas-a-pagar/gestao/')
+
+        self.assertContains(response, 'CONTAS CORRENTES')
+        self.assertContains(response, 'DÍVIDA VENCIDA')
+        self.assertContains(response, 'Regra de decisão')
+
+    @patch('core.views.api_put')
+    def test_operacao_salva_dados_complementares(self, api_put):
+        response = self.client.post(
+            '/financeiro/contas-a-pagar/operacao/',
+            {
+                'codigo_fornecedor': '10',
+                'critico': '1',
+                'pagamento_imediato': '100.000,00',
+                'status': 'NEGOCIACAO',
+                'responsavel': 'Ana',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_put.assert_called_once()
+        self.assertEqual(api_put.call_args.args[1]['pagamento_imediato'], 100000.0)
+
+
 @override_settings(
     SPU_NOVNC_PASSWORD='vnc12345',
     SPU_RECAPTCHA_POLL_SECONDS=5,
