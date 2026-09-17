@@ -13791,3 +13791,442 @@ body:not(.sidebar-collapsed) .indicator-grid {
     max-height: 72vh;
   }
 }
+
+/* Contas a Pagar · hierarquia fornecedor > título > pagamento */
+.payables-filters {
+  grid-template-columns: minmax(220px, 1.8fr) repeat(4, minmax(135px, 1fr)) auto;
+}
+
+.payables-record-header,
+.payables-record-card.is-critical .payables-record-header {
+  display: grid;
+  grid-template-columns: minmax(250px, 1.25fr) minmax(720px, 4fr);
+  min-height: 82px;
+  border-bottom: 1px solid #dce7e4;
+  background: #fff;
+  color: #173f39;
+}
+
+.payables-record-header:hover,
+.payables-record-card.is-critical .payables-record-header:hover {
+  background: #f8fbfa;
+}
+
+.payables-record-card.is-critical {
+  border-top: 4px solid #c6564d;
+  border-left: 1px solid #cfdde4;
+}
+
+.payables-record-header .payables-priority {
+  color: #137564;
+}
+
+.payables-record-header .payables-supplier small {
+  color: #6d7d79;
+}
+
+.payables-record-header .payables-supplier strong {
+  color: #173f39;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.payables-record-chevron {
+  color: #137564;
+}
+
+.payables-record-pills {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
+  width: 100%;
+  gap: 8px;
+}
+
+.payables-record-pill {
+  min-width: 0;
+  min-height: 56px;
+  align-content: center;
+  padding: 8px 10px;
+  border: 1px solid #dce7e4;
+  border-radius: 9px;
+  background: #f8fbfa;
+  text-align: left;
+}
+
+.payables-record-pill small {
+  color: #667975;
+}
+
+.payables-record-pill strong {
+  color: #173f39;
+  font-size: 11px;
+}
+
+.payables-record-pill em {
+  color: #82908d;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.payables-record-pill.is-danger {
+  border-top: 3px solid #c6564d;
+}
+
+.payables-record-pill.is-danger strong {
+  color: #a84038;
+}
+
+.payables-record-pill.is-payment {
+  border-top: 3px solid #188875;
+}
+
+.payables-record-pill.is-payment strong {
+  color: #146c5e;
+}
+
+.payables-record-pill.is-balance {
+  border-top: 3px solid #d98c2b;
+}
+
+.payables-titles-section {
+  display: grid;
+  gap: 10px;
+}
+
+.payables-titles-section > header,
+.payables-payment-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payables-titles-section > header > div,
+.payables-payment-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.payables-titles-section > header strong,
+.payables-payment-heading strong {
+  color: #174b5e;
+  font-size: 12px;
+}
+
+.payables-titles-section > header span,
+.payables-payment-heading span {
+  color: #6c7e84;
+  font-size: 10px;
+}
+
+.payables-title-list,
+.payables-payment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.payables-title-card {
+  overflow: hidden;
+  border: 1px solid #d4e1e8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.payables-title-header {
+  display: grid;
+  grid-template-columns: 16px minmax(170px, 1.3fr) minmax(100px, 0.8fr) repeat(5, minmax(105px, 0.85fr));
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-left: 4px solid #5e91a5;
+  background: #eef6f8;
+  color: #173f39;
+  text-align: left;
+  cursor: pointer;
+}
+
+.payables-title-header:hover {
+  background: #e5f1f5;
+}
+
+.payables-title-header > span:not(.payables-record-chevron) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.payables-title-header small,
+.payables-title-context small,
+.payables-payment-summary small {
+  color: #6d7d79;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.payables-title-header strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payables-title-header .is-balance strong {
+  color: #a65c13;
+}
+
+.payables-title-body {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid #d8e5eb;
+  background: #fbfdfe;
+}
+
+.payables-title-context {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.payables-title-context > span {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 1px solid #e1eaed;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.payables-title-context .is-wide {
+  grid-column: 1 / -1;
+}
+
+.payables-payment-record {
+  overflow: hidden;
+  border: 1px solid #dbe6e3;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.payables-payment-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(110px, 0.7fr)) minmax(140px, 1fr) minmax(180px, 1.5fr) minmax(130px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+}
+
+.payables-payment-summary > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.payables-payment-summary strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payables-payment-edit {
+  border: 1px solid #91b8c5;
+  border-radius: 6px;
+  background: #fff;
+  color: #17647d;
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.payables-payment-edit-panel,
+.payables-payment-form--new {
+  padding: 10px;
+  border-top: 1px solid #dce7e4;
+  background: #f3f8f7;
+}
+
+.payables-payment-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr)) minmax(180px, 1.5fr) auto;
+  align-items: end;
+  gap: 9px;
+}
+
+.payables-payment-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.payables-payment-form label > span {
+  color: #536762;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.payables-payment-delete {
+  margin-top: 8px;
+  text-align: right;
+}
+
+.payables-payment-empty {
+  padding: 12px;
+  border: 1px dashed #cbdad6;
+  border-radius: 7px;
+  color: #71817d;
+  background: #fff;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* Administrativo · fornecedores críticos */
+.critical-suppliers-page {
+  display: grid;
+  gap: 16px;
+}
+
+.critical-suppliers-story {
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: linear-gradient(125deg, #123c38, #176d60 62%, #25907b);
+  color: #fff;
+}
+
+.critical-suppliers-story > span {
+  color: #a9e4d8;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.critical-suppliers-story h2 {
+  margin: 7px 0 5px;
+  font-size: 1.35rem;
+}
+
+.critical-suppliers-story p {
+  margin: 0;
+  color: #d9f1ec;
+}
+
+.critical-suppliers-filters {
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.critical-suppliers-panel {
+  overflow: hidden;
+}
+
+.critical-suppliers-list {
+  display: grid;
+  max-height: 62vh;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.critical-supplier-card {
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) minmax(180px, 0.8fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 13px;
+  border: 1px solid #d6e2df;
+  border-left: 4px solid #9aaca7;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.critical-supplier-card.is-critical {
+  border-left-color: #c6564d;
+  background: #fffafa;
+}
+
+.critical-supplier-identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 11px;
+}
+
+.critical-supplier-identity > div,
+.critical-supplier-status {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.critical-supplier-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 34px;
+  padding: 0 7px;
+  border-radius: 8px;
+  background: #eaf4f2;
+  color: #146d5f;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.critical-supplier-identity small,
+.critical-supplier-status small {
+  color: #71817d;
+  font-size: 9px;
+}
+
+.critical-supplier-identity strong {
+  overflow: hidden;
+  color: #173f39;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.critical-supplier-identity div > span {
+  color: #71817d;
+  font-size: 10px;
+}
+
+@media (max-width: 1300px) {
+  .payables-filters {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+
+  .payables-record-header,
+  .payables-record-card.is-critical .payables-record-header {
+    grid-template-columns: 1fr;
+  }
+
+  .payables-record-pill:nth-of-type(3),
+  .payables-record-pill:nth-of-type(4) {
+    display: grid;
+  }
+}
+
+@media (max-width: 850px) {
+  .payables-filters,
+  .payables-record-pills,
+  .payables-title-context,
+  .payables-payment-form,
+  .critical-suppliers-filters,
+  .critical-supplier-card {
+    grid-template-columns: 1fr;
+  }
+
+  .payables-title-header {
+    grid-template-columns: 16px 1fr 1fr;
+  }
+
+  .payables-payment-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
