@@ -14030,7 +14030,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-payment-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(110px, 0.7fr)) minmax(140px, 1fr) minmax(180px, 1.5fr) minmax(130px, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(105px, 0.7fr)) minmax(130px, 1fr) repeat(2, minmax(90px, 0.7fr)) minmax(150px, 1.2fr) minmax(120px, 0.9fr) auto;
   align-items: center;
   gap: 10px;
   padding: 9px 11px;
@@ -14068,7 +14068,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-payment-form {
   display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr)) minmax(180px, 1.5fr) auto;
+  grid-template-columns: repeat(2, minmax(135px, 0.8fr)) minmax(150px, 1fr) repeat(2, minmax(110px, 0.75fr)) minmax(180px, 1.3fr) auto;
   align-items: end;
   gap: 9px;
 }

@@ -8212,6 +8212,8 @@ def _contas_pagar(request, modo):
                             request.POST.get("valor_pago")
                         ),
                         "banco": request.POST.get("banco") or "",
+                        "agencia": request.POST.get("agencia") or "",
+                        "numero_conta": request.POST.get("numero_conta") or "",
                         "observacao": request.POST.get("observacao") or None,
                     }
                     caminho = (
