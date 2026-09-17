@@ -23,11 +23,11 @@
   </header>
 
   <div class="payables-kpis">
-    <article><small>VENCIDO INICIAL</small><strong>R$ {{ resumo.valor_vencido_inicial|br_currency }}</strong><span>Linha de base registrada</span></article>
-    <article class="is-alert"><small>VENCIDO ATUAL</small><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>{{ resumo.fornecedores_vencidos }} fornecedores</span></article>
-    <article><small>NOVOS VENCIDOS · 7 DIAS</small><strong>R$ {{ resumo.novos_vencidos_7d|br_currency }}</strong><span>Pressão nova sobre o passivo</span></article>
-    <article class="is-primary"><small>PAGAMENTO IMEDIATO</small><strong>R$ {{ resumo.pagamento_imediato|br_currency }}</strong><span>Caixa mínimo informado</span></article>
-    <article><small>SALDO A NEGOCIAR</small><strong>R$ {{ resumo.saldo_negociar|br_currency }}</strong><span>Após o desembolso imediato</span></article>
+    <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V8l8-4 8 4v11"></path><path d="M8 12h8M8 16h8"></path></svg></span><small>BASE DA DÍVIDA VENCIDA</small></div><strong>R$ {{ resumo.valor_vencido_inicial|br_currency }}</strong><span>Valor vencido registrado no início do acompanhamento.</span></article>
+    <article class="is-alert"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v6l4 2"></path></svg></span><small>DÍVIDA VENCIDA ATUAL</small></div><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>Total ainda vencido em {{ resumo.fornecedores_vencidos }} fornecedores.</span></article>
+    <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16v11H4z"></path><path d="m9 14 2 2 4-4"></path></svg></span><small>NOVOS ATRASOS · 7 DIAS</small></div><strong>R$ {{ resumo.novos_vencidos_7d|br_currency }}</strong><span>Títulos que venceram nos últimos sete dias.</span></article>
+    <article class="is-primary"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><small>PAGAMENTO IMEDIATO PREVISTO</small></div><strong>R$ {{ resumo.pagamento_imediato|br_currency }}</strong><span>Caixa informado para desembolso prioritário.</span></article>
+    <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h11a4 4 0 0 1 0 8H9"></path><path d="m7 12-3 3 3 3M16 5l2-2 2 2"></path></svg></span><small>SALDO PARA NEGOCIAÇÃO</small></div><strong>R$ {{ resumo.saldo_negociar|br_currency }}</strong><span>Valor aberto após o pagamento imediato.</span></article>
   </div>
 
   {% if modo == "gestao" %}
