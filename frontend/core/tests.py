@@ -1108,6 +1108,7 @@ class ContasPagarTests(TestCase):
                 'contas_pagar_operacao',
                 'contas_pagar_acompanhamento',
                 'contas_pagar_gestao',
+                'fornecedores_criticos',
             ],
         }
         session.save()
@@ -1119,6 +1120,11 @@ class ContasPagarTests(TestCase):
                 'codigo_fornecedor': 10,
                 'nome_fornecedor': 'Fornecedor Essencial',
                 'valor_vencido': '500000.00',
+                'valor_total': '650000.00',
+                'valor_total_vencido': '500000.00',
+                'valor_total_honrado': '150000.00',
+                'total_dias_vencidos': 250,
+                'saldo_a_pagar': '500000.00',
                 'valor_corrente': '25000.00',
                 'vencimento_mais_antigo': '2026-06-09',
                 'dias_atraso': 100,
@@ -1129,6 +1135,29 @@ class ContasPagarTests(TestCase):
                 'saldo_negociar': '400000.00',
                 'status': 'NEGOCIACAO',
                 'responsavel': 'Ana',
+                'titulos': [{
+                    'codigo_parcela': 99,
+                    'codigo_contas_pagar': 88,
+                    'numero_documento': 'NF-10',
+                    'numero_parcela': 1,
+                    'descricao_conta': 'Medicamentos',
+                    'data_vencimento': '2026-06-09',
+                    'tipo_quitacao': 'parcialmente pago',
+                    'valor_total': '650000.00',
+                    'valor_honrado_oracle': '100000.00',
+                    'valor_honrado_manual': '50000.00',
+                    'valor_total_honrado': '150000.00',
+                    'saldo_a_pagar': '500000.00',
+                    'dias_vencidos': 100,
+                    'pagamentos': [{
+                        'id': 31,
+                        'data_pagamento': '2026-09-17',
+                        'valor_pago': '50000.00',
+                        'banco': 'Banco Pronto',
+                        'observacao': 'Parcial',
+                        'usuario_nome': 'Ana',
+                    }],
+                }],
             }],
             'total': 1,
             'page': 1,
@@ -1156,7 +1185,12 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'Pagamento imediato')
         self.assertContains(response, 'Excluir dados operacionais')
         self.assertContains(response, 'Operações do registro')
-        self.assertContains(response, 'Editar registro')
+        self.assertContains(response, 'Valor total honrado')
+        self.assertContains(response, 'Tempo de atraso')
+        self.assertContains(response, 'Título mais antigo')
+        self.assertContains(response, 'Títulos do fornecedor')
+        self.assertContains(response, 'Banco Pronto')
+        self.assertContains(response, 'Informar pagamento')
         self.assertContains(response, 'payables-record-card')
         self.assertContains(response, 'Priorizar, editar e excluir dados operacionais')
         self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
@@ -1171,7 +1205,7 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'DÍVIDA VENCIDA')
         self.assertContains(response, 'Regra de decisão')
         self.assertContains(response, 'Análise gerencial do registro')
-        self.assertContains(response, 'Analisar registro')
+        self.assertContains(response, 'Títulos do fornecedor')
         self.assertContains(response, 'Página')
         self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
 
@@ -1184,7 +1218,7 @@ class ContasPagarTests(TestCase):
         )
 
         self.assertContains(response, 'Acompanhamento do registro')
-        self.assertContains(response, 'Acompanhar registro')
+        self.assertContains(response, 'Pagamentos informados')
         self.assertContains(
             response,
             'Consultar responsáveis, ações e negociações',
@@ -1206,6 +1240,76 @@ class ContasPagarTests(TestCase):
         self.assertEqual(response.status_code, 302)
         api_put.assert_called_once()
         self.assertEqual(api_put.call_args.args[1]['pagamento_imediato'], 100000.0)
+
+    @patch('core.views.api_post')
+    def test_operacao_informa_pagamento_do_titulo(self, api_post):
+        response = self.client.post(
+            '/financeiro/contas-a-pagar/operacao/',
+            {
+                'form_action': 'pagamento_salvar',
+                'codigo_fornecedor': '10',
+                'codigo_parcela': '99',
+                'data_pagamento': '2026-09-17',
+                'valor_pago': '1.250,50',
+                'banco': 'Banco Pronto',
+                'observacao': 'Pagamento parcial',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/fornecedores/10'
+            '/titulos/99/pagamentos',
+            {
+                'data_pagamento': '2026-09-17',
+                'valor_pago': 1250.5,
+                'banco': 'Banco Pronto',
+                'observacao': 'Pagamento parcial',
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_filtro_entre_datas_e_enviado_para_api(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get(
+            '/financeiro/contas-a-pagar/operacao/',
+            {'data_inicio': '2026-06-01', 'data_fim': '2026-06-30'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="2026-06-01"')
+        self.assertContains(response, 'value="2026-06-30"')
+        self.assertEqual(
+            api_get.call_args.kwargs['params']['data_inicio'],
+            '2026-06-01',
+        )
+
+    @patch('core.views.api_patch')
+    @patch('core.views.api_get')
+    def test_administrativo_cadastra_fornecedor_critico(
+        self, api_get, api_patch
+    ):
+        api_get.return_value = self.payload()
+        response = self.client.get(
+            '/administrativo/fornecedores-criticos/',
+            {'q': 'Essencial'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cadastro de criticidade')
+        self.assertContains(response, 'Fornecedor Essencial')
+
+        response = self.client.post(
+            '/administrativo/fornecedores-criticos/',
+            {'codigo_fornecedor': '10', 'critico': '1'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_patch.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/fornecedores/10/criticidade',
+            {'critico': True},
+        )
 
 
 @override_settings(
@@ -1766,6 +1870,8 @@ class LoginFlowTests(TestCase):
             'aria-label="Telas disponíveis para o novo usuário"',
         )
         self.assertContains(response, 'Criar acesso')
+        self.assertContains(response, 'Fornecedores críticos')
+        self.assertContains(response, 'value="fornecedores_criticos"')
         self.assertContains(
             response,
             'name="access-user-management"',

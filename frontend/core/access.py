@@ -111,6 +111,11 @@ SCREEN_GROUPS = (
         "label": "Administrativo",
         "screens": (
             {
+                "key": "fornecedores_criticos",
+                "label": "Fornecedores críticos",
+                "route_name": "fornecedores_criticos",
+            },
+            {
                 "key": "configuracao_convenio",
                 "label": "Configuração por Convênio",
                 "route_name": "prazos_recurso_convenio",
@@ -162,6 +167,7 @@ ROUTE_PERMISSIONS = {
     "contas_pagar_operacao": "contas_pagar_operacao",
     "contas_pagar_acompanhamento": "contas_pagar_acompanhamento",
     "contas_pagar_gestao": "contas_pagar_gestao",
+    "fornecedores_criticos": "fornecedores_criticos",
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
     "consultar_atendimento_nota": "solicitar_nota",

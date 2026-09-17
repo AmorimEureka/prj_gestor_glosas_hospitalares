@@ -150,6 +150,11 @@ urlpatterns = [
         name="contas_pagar_gestao",
     ),
     path(
+        "administrativo/fornecedores-criticos/",
+        views.fornecedores_criticos,
+        name="fornecedores_criticos",
+    ),
+    path(
         "financeiro/conciliacao-fiscal-faturamento/remessas/<str:nfse_row_hash>/",
         views.conciliacao_faturamento_remessas,
         name="conciliacao_faturamento_remessas",
