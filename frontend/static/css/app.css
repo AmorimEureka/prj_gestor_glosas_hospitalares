@@ -13432,6 +13432,63 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow: visible;
 }
 
+.payables-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-content: start;
+  padding-right: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.payables-kpis article {
+  min-height: 132px;
+}
+
+.payables-kpi-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payables-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  border-radius: 8px;
+  background: #eaf4f2;
+  color: #176d60;
+}
+
+.payables-kpi-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.payables-kpis .is-alert .payables-kpi-icon {
+  background: #fbeceb;
+  color: #b44b43;
+}
+
+.payables-kpis .is-primary .payables-kpi-icon {
+  background: #e5f4f0;
+  color: #137564;
+}
+
+.payables-kpis article > span:last-child {
+  line-height: 1.35;
+}
+
 .payables-list {
   display: block;
   min-height: 0;
@@ -13452,6 +13509,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-results-toolbar {
   flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.payables-results-toolbar .pagination-control {
+  margin-left: auto;
 }
 
 .payables-pagination-footer {
