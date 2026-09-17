@@ -13429,17 +13429,33 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: flex;
   min-height: 0;
   flex-direction: column;
+  overflow: visible;
 }
 
 .payables-list {
   display: block;
-  min-height: 220px;
-  max-height: min(68vh, calc(100vh - 210px));
+  min-height: 0;
+  max-height: none;
   padding: 4px 6px 8px 2px;
   overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow-y: visible;
+}
+
+.payables-results-header {
+  align-items: center;
+  gap: 14px;
+}
+
+.payables-results-header .results-heading {
+  flex: 1 1 auto;
+}
+
+.payables-results-toolbar {
+  flex: 0 0 auto;
+}
+
+.payables-pagination-footer {
+  padding: 0 4px 18px;
 }
 
 .payables-record-card {
@@ -13698,8 +13714,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
     flex-direction: column;
   }
 
-  .payables-list {
-    max-height: 72vh;
+  .payables-results-header,
+  .payables-results-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

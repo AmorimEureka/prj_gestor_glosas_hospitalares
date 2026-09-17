@@ -57,7 +57,21 @@
   </form>
 
   <section class="panel payables-list-panel">
-    <div class="panel-header"><div class="results-heading"><div><span class="panel-title">{% if modo == "operacao" %}Registros para operacionalização{% elif modo == "acompanhamento" %}Registros para acompanhamento{% else %}Registros para decisão gerencial{% endif %}</span><span class="results-subtitle">{{ pagination.total }} fornecedores · cada card reúne o agrupamento e suas operações</span></div></div>{% if fornecedores %}<div class="collapse-actions"><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-expand'))">Expandir</button><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-collapse'))">Colapsar todos</button></div>{% endif %}</div>
+    <div class="panel-header payables-results-header">
+      <div class="results-heading">
+        <div><span class="panel-title">{% if modo == "operacao" %}Registros para operacionalização{% elif modo == "acompanhamento" %}Registros para acompanhamento{% else %}Registros para decisão gerencial{% endif %}</span>{% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} fornecedores exibidos</span>{% endif %}</div>
+        {% if fornecedores %}<div class="collapse-actions"><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-expand'))">Expandir</button><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-collapse'))">Colapsar todos</button></div>{% endif %}
+      </div>
+      {% if pagination.total %}
+      <div class="results-toolbar payables-results-toolbar">
+        <div class="pagination-control">
+          {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+          <form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="payables-page">Página</label><select id="payables-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>
+          {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
     <div class="payables-list">
       {% for fornecedor in fornecedores %}
       <article class="payables-item payables-record-card {% if fornecedor.critico %}is-critical{% endif %}" x-data="{ open: false }" @payables-expand.window="open=true" @payables-collapse.window="open=false">
@@ -126,7 +140,7 @@
       </article>
       {% empty %}<div class="empty-state"><strong>Nenhum fornecedor encontrado.</strong><span>Ajuste os filtros ou verifique a disponibilidade da view Oracle.</span></div>{% endfor %}
     </div>
-    {% if pagination.total %}<div class="pagination-control payables-pagination">{% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}<form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="payables-page">Página</label><select id="payables-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>{% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}</div>{% endif %}
   </section>
+  {% if pagination.total_pages > 1 %}<div class="pagination-footer payables-pagination-footer">{% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}<span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>{% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}</div>{% endif %}
 </section>
 {% endblock %}
