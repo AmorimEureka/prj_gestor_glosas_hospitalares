@@ -8212,6 +8212,8 @@ def _contas_pagar(request, modo):
                             request.POST.get("valor_pago")
                         ),
                         "banco": request.POST.get("banco") or "",
+                        "agencia": request.POST.get("agencia") or "",
+                        "numero_conta": request.POST.get("numero_conta") or "",
                         "observacao": request.POST.get("observacao") or None,
                     }
                     caminho = (
@@ -8281,6 +8283,8 @@ def _contas_pagar(request, modo):
         "has_next": page < total_pages,
         "previous_url": f"?{urlencode({**query, 'page': page - 1})}" if page > 1 else "",
         "next_url": f"?{urlencode({**query, 'page': page + 1})}" if page < total_pages else "",
+        "start": ((page - 1) * 20) + 1 if payload.get("fornecedores") else 0,
+        "end": min(page * 20, int(payload.get("total") or 0)),
         "query": query,
     }
     return render(
