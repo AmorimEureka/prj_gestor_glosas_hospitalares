@@ -13799,6 +13799,23 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-top: 3px solid #d98c2b;
 }
 
+.payables-record-pill.is-critical {
+  border-top: 3px solid #c6564d;
+  background: #fff8f7;
+}
+
+.payables-record-pill.is-critical strong {
+  color: #a84038;
+}
+
+.payables-detail-grid--financial {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.payables-detail-grid--financial > span {
+  border-top: 3px solid #188875;
+}
+
 .payables-titles-section {
   display: grid;
   gap: 10px;
