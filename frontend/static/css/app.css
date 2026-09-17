@@ -13432,6 +13432,17 @@ body:not(.sidebar-collapsed) .indicator-grid {
   overflow: visible;
 }
 
+.payables-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-content: start;
+  padding-right: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .payables-list {
   display: block;
   min-height: 0;
@@ -13452,6 +13463,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-results-toolbar {
   flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.payables-results-toolbar .pagination-control {
+  margin-left: auto;
 }
 
 .payables-pagination-footer {
