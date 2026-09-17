@@ -8182,11 +8182,53 @@ def _contas_pagar(request, modo):
     if request.method == "POST":
         codigo = as_int_or_none(request.POST.get("codigo_fornecedor"))
         action = request.POST.get("form_action")
+        codigo_parcela = as_int_or_none(request.POST.get("codigo_parcela"))
+        pagamento_id = as_int_or_none(request.POST.get("pagamento_id"))
         if not codigo:
             messages.error(request, "Fornecedor inválido.")
         else:
             try:
-                if action == "excluir":
+                if action in {
+                    "pagamento_salvar",
+                    "pagamento_atualizar",
+                    "pagamento_excluir",
+                } and not codigo_parcela:
+                    messages.error(request, "Título inválido.")
+                elif action in {
+                    "pagamento_atualizar",
+                    "pagamento_excluir",
+                } and not pagamento_id:
+                    messages.error(request, "Pagamento inválido.")
+                elif action == "pagamento_excluir" and pagamento_id:
+                    api_delete(
+                        f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}"
+                        f"/titulos/{codigo_parcela}/pagamentos/{pagamento_id}"
+                    )
+                    messages.success(request, "Pagamento excluído com sucesso.")
+                elif action in {"pagamento_salvar", "pagamento_atualizar"}:
+                    pagamento = {
+                        "data_pagamento": request.POST.get("data_pagamento"),
+                        "valor_pago": as_float_or_zero(
+                            request.POST.get("valor_pago")
+                        ),
+                        "banco": request.POST.get("banco") or "",
+                        "observacao": request.POST.get("observacao") or None,
+                    }
+                    caminho = (
+                        f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}"
+                        f"/titulos/{codigo_parcela}/pagamentos"
+                    )
+                    if action == "pagamento_atualizar" and pagamento_id:
+                        api_put(f"{caminho}/{pagamento_id}", pagamento)
+                        messages.success(
+                            request, "Pagamento atualizado com sucesso."
+                        )
+                    else:
+                        api_post(caminho, pagamento)
+                        messages.success(
+                            request, "Pagamento informado com sucesso."
+                        )
+                elif action == "excluir":
                     api_delete(f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}")
                     messages.success(request, "Dados operacionais excluídos. Os títulos do Oracle foram preservados.")
                 else:
@@ -8214,6 +8256,8 @@ def _contas_pagar(request, modo):
         "q": (request.GET.get("q") or "").strip(),
         "criticidade": request.GET.get("criticidade") or "todos",
         "status": (request.GET.get("status") or "").strip(),
+        "data_inicio": (request.GET.get("data_inicio") or "").strip(),
+        "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
     try:
         payload = api_get(
@@ -8266,6 +8310,101 @@ def contas_pagar_acompanhamento(request):
 @require_http_methods(["GET"])
 def contas_pagar_gestao(request):
     return _contas_pagar(request, "gestao")
+
+
+@require_http_methods(["GET", "POST"])
+def fornecedores_criticos(request):
+    if request.method == "POST":
+        codigo = as_int_or_none(request.POST.get("codigo_fornecedor"))
+        if not codigo:
+            messages.error(request, "Fornecedor inválido.")
+        else:
+            try:
+                critico = request.POST.get("critico") == "1"
+                api_patch(
+                    f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}/criticidade",
+                    {"critico": critico},
+                )
+                messages.success(
+                    request,
+                    "Fornecedor marcado como crítico."
+                    if critico
+                    else "Criticidade removida do fornecedor.",
+                )
+            except ApiError as exc:
+                messages.error(
+                    request,
+                    format_api_error(exc, "Fornecedores críticos"),
+                )
+        query = request.GET.urlencode()
+        destino = reverse("fornecedores_criticos")
+        return redirect(f"{destino}{'?' + query if query else ''}")
+
+    page = as_positive_int(request.GET.get("page"), 1)
+    filtros = {
+        "q": (request.GET.get("q") or "").strip(),
+        "criticidade": request.GET.get("criticidade") or "todos",
+    }
+    try:
+        payload = api_get(
+            CONTAS_PAGAR_PATH,
+            params={
+                **filtros,
+                "status": "",
+                "data_inicio": "",
+                "data_fim": "",
+                "page": page,
+                "page_size": 20,
+            },
+            timeout=60,
+        )
+    except ApiError as exc:
+        payload = {
+            "fornecedores": [],
+            "total": 0,
+            "total_pages": 1,
+        }
+        messages.error(
+            request,
+            format_api_error(exc, "Fornecedores críticos"),
+        )
+    total_pages = max(int(payload.get("total_pages") or 1), 1)
+    query = {
+        key: value
+        for key, value in filtros.items()
+        if value and value != "todos"
+    }
+    pagination = {
+        "page": page,
+        "total": int(payload.get("total") or 0),
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": (
+            f"?{urlencode({**query, 'page': page - 1})}"
+            if page > 1
+            else ""
+        ),
+        "next_url": (
+            f"?{urlencode({**query, 'page': page + 1})}"
+            if page < total_pages
+            else ""
+        ),
+        "query": query,
+    }
+    return render(
+        request,
+        "fornecedores_criticos.html",
+        {
+            "fornecedores": payload.get("fornecedores", []),
+            "filtros": filtros,
+            "pagination": pagination,
+        },
+    )
 
 
 @require_http_methods(["GET"])
