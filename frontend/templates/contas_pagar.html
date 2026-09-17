@@ -22,6 +22,15 @@
     <p>{% if modo == "operacao" %}Fornecedores críticos aparecem primeiro; dentro de cada grupo, o título mais antigo define a prioridade.{% elif modo == "acompanhamento" %}Compare o vencido inicial, a posição atual e o que entrou em atraso nos últimos sete dias.{% else %}A visão executiva separa a continuidade do hospital do passivo acumulado e mostra quanto caixa é necessário agora.{% endif %}</p>
   </header>
 
+  <form method="get" class="panel filter-panel payables-filters">
+    <label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>
+    <label class="filter-group"><span>Criticidade</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
+    <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
+    <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
+    <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
+    <div class="filter-actions"><button class="btn btn-primary" type="submit">Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
+  </form>
+
   <div class="payables-kpis">
     <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V8l8-4 8 4v11"></path><path d="M8 12h8M8 16h8"></path></svg></span><small>BASE DA DÍVIDA VENCIDA</small></div><strong>R$ {{ resumo.valor_vencido_inicial|br_currency }}</strong><span>Valor vencido registrado no início do acompanhamento.</span></article>
     <article class="is-alert"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v6l4 2"></path></svg></span><small>DÍVIDA VENCIDA ATUAL</small></div><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>Total ainda vencido em {{ resumo.fornecedores_vencidos }} fornecedores.</span></article>
@@ -46,15 +55,6 @@
     </article>
   </section>
   {% endif %}
-
-  <form method="get" class="panel filter-panel payables-filters">
-    <label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>
-    <label class="filter-group"><span>Criticidade</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
-    <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
-    <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
-    <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
-    <div class="filter-actions"><button class="btn btn-primary" type="submit">Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
-  </form>
 
   <section class="panel payables-list-panel">
     <div class="panel-header payables-results-header">
