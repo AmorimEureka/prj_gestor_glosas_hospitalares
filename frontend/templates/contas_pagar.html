@@ -94,7 +94,7 @@
             <header><div><strong>Títulos do fornecedor</strong><span>{{ fornecedor.titulos|length }} título(s) no período selecionado</span></div><span>Expanda um título para consultar e informar pagamentos</span></header>
             <div class="payables-title-list">
               {% for titulo in fornecedor.titulos %}
-              <article class="payables-title-card" x-data="{ titleOpen: false, newPayment: false }" @payables-collapse.window="titleOpen=false; newPayment=false">
+              <article class="payables-title-card" x-data="{ titleOpen: false }" @payables-collapse.window="titleOpen=false">
                 <button type="button" class="payables-title-header" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
                   <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
                   <span><small>TÍTULO / PARCELA</small><strong>#{{ titulo.codigo_parcela }} · Parcela {{ titulo.numero_parcela|default:"-" }}</strong></span>
@@ -106,8 +106,8 @@
                   <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
                 </button>
                 <div class="payables-title-body" x-show="titleOpen" x-cloak>
-                  <div class="payables-title-context"><span><small>CONTA A PAGAR</small><strong>{{ titulo.codigo_contas_pagar|default:"-" }}</strong></span><span><small>SITUAÇÃO ORACLE</small><strong>{{ titulo.tipo_quitacao|default:"-" }}</strong></span><span><small>HONRADO NO ORACLE</small><strong>R$ {{ titulo.valor_honrado_oracle|br_currency }}</strong></span><span><small>HONRADO INFORMADO</small><strong>R$ {{ titulo.valor_honrado_manual|br_currency }}</strong></span><span class="is-wide"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></span></div>
-                  <div class="payables-payment-heading"><div><strong>Pagamentos informados</strong><span>Recursos complementares registrados no Receita Certa</span></div>{% if modo == "operacao" %}<button type="button" class="btn btn-outline-secondary btn-sm" @click="newPayment=!newPayment">Informar pagamento</button>{% endif %}</div>
+                  <div class="payables-title-description"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></div>
+                  <div class="payables-payment-heading"><div><strong>Pagamentos informados</strong><span>Recursos complementares registrados no Receita Certa</span></div></div>
                   <div class="payables-payment-list">
                     {% for pagamento in titulo.pagamentos %}
                     <article class="payables-payment-record" x-data="{ editing: false }">
@@ -122,7 +122,7 @@
                     {% empty %}<div class="payables-payment-empty">Nenhum pagamento complementar informado para este título.</div>{% endfor %}
                   </div>
                   {% if modo == "operacao" %}
-                  <form method="post" class="payables-payment-form payables-payment-form--new" x-show="newPayment" x-cloak>{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_salvar"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><label><span>Data do pagamento</span><input class="form-control" type="date" name="data_pagamento" required></label><label><span>Valor pago</span><input class="form-control finance-money-input" name="valor_pago" inputmode="decimal" placeholder="0,00" required></label><label><span>Nome do banco</span><input class="form-control" name="banco" maxlength="150" required></label><label><span>Agência</span><input class="form-control" name="agencia" maxlength="30" required></label><label><span>Número da conta</span><input class="form-control" name="numero_conta" maxlength="50" required></label><label class="is-wide"><span>Observação</span><input class="form-control" name="observacao" maxlength="4000"></label><button class="btn btn-primary" type="submit">Salvar pagamento</button></form>
+                  <form method="post" class="payables-payment-form payables-payment-form--new">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_salvar"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><label><span>Data do pagamento</span><input class="form-control" type="date" name="data_pagamento" required></label><label><span>Valor pago</span><input class="form-control finance-money-input" name="valor_pago" inputmode="decimal" placeholder="0,00" required></label><label><span>Nome do banco</span><input class="form-control" name="banco" maxlength="150" required></label><label><span>Agência</span><input class="form-control" name="agencia" maxlength="30" required></label><label><span>Número da conta</span><input class="form-control" name="numero_conta" maxlength="50" required></label><label class="is-wide"><span>Observação</span><input class="form-control" name="observacao" maxlength="4000"></label><button class="btn btn-primary" type="submit">Salvar pagamento</button></form>
                   {% endif %}
                 </div>
               </article>
