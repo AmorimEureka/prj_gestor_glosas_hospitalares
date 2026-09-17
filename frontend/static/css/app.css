@@ -13427,7 +13427,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-list-panel {
   display: flex;
-  min-height: 0;
+  min-height: max-content;
+  flex: 0 0 auto;
   flex-direction: column;
   overflow: visible;
 }
@@ -13435,6 +13436,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .payables-page {
   flex: 1 1 auto;
   min-height: 0;
+  grid-auto-rows: max-content;
   align-content: start;
   padding-right: 4px;
   overflow-x: hidden;
@@ -13491,7 +13493,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-list {
   display: block;
-  min-height: 0;
+  min-height: max-content;
   max-height: none;
   padding: 4px 6px 8px 2px;
   overflow-x: hidden;
