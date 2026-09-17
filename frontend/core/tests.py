@@ -1187,8 +1187,8 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'Fornecedor Essencial')
         self.assertContains(response, 'Pagamento imediato')
         self.assertContains(response, 'Excluir dados operacionais')
-        self.assertContains(response, 'Operações do registro')
-        self.assertContains(response, 'VALOR TOTAL HONRADO')
+        self.assertNotContains(response, 'Operações do registro')
+        self.assertNotContains(response, 'VALOR TOTAL HONRADO')
         self.assertContains(response, 'Dias de atraso')
         self.assertContains(response, 'Título mais antigo')
         self.assertContains(response, 'Crítico?')
@@ -1219,7 +1219,7 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'CONTAS CORRENTES')
         self.assertContains(response, 'DÍVIDA VENCIDA')
         self.assertContains(response, 'Regra de decisão')
-        self.assertContains(response, 'Análise gerencial do registro')
+        self.assertNotContains(response, 'Análise gerencial do registro')
         self.assertContains(response, 'Títulos do fornecedor')
         self.assertContains(response, 'Página')
         self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
@@ -1232,7 +1232,7 @@ class ContasPagarTests(TestCase):
             '/financeiro/contas-a-pagar/acompanhamento/'
         )
 
-        self.assertContains(response, 'Acompanhamento do registro')
+        self.assertNotContains(response, 'Acompanhamento do registro')
         self.assertContains(response, 'Pagamentos informados')
         self.assertContains(
             response,
