@@ -13910,7 +13910,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .payables-title-header small,
-.payables-title-context small,
+.payables-title-description small,
 .payables-payment-summary small {
   color: #6d7d79;
   font-size: 8px;
@@ -13935,15 +13935,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   padding: 12px;
   border-top: 1px solid #d8e5eb;
   background: #fbfdfe;
+  container-type: inline-size;
 }
 
-.payables-title-context {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 8px;
-}
-
-.payables-title-context > span {
+.payables-title-description {
   display: grid;
   gap: 3px;
   padding: 9px;
@@ -13952,8 +13947,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #fff;
 }
 
-.payables-title-context .is-wide {
-  grid-column: 1 / -1;
+.payables-title-description strong {
+  color: #263b47;
+  font-size: 11px;
 }
 
 .payables-payment-record {
@@ -14010,7 +14006,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .payables-payment-form label {
   display: grid;
+  min-width: 0;
   gap: 4px;
+}
+
+.payables-payment-form input,
+.payables-payment-form select,
+.payables-payment-form textarea,
+.payables-payment-form button {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .payables-payment-form label > span {
@@ -14032,6 +14037,22 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #fff;
   font-size: 11px;
   text-align: center;
+}
+
+@container (max-width: 1350px) {
+  .payables-payment-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .payables-payment-form > button {
+    width: 100%;
+  }
+}
+
+@container (max-width: 760px) {
+  .payables-payment-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Administrativo · fornecedores críticos */
@@ -14167,7 +14188,6 @@ body:not(.sidebar-collapsed) .indicator-grid {
 @media (max-width: 850px) {
   .payables-filters,
   .payables-record-pills,
-  .payables-title-context,
   .payables-payment-form,
   .critical-suppliers-filters,
   .critical-supplier-card {
