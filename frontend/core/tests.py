@@ -1155,7 +1155,11 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'Fornecedor Essencial')
         self.assertContains(response, 'Pagamento imediato')
         self.assertContains(response, 'Excluir dados operacionais')
-        self.assertContains(response, 'HPC_V_CONTAS_A_PAGAR')
+        self.assertContains(response, 'Operações do registro')
+        self.assertContains(response, 'Editar registro')
+        self.assertContains(response, 'payables-record-card')
+        self.assertContains(response, 'Priorizar, editar e excluir dados operacionais')
+        self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
 
     @patch('core.views.api_get')
     def test_gestao_separa_contas_correntes_da_divida(self, api_get):
@@ -1166,6 +1170,25 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'CONTAS CORRENTES')
         self.assertContains(response, 'DÍVIDA VENCIDA')
         self.assertContains(response, 'Regra de decisão')
+        self.assertContains(response, 'Análise gerencial do registro')
+        self.assertContains(response, 'Analisar registro')
+        self.assertContains(response, 'Página')
+        self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_exibe_operacao_do_card(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get(
+            '/financeiro/contas-a-pagar/acompanhamento/'
+        )
+
+        self.assertContains(response, 'Acompanhamento do registro')
+        self.assertContains(response, 'Acompanhar registro')
+        self.assertContains(
+            response,
+            'Consultar responsáveis, ações e negociações',
+        )
 
     @patch('core.views.api_put')
     def test_operacao_salva_dados_complementares(self, api_put):
