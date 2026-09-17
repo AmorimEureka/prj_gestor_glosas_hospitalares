@@ -8218,7 +8218,7 @@ def _contas_pagar(request, modo):
     try:
         payload = api_get(
             CONTAS_PAGAR_PATH,
-            params={**filtros, "page": page, "page_size": 20 if modo != "gestao" else 100},
+            params={**filtros, "page": page, "page_size": 20},
             timeout=60,
         )
     except ApiError as exc:
