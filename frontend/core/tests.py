@@ -1202,6 +1202,8 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'PAGAMENTO IMEDIATO PREVISTO')
         self.assertContains(response, 'SALDO PARA NEGOCIAÇÃO')
         self.assertContains(response, 'Valor aberto após o pagamento imediato.')
+        content = response.content.decode()
+        self.assertLess(content.index('payables-filters'), content.index('payables-kpis'))
         self.assertContains(response, 'Títulos do fornecedor')
         self.assertContains(response, 'Banco Pronto')
         self.assertContains(response, '0001')
