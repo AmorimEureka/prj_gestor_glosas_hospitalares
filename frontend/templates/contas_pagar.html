@@ -68,15 +68,16 @@
             <span class="payables-supplier"><small>FORNECEDOR {{ fornecedor.codigo_fornecedor }}</small><strong>{{ fornecedor.nome_fornecedor }}</strong></span>
           </span>
           <span class="payables-record-pills">
-            <span class="payables-record-pill"><small>Valor total</small><strong>R$ {{ fornecedor.valor_total|br_currency }}</strong></span>
             <span class="payables-record-pill is-danger"><small>Valor total vencido</small><strong>R$ {{ fornecedor.valor_total_vencido|br_currency }}</strong></span>
-            <span class="payables-record-pill is-payment"><small>Valor total honrado</small><strong>R$ {{ fornecedor.valor_total_honrado|br_currency }}</strong></span>
-            <span class="payables-record-pill"><small>Tempo de atraso</small><strong>{{ fornecedor.dias_atraso }} dias</strong><em>Título mais antigo</em></span>
-            <span class="payables-record-pill is-balance"><small>Saldo a pagar</small><strong>R$ {{ fornecedor.saldo_a_pagar|br_currency }}</strong></span>
+            <span class="payables-record-pill"><small>Dias de atraso</small><strong>{{ fornecedor.dias_atraso }} dias</strong><em>Título mais antigo</em></span>
+            <span class="payables-record-pill {% if fornecedor.critico %}is-critical{% endif %}"><small>Crítico?</small><strong>{% if fornecedor.critico %}SIM{% else %}NÃO{% endif %}</strong></span>
+            <span class="payables-record-pill is-payment"><small>Pagamento imediato</small><strong>R$ {{ fornecedor.pagamento_imediato|br_currency }}</strong></span>
+            <span class="payables-record-pill is-balance"><small>Saldo a negociar</small><strong>R$ {{ fornecedor.saldo_negociar|br_currency }}</strong></span>
           </span>
         </button>
         <div id="payables-record-{{ fornecedor.codigo_fornecedor }}" class="payables-details" x-show="open" x-cloak>
           <div class="payables-record-section-heading"><div><strong>{% if modo == "operacao" %}Operações do registro{% elif modo == "acompanhamento" %}Acompanhamento do registro{% else %}Análise gerencial do registro{% endif %}</strong><span>{% if modo == "operacao" %}Atualize a prioridade, o responsável, a negociação e a próxima ação deste fornecedor.{% elif modo == "acompanhamento" %}Consulte a situação registrada, os próximos passos e a condição negociada.{% else %}Avalie criticidade, atraso, desembolso imediato e saldo ainda exposto.{% endif %}</span></div><span class="payables-status-chip">{{ fornecedor.status }}</span></div>
+          <div class="payables-detail-grid payables-detail-grid--financial"><span><small>VALOR TOTAL</small><strong>R$ {{ fornecedor.valor_total|br_currency }}</strong></span><span><small>VALOR TOTAL VENCIDO</small><strong>R$ {{ fornecedor.valor_total_vencido|br_currency }}</strong></span><span><small>VALOR TOTAL HONRADO</small><strong>R$ {{ fornecedor.valor_total_honrado|br_currency }}</strong></span><span><small>SALDO A PAGAR</small><strong>R$ {{ fornecedor.saldo_a_pagar|br_currency }}</strong></span></div>
           <div class="payables-detail-grid"><span><small>TÍTULOS VENCIDOS</small><strong>{{ fornecedor.titulos_vencidos }}</strong></span><span><small>VENCIMENTO MAIS ANTIGO</small><strong>{{ fornecedor.vencimento_mais_antigo|api_date }}</strong></span><span><small>NOVOS VENCIDOS · 7 DIAS</small><strong>R$ {{ fornecedor.novos_vencidos_7d|br_currency }}</strong></span><span><small>STATUS</small><strong>{{ fornecedor.status }}</strong></span><span><small>RESPONSÁVEL</small><strong>{{ fornecedor.responsavel|default:"Não definido" }}</strong></span><span><small>PRÓXIMA AÇÃO</small><strong>{{ fornecedor.proxima_acao|default:"Não definida" }}</strong></span></div>
           <section class="payables-titles-section">
             <header><div><strong>Títulos do fornecedor</strong><span>{{ fornecedor.titulos|length }} título(s) no período selecionado</span></div><span>Expanda um título para consultar e informar pagamentos</span></header>
