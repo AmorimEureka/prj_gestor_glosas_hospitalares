@@ -1154,6 +1154,8 @@ class ContasPagarTests(TestCase):
                         'data_pagamento': '2026-09-17',
                         'valor_pago': '50000.00',
                         'banco': 'Banco Pronto',
+                        'agencia': '0001',
+                        'numero_conta': '12345-6',
                         'observacao': 'Parcial',
                         'usuario_nome': 'Ana',
                     }],
@@ -1192,6 +1194,8 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'Saldo a negociar')
         self.assertContains(response, 'Títulos do fornecedor')
         self.assertContains(response, 'Banco Pronto')
+        self.assertContains(response, '0001')
+        self.assertContains(response, '12345-6')
         self.assertContains(response, 'Informar pagamento')
         self.assertContains(response, 'payables-record-card')
         self.assertContains(response, 'Priorizar, editar e excluir dados operacionais')
@@ -1254,6 +1258,8 @@ class ContasPagarTests(TestCase):
                 'data_pagamento': '2026-09-17',
                 'valor_pago': '1.250,50',
                 'banco': 'Banco Pronto',
+                'agencia': '0001',
+                'numero_conta': '12345-6',
                 'observacao': 'Pagamento parcial',
             },
         )
@@ -1266,6 +1272,8 @@ class ContasPagarTests(TestCase):
                 'data_pagamento': '2026-09-17',
                 'valor_pago': 1250.5,
                 'banco': 'Banco Pronto',
+                'agencia': '0001',
+                'numero_conta': '12345-6',
                 'observacao': 'Pagamento parcial',
             },
         )
