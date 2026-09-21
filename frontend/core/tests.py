@@ -1223,6 +1223,12 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, '20/05/2026')
         self.assertContains(response, 'value="pagamento_salvar"')
         self.assertContains(response, 'Salvar pagamento')
+        self.assertContains(
+            response, 'data-money-input autocomplete="off"', count=2
+        )
+        self.assertContains(response, 'name="valor_pago"', count=2)
+        self.assertContains(response, 'inputmode="numeric"', count=2)
+        self.assertNotContains(response, 'inputmode="decimal"')
         self.assertContains(response, 'payables-record-card')
         self.assertContains(response, '1-1 de 1 fornecedores exibidos')
         self.assertContains(response, 'id="payables-page"')
