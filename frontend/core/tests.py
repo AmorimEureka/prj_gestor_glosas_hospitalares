@@ -1186,7 +1186,7 @@ class ContasPagarTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Fornecedor Essencial')
-        self.assertContains(response, 'Pagamento imediato')
+        self.assertContains(response, 'Pagar agora')
         self.assertNotContains(response, 'Excluir dados operacionais')
         self.assertNotContains(response, 'Salvar tratamento')
         self.assertNotContains(response, 'Fornecedor crítico para a operação hospitalar')
@@ -1194,16 +1194,17 @@ class ContasPagarTests(TestCase):
         self.assertNotContains(response, 'name="condicao_negociada"')
         self.assertNotContains(response, 'Operações do registro')
         self.assertNotContains(response, 'VALOR TOTAL HONRADO')
-        self.assertContains(response, 'Dias de atraso')
-        self.assertContains(response, 'Título mais antigo')
-        self.assertContains(response, 'Crítico?')
+        self.assertContains(response, 'Maior atraso')
+        self.assertContains(response, 'Crítico')
         self.assertContains(response, 'Saldo a negociar')
-        self.assertContains(response, 'DÍVIDA NO INÍCIO DO ACOMPANHAMENTO')
-        self.assertContains(response, 'DÍVIDA VENCIDA ATUAL')
+        self.assertContains(response, 'Contas vencidas')
+        self.assertContains(response, 'Fornecedores por prioridade')
+        self.assertContains(response, 'DÍVIDA INICIAL')
+        self.assertContains(response, 'TOTAL EM ATRASO')
         self.assertContains(response, 'NOVOS ATRASOS · 7 DIAS')
-        self.assertContains(response, 'PAGAMENTO IMEDIATO PREVISTO')
-        self.assertContains(response, 'SALDO PARA NEGOCIAÇÃO')
-        self.assertContains(response, 'Valor aberto após o pagamento imediato.')
+        self.assertContains(response, 'PAGAR AGORA')
+        self.assertContains(response, 'SALDO A NEGOCIAR')
+        self.assertContains(response, 'Restante após o pagamento previsto')
         content = response.content.decode()
         self.assertLess(content.index('payables-filters'), content.index('payables-kpis'))
         self.assertContains(response, 'Títulos do fornecedor')
@@ -1319,10 +1320,8 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'value="2026-06-30"')
         self.assertContains(response, 'Período de vencimento aplicado')
         self.assertContains(response, '01/06/2026 a 30/06/2026')
-        self.assertContains(response, 'DÍVIDA VENCIDA NO PERÍODO')
-        self.assertNotContains(
-            response, 'DÍVIDA NO INÍCIO DO ACOMPANHAMENTO'
-        )
+        self.assertContains(response, 'TOTAL EM ATRASO NO PERÍODO')
+        self.assertNotContains(response, 'DÍVIDA INICIAL')
         self.assertEqual(
             api_get.call_args.kwargs['params']['data_inicio'],
             '2026-06-01',
@@ -2750,7 +2749,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-mv-alinhada',
+            '?v=20260921-contas-vencidas-layout',
             base_template.read_text(),
         )
 
