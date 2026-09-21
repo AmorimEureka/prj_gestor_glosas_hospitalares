@@ -14322,3 +14322,24 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+@media (max-width: 1200px) {
+  .payables-kpis.is-period-filtered {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .payables-active-period {
+    flex-wrap: wrap;
+  }
+
+  .payables-active-period small {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .payables-kpis.is-period-filtered {
+    grid-template-columns: 1fr;
+  }
+}
