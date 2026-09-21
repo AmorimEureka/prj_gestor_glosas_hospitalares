@@ -353,23 +353,17 @@
                           {% if item.tratativa_disponivel or item.registro_glosa.id %}
                           <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+RECUSAR</button>
                           <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ACATO</button>
-                          <label class="follow-up-item-selector">
-                            <input type="checkbox" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked })">
-                            <span>Selecionar para tratar</span>
-                          </label>
-                          {% endif %}
-                          {% if atendimento.total_itens > 1 %}
-                          <label class="follow-up-glosa-batch-check" title="Selecionar registro para descrição coletiva">
+                          <label class="follow-up-item-selector" title="Selecionar item">
                             {% if item.recurso_preenchido and not item.acato_preenchido %}
-                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="recurso:{{ item.registro_recusa.id }}" data-treatment-type="recurso" @change="updateBatchSelection()">
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="recurso:{{ item.registro_recusa.id }}" data-treatment-type="recurso" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked }); updateBatchSelection()">
                             {% elif item.acato_preenchido and not item.recurso_preenchido %}
-                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="acato:{{ item.registro_acato.id }}" data-treatment-type="acato" @change="updateBatchSelection()">
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="acato:{{ item.registro_acato.id }}" data-treatment-type="acato" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked }); updateBatchSelection()">
                             {% elif item.recurso_preenchido and item.acato_preenchido %}
-                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="misto:{{ item.registro_glosa.id|default:'0' }}" data-treatment-type="misto" @change="updateBatchSelection()">
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="misto:{{ item.registro_glosa.id|default:'0' }}" data-treatment-type="misto" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked }); updateBatchSelection()">
                             {% else %}
-                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="pendente:{{ item.registro_glosa.id|default:'0' }}" data-treatment-type="pendente" @change="updateBatchSelection()">
+                            <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="pendente:{{ item.registro_glosa.id|default:'0' }}" data-treatment-type="pendente" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked }); updateBatchSelection()">
                             {% endif %}
-                            <span>Descrição coletiva</span>
+                            <span>Selecionar</span>
                           </label>
                           {% endif %}
                         </div>

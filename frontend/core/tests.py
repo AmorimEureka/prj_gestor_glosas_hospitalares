@@ -2509,6 +2509,13 @@ class FollowUpGlosasTests(TestCase):
             'Valor líquido NFS-e',
         ):
             self.assertNotContains(response, removed_detail)
+        self.assertContains(
+            response,
+            'name="registros_selecionados"',
+            count=1,
+        )
+        self.assertContains(response, '<span>Selecionar</span>', count=1)
+        self.assertNotContains(response, 'Selecionar para tratar')
         self.assertNotContains(response, 'atdOpen')
         remessa_header = content.split(
             'class="follow-up-glosa-remessa-header"',
