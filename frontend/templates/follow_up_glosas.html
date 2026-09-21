@@ -470,7 +470,7 @@
           {% empty %}
             {% if card.conciliacao_remessa_id %}
             <p class="empty-state">Não foram encontrados itens vinculados para esta remessa.</p>
-            {% else %}
+            {% elif card.possui_pendencia_associacao_manual %}
             <div class="empty-state">
               <p>Os dados do portal IPM ainda não estão vinculados a lançamentos do MV.</p>
               <a
@@ -478,6 +478,8 @@
                 href="{% url 'associacoes_remessas_ipm' %}?numero_processo={{ processo_card.processo.numero_processo|urlencode }}"
               >Abrir Associação Manual</a>
             </div>
+            {% else %}
+            <p class="empty-state">Não foram encontrados itens vinculados para esta remessa.</p>
             {% endif %}
           {% endfor %}
           {% else %}

@@ -40,6 +40,7 @@ from core.views import (
     group_follow_up_glosas_by_process,
     is_enabled_convenio_registro,
     is_recebido_registro,
+    prepare_follow_up_glosas_cards,
     REQUISICOES_NOTA_PATH,
     subtract_months,
 )
@@ -2496,6 +2497,7 @@ class FollowUpGlosasTests(TestCase):
         card['processo']['numero_processo'] = 'P249767/2026'
         card['processo']['status_processo'] = 'TRAMITANDO'
         card['pacientes'] = []
+        card['possui_pendencia_associacao_manual'] = True
         payload['valor_total_tratado'] = '0.00'
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
@@ -2521,9 +2523,9 @@ class FollowUpGlosasTests(TestCase):
             '/associacoes-remessas-ipm/?numero_processo=P249767/2026',
         )
         self.assertNotContains(response, 'detalhar_vinculo=')
-        self.assertEqual(
+        self.assertRegex(
             response.context['cards'][0]['detalhe_dom_id'],
-            'cogestao-987',
+            r'^cogestao-987-[0-9a-f]{12}$',
         )
         self.assertTrue(
             response.context['cards'][0]['detalhes_carregados']
@@ -2540,6 +2542,67 @@ class FollowUpGlosasTests(TestCase):
                 'cd_remessa': 987,
             },
         )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_card_sem_pendencia_nao_oferece_associacao_manual(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['processo']['numero_processo'] = 'P142201/2026'
+        card['pacientes'] = []
+        card['possui_pendencia_associacao_manual'] = False
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {
+                'detalhar_processo': 'P142201/2026',
+                'detalhar_remessa': '987',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Não foram encontrados itens vinculados para esta remessa.',
+        )
+        self.assertNotContains(response, 'Abrir Associação Manual')
+
+    def test_cards_da_mesma_remessa_em_processos_distintos_tem_ids_unicos(
+        self,
+    ):
+        payload = self._api_payload()['cards'][0]
+        primeiro = {
+            **payload,
+            'conciliacao_remessa_id': None,
+            'processo': {
+                **payload['processo'],
+                'numero_processo': 'P142201/2026',
+            },
+        }
+        segundo = {
+            **payload,
+            'conciliacao_remessa_id': None,
+            'processo': {
+                **payload['processo'],
+                'numero_processo': 'P129288/2026',
+            },
+        }
+
+        cards = prepare_follow_up_glosas_cards([primeiro, segundo])
+
+        self.assertNotEqual(
+            cards[0]['detalhe_dom_id'],
+            cards[1]['detalhe_dom_id'],
+        )
+        self.assertTrue(cards[0]['detalhe_dom_id'].startswith('cogestao-987-'))
+        self.assertTrue(cards[1]['detalhe_dom_id'].startswith('cogestao-987-'))
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')

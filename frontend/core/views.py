@@ -3439,12 +3439,28 @@ def prepare_follow_up_glosas_cards(cards):
         card["data_entrega_formatada"] = format_api_date(
             card.get("data_entrega")
         )
-        card["detalhe_dom_id"] = (
-            str(card.get("conciliacao_remessa_id"))
-            if card.get("conciliacao_remessa_id")
-            else f"cogestao-{card.get('cd_remessa') or 'sem-remessa'}"
-        )
         processo = dict(card.get("processo") or {})
+        if card.get("conciliacao_remessa_id"):
+            card["detalhe_dom_id"] = str(
+                card["conciliacao_remessa_id"]
+            )
+        else:
+            identidade_cogestao = "|".join((
+                str(processo.get("numero_processo") or "")
+                .strip()
+                .casefold(),
+                str(card.get("numero_protocolo") or "")
+                .strip()
+                .casefold(),
+                str(card.get("cd_remessa") or "sem-remessa"),
+            ))
+            identidade_hash = sha256(
+                identidade_cogestao.encode("utf-8")
+            ).hexdigest()[:12]
+            card["detalhe_dom_id"] = (
+                f"cogestao-{card.get('cd_remessa') or 'sem-remessa'}-"
+                f"{identidade_hash}"
+            )
         processo["data_abertura_formatada"] = format_api_date(
             processo.get("data_abertura")
         )
