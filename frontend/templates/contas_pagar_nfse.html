@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
+{% block page_title %}NFS-e do setor{% endblock %}
+{% block content %}
+<section class="cp-nfse-page">
+  <header class="panel cp-nfse-intro">
+    <h2 class="h5 mb-1">Notas fiscais de serviço recebidas que ainda não foram lançadas no financeiro</h2>
+    <p class="mb-0 text-muted">
+      Notas emitidas no ISS Fortaleza para as empresas do grupo{% if desde %}, emitidas desde {{ desde|api_date }}{% endif %}.
+      Cada nota aparece para o setor do fornecedor. Notas de fornecedores de outros municípios ainda não são listadas aqui.
+    </p>
+  </header>
+
+  <form method="get" class="panel filter-panel d-flex flex-wrap gap-3 align-items-end">
+    <label class="filter-group"><span>Situação</span>
+      <select class="form-select" name="situacao">
+        {% for valor, rotulo in situacoes %}<option value="{{ valor }}" {% if filtros.situacao == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="filter-group"><span>Emitidas desde</span>
+      <input class="form-control" type="date" name="desde" value="{{ filtros.desde }}">
+    </label>
+    {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Atualizar</button>
+      <a class="btn btn-outline-secondary" href="{% url 'contas_pagar_nfse_setor' %}">Limpar</a>
+    </div>
+  </form>
+
+  {% if aviso %}<div class="alert alert-info">{{ aviso }}</div>{% endif %}
+
+  {% if oficinas %}
+  <nav class="cp-nfse-setores d-flex flex-wrap gap-2 my-3" aria-label="Setores">
+    {% for grupo in oficinas %}
+    <a class="btn {% if filtros.cd_oficina and grupo.cd_oficina|stringformat:'s' == filtros.cd_oficina %}btn-primary{% else %}btn-outline-primary{% endif %}"
+       href="?situacao={{ filtros.situacao }}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}{% if grupo.cd_oficina %}&cd_oficina={{ grupo.cd_oficina }}{% endif %}">
+      {{ grupo.ds_oficina }} <span class="badge text-bg-light ms-1">{{ grupo.quantidade }}</span>
+      <small class="ms-1">R$ {{ grupo.valor|br_currency }}</small>
+    </a>
+    {% endfor %}
+    {% if filtros.cd_oficina %}<a class="btn btn-link" href="?situacao={{ filtros.situacao }}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}">Todos os setores</a>{% endif %}
+  </nav>
+  {% endif %}
+
+  <section class="panel">
+    {% if itens %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle cp-nfse-table">
+        <thead>
+          <tr><th>Emissão</th><th>NFS-e</th><th>Fornecedor</th><th>Tomador</th><th>Setor</th><th class="text-end">Valor</th><th class="text-end">Líquido</th><th>Situação</th></tr>
+        </thead>
+        <tbody>
+          {% for item in itens %}
+          <tr>
+            <td>{{ item.data_emissao|api_date }}</td>
+            <td><strong>{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<br><small class="text-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}</td>
+            <td>{{ item.prestador }}<br><small class="text-muted">{{ item.prestador_cnpj }}</small>{% if item.discriminacao %}<br><small class="text-muted cp-nfse-discriminacao" title="{{ item.discriminacao }}">{{ item.discriminacao|truncatechars:90 }}</small>{% endif %}</td>
+            <td><small>{{ item.tomador }}</small></td>
+            <td>{% if item.ds_oficina %}{{ item.ds_oficina }}{% else %}<span class="text-warning">Sem setor</span>{% endif %}</td>
+            <td class="text-end">R$ {{ item.valor_servicos|br_currency }}</td>
+            <td class="text-end">R$ {{ item.valor_liquido|br_currency }}</td>
+            <td>
+              {% if item.situacao == 'lancada' %}<span class="badge text-bg-success">Lançada no MV</span>{% if item.mv.cd_ent_serv %}<br><small>Entrada {{ item.mv.cd_ent_serv }}</small>{% endif %}{% if item.mv.cd_con_pag %}<br><small>Título {{ item.mv.cd_con_pag }}</small>{% endif %}
+              {% elif item.situacao == 'a_classificar' %}<span class="badge text-bg-warning">Sem setor</span><br><small class="text-muted">{{ item.motivo }}</small>{% if pode_classificar %}<br><a href="{% url 'contas_pagar_nfse_regras' %}">Classificar</a>{% endif %}
+              {% else %}<span class="badge text-bg-primary">A lançar</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif not aviso %}
+    <div class="empty-state"><strong>Nenhuma nota nesta situação.</strong><span>As notas recebidas são atualizadas a cada 2 horas em dias úteis.</span></div>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

@@ -9406,6 +9406,175 @@ def contas_pagar_gestao(request):
     return _contas_pagar(request, "gestao")
 
 
+CP_NFSE_PATH = f"{CONTAS_PAGAR_PATH}/nfse"
+CP_NFSE_SITUACOES = (
+    ("pendente", "A lançar"),
+    ("a_classificar", "Sem setor"),
+    ("lancada", "Já lançadas no MV"),
+    ("todas", "Todas"),
+)
+
+
+def _oficinas_por_empresa(oficinas):
+    agrupadas = {}
+    for oficina in oficinas:
+        agrupadas.setdefault(oficina.get("cd_multi_empresa"), []).append(oficina)
+    return agrupadas
+
+
+@require_GET
+def contas_pagar_nfse_setor(request):
+    """NFS-e recebidas pelas oficinas do usuário que ainda não foram lançadas no MV."""
+    user = request.session.get("api_user") or {}
+    pode_classificar = can_access_screen(user, "contas_pagar_nfse_regras")
+    situacoes = CP_NFSE_SITUACOES if pode_classificar else tuple(
+        item for item in CP_NFSE_SITUACOES if item[0] != "a_classificar"
+    )
+    situacao = request.GET.get("situacao") or "pendente"
+    if situacao not in {valor for valor, _ in situacoes}:
+        situacao = "pendente"
+    filtros = {
+        "situacao": situacao,
+        "cd_oficina": request.GET.get("cd_oficina") or "",
+        "desde": request.GET.get("desde") or "",
+    }
+    payload = {}
+    try:
+        payload = api_get(f"{CP_NFSE_PATH}/recebidas", filtros)
+    except ApiError as exc:
+        messages.error(request, f"Não foi possível carregar as NFS-e recebidas: {exc}")
+    response = render(
+        request,
+        "contas_pagar_nfse.html",
+        {
+            "filtros": filtros,
+            "situacoes": situacoes,
+            "aviso": payload.get("aviso"),
+            "desde": payload.get("desde"),
+            "oficinas": payload.get("oficinas", []),
+            "itens": payload.get("itens", []),
+            "pode_classificar": pode_classificar,
+        },
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _contas_pagar_nfse_regras_post(request):
+    acao = request.POST.get("acao")
+    if acao == "recalcular":
+        resultado = api_post(f"{CP_NFSE_PATH}/regras/recalcular", {})
+        messages.success(
+            request,
+            f"Regras recalculadas pelo histórico de {resultado.get('meses_historico')} meses: "
+            f"{resultado.get('definida', 0)} definidas e {resultado.get('a_classificar', 0)} a classificar. "
+            "Classificações manuais foram mantidas.",
+        )
+    elif acao == "classificar":
+        cnpj = re.sub(r"\D", "", request.POST.get("cnpj") or "")
+        empresa = as_int_or_none(request.POST.get("cd_multi_empresa"))
+        oficina = as_int_or_none(request.POST.get("cd_oficina"))
+        if len(cnpj) != 14 or not empresa or not oficina:
+            messages.error(request, "Escolha a oficina do fornecedor.")
+        else:
+            api_put(
+                f"{CP_NFSE_PATH}/regras/{empresa}/{cnpj}",
+                {
+                    "cd_oficina": oficina,
+                    "nm_fornecedor": (request.POST.get("nm_fornecedor") or "")[:200] or None,
+                    "observacao": (request.POST.get("observacao") or "")[:500] or None,
+                },
+            )
+            messages.success(request, "Setor do fornecedor definido. As próximas notas dele irão direto para esse setor.")
+    elif acao == "vincular_oficinas":
+        usuario_id = as_int_or_none(request.POST.get("usuario_id"))
+        oficinas = [int(v) for v in request.POST.getlist("oficinas") if v.isdigit()]
+        if not usuario_id:
+            messages.error(request, "Selecione o usuário.")
+        else:
+            api_put(f"{CP_NFSE_PATH}/usuarios/{usuario_id}/oficinas", {"oficinas": oficinas})
+            messages.success(request, "Oficinas do usuário atualizadas.")
+    elif acao == "vincular_mv":
+        usuario_id = as_int_or_none(request.POST.get("usuario_id"))
+        login_mv = (request.POST.get("cd_usuario_mv") or "").strip()
+        if not usuario_id or not login_mv:
+            messages.error(request, "Informe o usuário e o login MV.")
+        else:
+            api_put(f"{CP_NFSE_PATH}/usuarios/{usuario_id}/mv", {"cd_usuario_mv": login_mv})
+            messages.success(request, f"Usuário vinculado ao login MV {login_mv.upper()}.")
+    else:
+        messages.error(request, "Ação inválida.")
+
+
+@require_http_methods(["GET", "POST"])
+def contas_pagar_nfse_regras(request):
+    """Financeiro: NFS-e sem setor, regras fornecedor -> oficina e vínculos de usuários."""
+    if request.method == "POST":
+        try:
+            _contas_pagar_nfse_regras_post(request)
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível salvar: {exc}")
+        destino = reverse("contas_pagar_nfse_regras")
+        retorno = {k: v for k, v in request.POST.items() if k in {"status", "usuario"} and v}
+        return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
+
+    status = request.GET.get("status") or "a_classificar"
+    if status not in {"a_classificar", "definida", "todas"}:
+        status = "a_classificar"
+    contexto = {
+        "status": status,
+        "notas_sem_setor": [],
+        "regras": [],
+        "resumo": {},
+        "oficinas": [],
+        "oficinas_por_empresa": {},
+        "usuarios": [],
+        "usuario_selecionado": None,
+        "oficinas_do_usuario": [],
+        "usuario_mv": None,
+    }
+    try:
+        oficinas = api_get(f"{CP_NFSE_PATH}/oficinas").get("oficinas", [])
+        contexto["oficinas"] = oficinas
+        contexto["oficinas_por_empresa"] = _oficinas_por_empresa(oficinas)
+        regras = api_get(f"{CP_NFSE_PATH}/regras", {"status": status})
+        contexto["regras"] = regras.get("regras", [])
+        contexto["resumo"] = regras.get("resumo", {})
+        recebidas = api_get(f"{CP_NFSE_PATH}/recebidas", {"situacao": "a_classificar"})
+        contexto["notas_sem_setor"] = recebidas.get("itens", [])
+        contexto["aviso"] = recebidas.get("aviso")
+        # Cada fornecedor só pode ir para uma oficina da empresa tomadora da nota.
+        for item in contexto["notas_sem_setor"] + contexto["regras"]:
+            item["oficinas_opcoes"] = contexto["oficinas_por_empresa"].get(item.get("cd_multi_empresa"), [])
+    except ApiError as exc:
+        messages.error(request, f"Não foi possível carregar as regras: {exc}")
+
+    try:
+        contexto["usuarios"] = sorted(
+            api_get("/usuarios/", {"limit": 200}).get("usuarios", []),
+            key=lambda u: (u.get("nome") or "").lower(),
+        )
+    except ApiError:
+        contexto["usuarios"] = []
+    usuario_id = as_int_or_none(request.GET.get("usuario"))
+    if usuario_id:
+        contexto["usuario_selecionado"] = next(
+            (u for u in contexto["usuarios"] if u.get("id") == usuario_id), {"id": usuario_id}
+        )
+        try:
+            contexto["oficinas_do_usuario"] = [
+                o["cd_oficina"]
+                for o in api_get(f"{CP_NFSE_PATH}/usuarios/{usuario_id}/oficinas").get("oficinas", [])
+            ]
+            contexto["usuario_mv"] = api_get(f"{CP_NFSE_PATH}/usuarios/{usuario_id}/mv").get("cd_usuario_mv")
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível carregar os vínculos do usuário: {exc}")
+
+    response = render(request, "contas_pagar_nfse_regras.html", contexto)
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
 @require_http_methods(["GET", "POST"])
 def fornecedores_criticos(request):
     if request.method == "POST":

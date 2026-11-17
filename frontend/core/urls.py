@@ -154,6 +154,16 @@ urlpatterns = [
         name="contas_pagar_gestao",
     ),
     path(
+        "financeiro/contas-a-pagar/nfse-do-setor/",
+        views.contas_pagar_nfse_setor,
+        name="contas_pagar_nfse_setor",
+    ),
+    path(
+        "financeiro/contas-a-pagar/setores-dos-fornecedores/",
+        views.contas_pagar_nfse_regras,
+        name="contas_pagar_nfse_regras",
+    ),
+    path(
         "administrativo/fornecedores-criticos/",
         views.fornecedores_criticos,
         name="fornecedores_criticos",

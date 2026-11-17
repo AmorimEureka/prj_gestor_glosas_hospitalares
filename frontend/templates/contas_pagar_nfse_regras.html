@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
+{% block page_title %}Setores dos fornecedores{% endblock %}
+{% block content %}
+<section class="cp-nfse-regras-page">
+  <header class="panel">
+    <h2 class="h5 mb-1">Para qual setor vai cada NFS-e recebida</h2>
+    <p class="mb-2 text-muted">
+      O setor de cada fornecedor é definido pelo histórico de entradas de serviço no MV (últimos 24 meses, por empresa):
+      quando um setor concentra 80% ou mais das entradas, as notas vão direto para ele. Os demais casos ficam aqui para classificar.
+      Classificações manuais nunca são substituídas pelo recálculo.
+    </p>
+    <form method="post" class="d-inline">{% csrf_token %}
+      <input type="hidden" name="acao" value="recalcular"><input type="hidden" name="status" value="{{ status }}">
+      <button class="btn btn-outline-primary btn-sm" type="submit">Recalcular pelo histórico do MV</button>
+    </form>
+    <span class="ms-2 text-muted small">{{ resumo.definida|default:0 }} definidas · {{ resumo.a_classificar|default:0 }} a classificar</span>
+  </header>
+
+  {% if aviso %}<div class="alert alert-info">{{ aviso }}</div>{% endif %}
+
+  <section class="panel">
+    <div class="panel-header"><span class="panel-title">NFS-e recebidas sem setor</span>
+      <span class="results-subtitle">{{ notas_sem_setor|length }} nota(s) · ao classificar o fornecedor, as próximas notas dele também vão para o setor escolhido</span></div>
+    {% if notas_sem_setor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Fornecedor</th><th>NFS-e</th><th>Tomador</th><th class="text-end">Valor</th><th>Motivo</th><th>Setor</th></tr></thead>
+        <tbody>
+          {% for nota in notas_sem_setor %}
+          <tr>
+            <td>{{ nota.prestador }}<br><small class="text-muted">{{ nota.prestador_cnpj }}</small></td>
+            <td>{{ nota.numero_nfse }}<br><small class="text-muted">{{ nota.data_emissao|api_date }}</small></td>
+            <td><small>{{ nota.tomador }}</small></td>
+            <td class="text-end">R$ {{ nota.valor_servicos|br_currency }}</td>
+            <td><small>{{ nota.motivo }}</small></td>
+            <td>
+              {% if nota.oficinas_opcoes %}
+              <form method="post" class="d-flex gap-2">{% csrf_token %}
+                <input type="hidden" name="acao" value="classificar"><input type="hidden" name="status" value="{{ status }}">
+                <input type="hidden" name="cnpj" value="{{ nota.prestador_cnpj }}"><input type="hidden" name="cd_multi_empresa" value="{{ nota.cd_multi_empresa }}">
+                <input type="hidden" name="nm_fornecedor" value="{{ nota.prestador }}">
+                <select class="form-select form-select-sm" name="cd_oficina" required aria-label="Setor de {{ nota.prestador }}">
+                  <option value="">Selecione</option>
+                  {% for oficina in nota.oficinas_opcoes %}<option value="{{ oficina.cd_oficina }}">{{ oficina.ds_oficina }} ({{ oficina.cd_oficina }})</option>{% endfor %}
+                </select>
+                <button class="btn btn-primary btn-sm" type="submit">Salvar</button>
+              </form>
+              {% else %}<small class="text-danger">Tomador fora das empresas do MV</small>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<div class="empty-state"><strong>Nenhuma nota sem setor.</strong></div>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-header d-flex flex-wrap gap-3 align-items-center">
+      <span class="panel-title">Regras por fornecedor</span>
+      <form method="get" class="d-flex gap-2">
+        <select class="form-select form-select-sm" name="status" onchange="this.form.submit()" aria-label="Filtrar regras">
+          <option value="a_classificar" {% if status == 'a_classificar' %}selected{% endif %}>A classificar</option>
+          <option value="definida" {% if status == 'definida' %}selected{% endif %}>Definidas</option>
+          <option value="todas" {% if status == 'todas' %}selected{% endif %}>Todas</option>
+        </select>
+      </form>
+    </div>
+    {% if regras %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Fornecedor</th><th>Empresa</th><th>Setor</th><th>Histórico</th><th>Origem</th><th>Alterar setor</th></tr></thead>
+        <tbody>
+          {% for regra in regras %}
+          <tr>
+            <td>{{ regra.nm_fornecedor|default:'—' }}<br><small class="text-muted">{{ regra.cnpj }}</small></td>
+            <td>{{ regra.cd_multi_empresa }}</td>
+            <td>{% if regra.ds_oficina %}{{ regra.ds_oficina }}{% else %}<span class="badge text-bg-warning">A classificar</span>{% endif %}</td>
+            <td><small>{{ regra.motivo }}</small></td>
+            <td><small>{% if regra.origem == 'manual' %}Manual{% else %}Histórico MV{% endif %}{% if regra.atualizado_em %} · {{ regra.atualizado_em|api_datetime }}{% endif %}</small></td>
+            <td>
+              <form method="post" class="d-flex gap-2">{% csrf_token %}
+                <input type="hidden" name="acao" value="classificar"><input type="hidden" name="status" value="{{ status }}">
+                <input type="hidden" name="cnpj" value="{{ regra.cnpj }}"><input type="hidden" name="cd_multi_empresa" value="{{ regra.cd_multi_empresa }}">
+                <select class="form-select form-select-sm" name="cd_oficina" required aria-label="Setor de {{ regra.nm_fornecedor }}">
+                  <option value="">Selecione</option>
+                  {% for oficina in regra.oficinas_opcoes %}<option value="{{ oficina.cd_oficina }}" {% if oficina.cd_oficina == regra.cd_oficina %}selected{% endif %}>{{ oficina.ds_oficina }} ({{ oficina.cd_oficina }})</option>{% endfor %}
+                </select>
+                <button class="btn btn-outline-primary btn-sm" type="submit">Salvar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<div class="empty-state"><strong>Nenhuma regra nesta situação.</strong><span>Use "Recalcular pelo histórico do MV" para gerar as regras.</span></div>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-header"><span class="panel-title">Usuários: setores e login MV</span>
+      <span class="results-subtitle">O setor vê apenas as notas das oficinas marcadas. O login MV é o usuário com que as operações dele serão gravadas no MV.</span></div>
+    <form method="get" class="d-flex gap-2 mb-3">
+      <select class="form-select" name="usuario" onchange="this.form.submit()" aria-label="Usuário">
+        <option value="">Selecione o usuário</option>
+        {% for u in usuarios %}<option value="{{ u.id }}" {% if usuario_selecionado and u.id == usuario_selecionado.id %}selected{% endif %}>{{ u.nome }}{% if u.email %} · {{ u.email }}{% endif %}</option>{% endfor %}
+      </select>
+      <input type="hidden" name="status" value="{{ status }}">
+    </form>
+    {% if usuario_selecionado %}
+    <div class="row g-4">
+      <form method="post" class="col-md-7">{% csrf_token %}
+        <input type="hidden" name="acao" value="vincular_oficinas"><input type="hidden" name="usuario_id" value="{{ usuario_selecionado.id }}">
+        <input type="hidden" name="usuario" value="{{ usuario_selecionado.id }}"><input type="hidden" name="status" value="{{ status }}">
+        <fieldset><legend class="h6">Oficinas (setores)</legend>
+          <div class="cp-nfse-oficinas" style="columns: 2;">
+            {% for oficina in oficinas %}
+            <label class="form-check d-block"><input class="form-check-input" type="checkbox" name="oficinas" value="{{ oficina.cd_oficina }}" {% if oficina.cd_oficina in oficinas_do_usuario %}checked{% endif %}>
+              {{ oficina.ds_oficina }} <small class="text-muted">· empresa {{ oficina.cd_multi_empresa }} · {{ oficina.cd_oficina }}</small></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <button class="btn btn-primary btn-sm mt-2" type="submit">Salvar oficinas</button>
+      </form>
+      <form method="post" class="col-md-5">{% csrf_token %}
+        <input type="hidden" name="acao" value="vincular_mv"><input type="hidden" name="usuario_id" value="{{ usuario_selecionado.id }}">
+        <input type="hidden" name="usuario" value="{{ usuario_selecionado.id }}"><input type="hidden" name="status" value="{{ status }}">
+        <label class="form-label h6" for="cd_usuario_mv">Login MV</label>
+        <input class="form-control" id="cd_usuario_mv" name="cd_usuario_mv" value="{{ usuario_mv|default:'' }}" placeholder="Ex.: RH000969" maxlength="30" pattern="[A-Za-z0-9_$#]+" required>
+        <small class="text-muted d-block mt-1">Deve ser um usuário ativo do MV, vinculado a um único usuário do Receita Certa.</small>
+        <button class="btn btn-primary btn-sm mt-2" type="submit">Vincular login MV</button>
+      </form>
+    </div>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}
