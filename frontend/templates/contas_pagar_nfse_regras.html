@@ -18,6 +18,8 @@
     <span class="ms-2 text-muted small">{{ resumo.definida|default:0 }} definidas · {{ resumo.a_classificar|default:0 }} a classificar</span>
   </header>
 
+  {% include "partials/mv_login_status.html" %}
+
   {% if aviso %}<div class="alert alert-info">{{ aviso }}</div>{% endif %}
 
   <section class="panel">

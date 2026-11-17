@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login MV</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 32px 20px; background: #f6f8fb; color: #1f2933; }
+    .card { max-width: 420px; margin: 0 auto; background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .ok { color: #0a7a3d; } .erro { color: #b42318; }
+    small { color: #52606d; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    {% if ok %}
+    <h1 class="ok" style="font-size:1.2rem">Login MV vinculado</h1>
+    <p>Seu usuário do Receita Certa agora está vinculado ao login MV <strong>{{ vinculo.cd_usuario_mv }}</strong>{% if vinculo.nm_usuario_mv %} ({{ vinculo.nm_usuario_mv }}){% endif %}.</p>
+    <p><small>{% if vinculo.pode_gravar_no_mv %}As operações que você fizer no MV pelo Receita Certa serão registradas com esse login.{% else %}O vínculo foi registrado, mas a gravação no MV ainda não foi habilitada pelo TI.{% endif %}</small></p>
+    {% else %}
+    <h1 class="erro" style="font-size:1.2rem">Não foi possível vincular o login MV</h1>
+    <p>{{ erro }}</p>
+    {% endif %}
+    <p><small id="mv-fecha">Esta janela fecha sozinha.</small></p>
+    <p id="mv-voltar" hidden><a href="{% url 'contas_pagar_nfse_setor' %}">Voltar para o Contas a Pagar</a></p>
+  </div>
+  <script>
+    (function () {
+      var dados = {tipo: "mv-login", ok: {{ ok|yesno:"true,false" }}, login: "{{ vinculo.cd_usuario_mv|default:''|escapejs }}"};
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(dados, window.location.origin);
+        setTimeout(function () { window.close(); }, dados.ok ? 1800 : 6000);
+      } else {
+        document.getElementById("mv-fecha").hidden = true;
+        document.getElementById("mv-voltar").hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>
