@@ -81,19 +81,19 @@
         </div>
       </div>
       {% endif %}
-      {% if screen_access.conciliacao_manual or screen_access.conciliacao_financeira or screen_access.consultar_conciliacoes or screen_access.follow_up_solicitacoes or screen_access.emissao_nfse or screen_access.acompanhamento_particular or screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao %}
+      {% if screen_access.conciliacao_manual or screen_access.conciliacao_financeira or screen_access.consultar_conciliacoes or screen_access.follow_up_solicitacoes or screen_access.emissao_nfse or screen_access.acompanhamento_particular or screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao or screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras %}
       <div
         class="nav-group"
         x-data="{ open: false, requestOpen: false, payableOpen: false }"
         x-init="
-          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'openfinance'].includes('{{ request.resolver_match.url_name }}');
+          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras', 'openfinance'].includes('{{ request.resolver_match.url_name }}');
           requestOpen = ['workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular'].includes('{{ request.resolver_match.url_name }}');
-          payableOpen = ['contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao'].includes('{{ request.resolver_match.url_name }}');
+          payableOpen = ['contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'].includes('{{ request.resolver_match.url_name }}');
         "
       >
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
           :aria-expanded="sidebarOpen && open"
           title="Financeiro"
@@ -140,9 +140,9 @@
             </div>
           </div>
           {% endif %}
-          {% if screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao %}
+          {% if screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao or screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras %}
           <div class="nav-subgroup">
-            <button type="button" class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}" @click="payableOpen = !payableOpen" :aria-expanded="payableOpen" title="Contas a Pagar">
+            <button type="button" class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' %}is-active{% endif %}" @click="payableOpen = !payableOpen" :aria-expanded="payableOpen" title="Contas a Pagar">
               <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span>
               <span class="nav-label">Contas a Pagar</span><span class="nav-nested-chevron" aria-hidden="true">&#9654;</span>
             </button>
@@ -150,6 +150,8 @@
               {% if screen_access.contas_pagar_operacao %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}" title="Operacionalizar e editar registros"><span class="nav-label">1. Operação</span></a>{% endif %}
               {% if screen_access.contas_pagar_acompanhamento %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_acompanhamento' %}is-active{% endif %}" href="{% url 'contas_pagar_acompanhamento' %}" title="Acompanhar ações e negociações"><span class="nav-label">2. Acompanhamento</span></a>{% endif %}
               {% if screen_access.contas_pagar_gestao %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}" href="{% url 'contas_pagar_gestao' %}" title="Gerenciar exposição e prioridade"><span class="nav-label">3. Gestão</span></a>{% endif %}
+              {% if screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_nfse_setor' %}is-active{% endif %}" href="{% url 'contas_pagar_nfse_setor' %}" title="NFS-e recebidas do setor e boletos"><span class="nav-label">4. NFS-e do setor</span></a>{% endif %}
+              {% if screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_nfse_regras' %}is-active{% endif %}" href="{% url 'contas_pagar_nfse_regras' %}" title="Setor de cada fornecedor e vínculos de usuários"><span class="nav-label">5. Setores dos fornecedores</span></a>{% endif %}
             </div>
           </div>
           {% endif %}
