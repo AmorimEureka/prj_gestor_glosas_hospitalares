@@ -159,6 +159,11 @@ urlpatterns = [
         name="contas_pagar_nfse_setor",
     ),
     path(
+        "financeiro/contas-a-pagar/boletos/<int:boleto_id>/pdf/",
+        views.contas_pagar_boleto_pdf,
+        name="contas_pagar_boleto_pdf",
+    ),
+    path(
         "financeiro/contas-a-pagar/setores-dos-fornecedores/",
         views.contas_pagar_nfse_regras,
         name="contas_pagar_nfse_regras",

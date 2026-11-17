@@ -190,3 +190,116 @@ class NfseRegrasViewTests(TestCase):
         }, follow=True)
 
         self.assertContains(response, 'já vinculado a outro usuário')
+
+
+class NfseBoletoViewTests(TestCase):
+    URL = '/financeiro/contas-a-pagar/nfse-do-setor/'
+
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 7, 'nome': 'Setor TI', 'perfil': 'usuario',
+                               'telas_permitidas': ['contas_pagar_nfse_setor']}
+        session.save()
+
+    @staticmethod
+    def pdf(nome='boleto.pdf'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        return SimpleUploadedFile(nome, b'%PDF-1.4 conteudo', content_type='application/pdf')
+
+    @patch('core.views.api_post_files')
+    def test_anexar_boleto_envia_multipart(self, api_post_files):
+        api_post_files.return_value = {'divergencias': []}
+
+        response = self.client.post(self.URL, {
+            'acao': 'anexar_boleto', 'cnpj': '11.111.111/0001-11', 'numero': '123',
+            'arquivo': self.pdf(), 'situacao': 'pendente', 'nota': '11111111000111-123',
+        }, follow=True)
+
+        path, files, dados = api_post_files.call_args.args
+        self.assertEqual(path, '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/11111111000111/123/boletos')
+        self.assertEqual(files['arquivo'][0], 'boleto.pdf')
+        self.assertEqual(dados, {})
+        self.assertContains(response, 'pronta para o financeiro')
+
+    @patch('core.views.api_post_files')
+    def test_linha_digitada_e_vencimento_vao_junto(self, api_post_files):
+        api_post_files.return_value = {'divergencias': ['Boleto vencido.']}
+
+        response = self.client.post(self.URL, {
+            'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123', 'arquivo': self.pdf(),
+            'linha_digitavel': ' 34191.09008 ', 'vencimento': '2026-12-10',
+        }, follow=True)
+
+        self.assertEqual(api_post_files.call_args.args[2],
+                         {'linha_digitavel': '34191.09008', 'vencimento': '2026-12-10'})
+        self.assertContains(response, 'divergências: Boleto vencido.')
+
+    @patch('core.views.api_post_files', side_effect=ApiError('{"detail":"Envie o boleto em PDF."}', 422))
+    def test_erro_da_api_ao_anexar(self, _):
+        response = self.client.post(self.URL, {
+            'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123', 'arquivo': self.pdf(),
+        }, follow=True)
+
+        self.assertContains(response, 'Não foi possível salvar o boleto')
+
+    @patch('core.views.api_delete')
+    def test_excluir_boleto(self, api_delete):
+        response = self.client.post(self.URL, {'acao': 'excluir_boleto', 'boleto_id': '9', 'nota': '11111111000111-123'})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('nota=11111111000111-123', response.url)
+        api_delete.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/boletos/9')
+
+    @patch('core.views.api_get')
+    def test_painel_da_nota_lista_boletos_e_formulario(self, api_get):
+        def respostas(path, params=None):
+            if path.endswith('/boletos'):
+                return {'nota': {'prestador_cnpj': '11111111000111', 'numero_nfse': '123',
+                                 'prestador_razao_social': 'Software SA'},
+                        'boletos': [{'id': 9, 'vencimento': '2026-12-01', 'valor': '1500.50', 'banco': '341',
+                                     'linha_digitavel': '3419' + '0' * 43, 'origem_leitura': 'pdf',
+                                     'divergencias': ['Boleto vencido.']}],
+                        'resumo': {'quantidade': 1, 'soma': '1500.50', 'valor_liquido': '1500.50', 'pronta': False}}
+            return {'oficinas': [], 'itens': [{**NOTA, 'boletos': {'quantidade': 1, 'soma': '1500.50',
+                    'primeiro_vencimento': '2026-12-01', 'com_divergencia': True}, 'pronta': False}]}
+        api_get.side_effect = respostas
+
+        response = self.client.get(self.URL + '?nota=11111111000111-123')
+
+        self.assertContains(response, 'Boletos da NFS-e 123')
+        self.assertContains(response, 'Boleto vencido.')
+        self.assertContains(response, 'Boleto com divergência')
+        self.assertContains(response, '/financeiro/contas-a-pagar/boletos/9/pdf/')
+        self.assertContains(response, 'enctype="multipart/form-data"')
+
+    @patch('core.views.api_get')
+    def test_chave_de_nota_invalida_e_ignorada(self, api_get):
+        api_get.return_value = {'oficinas': [], 'itens': []}
+
+        self.client.get(self.URL + '?nota=../../usuarios')
+
+        self.assertEqual(api_get.call_count, 1)
+
+    @patch('core.views.api_get')
+    def test_filtro_prontas(self, api_get):
+        api_get.return_value = {'oficinas': [], 'itens': [{**NOTA, 'pronta': True,
+                                'boletos': {'quantidade': 1, 'soma': '1500.50', 'primeiro_vencimento': '2026-12-01',
+                                            'com_divergencia': False}}]}
+
+        response = self.client.get(self.URL + '?situacao=pronta')
+
+        self.assertEqual(api_get.call_args.args[1]['situacao'], 'pronta')
+        self.assertContains(response, 'Pronta para o financeiro')
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_do_pdf(self, api_get_stream):
+        upstream = api_get_stream.return_value
+        upstream.iter_content.return_value = [b'%PDF', b'-1.4']
+        upstream.headers = {'Content-Disposition': 'inline; filename="boleto.pdf"'}
+
+        response = self.client.get('/financeiro/contas-a-pagar/boletos/9/pdf/')
+
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertEqual(b''.join(response.streaming_content), b'%PDF-1.4')
+        api_get_stream.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/boletos/9/arquivo')
