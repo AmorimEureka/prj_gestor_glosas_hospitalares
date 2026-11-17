@@ -25,6 +25,7 @@ urlpatterns = [
         name="spu_novnc_asset",
     ),
     path("acesso-negado/", views.access_denied, name="access_denied"),
+    path("primeiro-acesso/", views.primeiro_acesso, name="primeiro_acesso"),
     path("esqueci-senha/", views.forgot_password, name="forgot_password"),
     path("redefinir-senha/", views.reset_password, name="reset_password"),
     path(

@@ -35,6 +35,8 @@ class ApiSessionMiddleware:
         "/redefinir-senha/",
         "/autenticacao/redefinir-senha",
         "/autenticacao/redefinir-senha/",
+        "/primeiro-acesso",
+        "/primeiro-acesso/",
     }
 
     def __init__(self, get_response):

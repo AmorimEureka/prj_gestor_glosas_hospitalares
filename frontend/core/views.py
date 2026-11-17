@@ -507,6 +507,11 @@ def login_view(request):
             except ApiError as exc:
                 if exc.status_code == 401:
                     error = "E-mail ou senha incorretos."
+                elif exc.status_code == 403 and "TROCA_SENHA_OBRIGATORIA" in str(exc):
+                    # Senha temporária (definida pelo administrador): o usuário
+                    # precisa criar a própria senha antes de entrar.
+                    request.session[PRIMEIRO_ACESSO_SESSION_KEY] = {"usuario": email, "next": next_url}
+                    return redirect("primeiro_acesso")
                 else:
                     error = "Não foi possível acessar o sistema agora. Tente novamente."
 
@@ -515,6 +520,49 @@ def login_view(request):
         "login.html",
         {"email": email, "error": error, "next": next_url},
     )
+
+
+PRIMEIRO_ACESSO_SESSION_KEY = "primeiro_acesso"
+
+
+@require_http_methods(["GET", "POST"])
+def primeiro_acesso(request):
+    """Troca obrigatória da senha temporária definida pelo administrador."""
+    pendente = request.session.get(PRIMEIRO_ACESSO_SESSION_KEY) or {}
+    usuario = (request.POST.get("usuario") or pendente.get("usuario") or "").strip().lower()
+    error = ""
+    if request.method == "POST":
+        atual = request.POST.get("senha_atual") or ""
+        nova = request.POST.get("nova_senha") or ""
+        confirmacao = request.POST.get("confirmacao") or ""
+        if not usuario or not atual or not nova:
+            error = "Preencha o usuário, a senha atual e a nova senha."
+        elif len(nova) < 8:
+            error = "A nova senha deve ter pelo menos 8 caracteres."
+        elif nova != confirmacao:
+            error = "A confirmação não confere com a nova senha."
+        elif nova == atual:
+            error = "A nova senha deve ser diferente da senha atual."
+        else:
+            try:
+                api_post(
+                    "/autenticacao/primeiro-acesso",
+                    {"usuario": usuario, "senha_temporaria": atual, "nova_senha": nova},
+                )
+            except ApiError as exc:
+                if exc.status_code == 401:
+                    error = "Usuário ou senha atual incorretos."
+                else:
+                    error = extract_api_error_message(exc)
+            else:
+                request.session.pop(PRIMEIRO_ACESSO_SESSION_KEY, None)
+                next_url = pendente.get("next")
+                destino = reverse("login")
+                login_url = f"{destino}?{urlencode({'next': next_url})}" if next_url else destino
+                return render(request, "primeiro_acesso.html", {"success": True, "login_url": login_url})
+    response = render(request, "primeiro_acesso.html", {"usuario": usuario, "error": error})
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @require_http_methods(["GET", "POST"])
