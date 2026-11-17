@@ -44,7 +44,7 @@ class MvLoginTests(TestCase):
         self.assertContains(response, 'Login MV vinculado')
         self.assertContains(response, 'RH000969')
         self.assertContains(response, 'ok: true')
-        self.assertNotIn('mv_cas_state', self.client.session)
+        self.assertNotIn(state, self.client.session['mv_cas_states'])
 
     @patch('core.views.api_post')
     def test_state_diferente_e_recusado_sem_chamar_a_api(self, api_post):
@@ -65,7 +65,7 @@ class MvLoginTests(TestCase):
     def test_state_expirado(self, api_post):
         _, state = self.iniciar()
         session = self.client.session
-        session['mv_cas_state']['criado'] = time.time() - 3600
+        session['mv_cas_states'][state] = time.time() - 3600
         session.save()
 
         response = self.client.get('/mv/login/retorno/', {'state': state, 'ticket': 'ST-1'})
@@ -104,3 +104,43 @@ class MvLoginTests(TestCase):
 
         self.assertContains(response, 'Entrar com login MV')
         self.assertContains(response, '/mv/login/')
+
+    @patch('core.views.api_post')
+    def test_dois_cliques_retorno_da_primeira_janela_e_aceito(self, api_post):
+        service1, state1 = self.iniciar()
+        self.iniciar()
+        api_post.return_value = {'cd_usuario_mv': 'RH000969', 'pode_gravar_no_mv': True}
+
+        response = self.client.get('/mv/login/retorno/', {'state': state1, 'ticket': 'ST-9'})
+
+        api_post.assert_called_once_with('/mv/cas/validar', {'ticket': 'ST-9', 'service': service1})
+        self.assertContains(response, 'Login MV vinculado')
+
+    @patch('core.views.api_post')
+    def test_retorno_sem_ticket_nao_consome_o_state(self, api_post):
+        _, state = self.iniciar()
+        api_post.return_value = {'cd_usuario_mv': 'RH000969', 'pode_gravar_no_mv': True}
+
+        sem_ticket = self.client.get('/mv/login/retorno/', {'state': state})
+        com_ticket = self.client.get('/mv/login/retorno/', {'state': state, 'ticket': 'ST-2'})
+
+        self.assertContains(sem_ticket, 'voltou sem confirmar o login')
+        self.assertContains(com_ticket, 'Login MV vinculado')
+        api_post.assert_called_once()
+
+    @patch('core.views.api_post')
+    def test_state_usado_nao_vale_de_novo(self, api_post):
+        _, state = self.iniciar()
+        api_post.return_value = {'cd_usuario_mv': 'RH000969', 'pode_gravar_no_mv': True}
+        self.client.get('/mv/login/retorno/', {'state': state, 'ticket': 'ST-3'})
+
+        response = self.client.get('/mv/login/retorno/', {'state': state, 'ticket': 'ST-4'})
+
+        self.assertEqual(api_post.call_count, 1)
+        self.assertContains(response, 'não foi iniciado por esta tela')
+
+    def test_guarda_no_maximo_cinco_states(self):
+        states = [self.iniciar()[1] for _ in range(7)]
+
+        guardados = self.client.session['mv_cas_states']
+        self.assertEqual(set(guardados), set(states[-5:]))

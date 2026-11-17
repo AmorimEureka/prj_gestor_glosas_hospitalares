@@ -9409,8 +9409,9 @@ def contas_pagar_gestao(request):
 
 
 CP_NFSE_PATH = f"{CONTAS_PAGAR_PATH}/nfse"
-MV_LOGIN_STATE_KEY = "mv_cas_state"
+MV_LOGIN_STATE_KEY = "mv_cas_states"
 MV_LOGIN_STATE_TTL_SECONDS = 600
+MV_LOGIN_MAX_STATES = 5
 
 
 def _mv_cas_service_url(request, state):
@@ -9425,11 +9426,31 @@ def _mv_vinculo():
         return None
 
 
+def _mv_states_validos(request):
+    """States pendentes (state -> criado), sem os expirados."""
+    agora = time.time()
+    salvos = request.session.get(MV_LOGIN_STATE_KEY) or {}
+    if not isinstance(salvos, dict):
+        salvos = {}
+    return {
+        state: criado
+        for state, criado in salvos.items()
+        if agora - float(criado or 0) <= MV_LOGIN_STATE_TTL_SECONDS
+    }
+
+
 @require_GET
 def mv_login_iniciar(request):
-    """Abre o login do CAS da MV (no popup); o CAS volta para mv_login_retorno com um ticket."""
+    """Abre o login do CAS da MV (no popup); o CAS volta para mv_login_retorno com um ticket.
+
+    Guarda vários states: o usuário pode clicar mais de uma vez ou ter mais
+    de uma janela de login aberta; cada retorno usa o state da sua janela.
+    """
     state = secrets.token_urlsafe(24)
-    request.session[MV_LOGIN_STATE_KEY] = {"state": state, "criado": time.time()}
+    states = _mv_states_validos(request)
+    states[state] = time.time()
+    mais_recentes = sorted(states.items(), key=lambda item: item[1])[-MV_LOGIN_MAX_STATES:]
+    request.session[MV_LOGIN_STATE_KEY] = dict(mais_recentes)
     service = _mv_cas_service_url(request, state)
     return redirect(f"{settings.MV_CAS_BASE_URL}/login?{urlencode({'service': service})}")
 
@@ -9437,19 +9458,19 @@ def mv_login_iniciar(request):
 @require_GET
 def mv_login_retorno(request):
     """Recebe o ticket do CAS, valida na API e vincula o login MV ao usuário."""
-    salvo = request.session.pop(MV_LOGIN_STATE_KEY, None) or {}
     state = request.GET.get("state") or ""
     ticket = request.GET.get("ticket") or ""
+    states = _mv_states_validos(request)
     contexto = {"ok": False, "vinculo": None, "erro": None}
-    if (
-        not salvo.get("state")
-        or not secrets.compare_digest(str(salvo["state"]), state)
-        or time.time() - float(salvo.get("criado") or 0) > MV_LOGIN_STATE_TTL_SECONDS
-    ):
+    conhecido = any(secrets.compare_digest(state, salvo) for salvo in states)
+    if not conhecido:
         contexto["erro"] = "O login MV expirou ou não foi iniciado por esta tela. Tente novamente."
     elif not ticket:
-        contexto["erro"] = "O CAS da MV não confirmou o login."
+        # Sem ticket o state continua válido: o usuário ainda pode concluir o login.
+        contexto["erro"] = "O CAS da MV voltou sem confirmar o login. Entre novamente pela janela da MV."
     else:
+        states.pop(state, None)
+        request.session[MV_LOGIN_STATE_KEY] = states
         try:
             contexto["vinculo"] = api_post(
                 "/mv/cas/validar",
