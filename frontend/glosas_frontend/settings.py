@@ -123,6 +123,12 @@ API_CONTA_ATENDIMENTO_PATH = os.getenv("API_CONTA_ATENDIMENTO_PATH", "/app_glosa
 API_REGISTRO_GLOSA_PATH = os.getenv("API_REGISTRO_GLOSA_PATH", "/app_glosas/glosas")
 API_TISS_PATH = os.getenv("API_TISS_PATH", "/app_glosas/tiss")
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "60"))
+# Login MV pelo CAS da MV (vínculo do usuário com o login MV).
+MV_CAS_BASE_URL = os.getenv(
+    "MV_CAS_BASE_URL", "http://2361prd.cloudmv.com.br/mvautenticador-cas"
+).rstrip("/")
+# URL pública de retorno; deve ser igual a MV_CAS_SERVICE_URL da API.
+MV_CAS_SERVICE_URL = os.getenv("MV_CAS_SERVICE_URL", "")
 SPU_NOVNC_INTERNAL_URL = os.getenv(
     "SPU_NOVNC_INTERNAL_URL",
     "http://spu-novnc:6080",

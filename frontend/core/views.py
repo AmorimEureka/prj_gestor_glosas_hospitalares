@@ -1,6 +1,7 @@
 from .spu_access import require_spu_permission
 from .payables_priority import (AGES, priority_options, extra_filters, month_start, decorate_suppliers, decorate_matrix, trend_history, summary_card_filters, summary_card_links)
 import re
+import secrets
 from calendar import monthrange
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -9408,6 +9409,58 @@ def contas_pagar_gestao(request):
 
 
 CP_NFSE_PATH = f"{CONTAS_PAGAR_PATH}/nfse"
+MV_LOGIN_STATE_KEY = "mv_cas_state"
+MV_LOGIN_STATE_TTL_SECONDS = 600
+
+
+def _mv_cas_service_url(request, state):
+    base = settings.MV_CAS_SERVICE_URL or request.build_absolute_uri(reverse("mv_login_retorno"))
+    return f"{base}?{urlencode({'state': state})}"
+
+
+def _mv_vinculo():
+    try:
+        return api_get("/mv/vinculo")
+    except ApiError:
+        return None
+
+
+@require_GET
+def mv_login_iniciar(request):
+    """Abre o login do CAS da MV (no popup); o CAS volta para mv_login_retorno com um ticket."""
+    state = secrets.token_urlsafe(24)
+    request.session[MV_LOGIN_STATE_KEY] = {"state": state, "criado": time.time()}
+    service = _mv_cas_service_url(request, state)
+    return redirect(f"{settings.MV_CAS_BASE_URL}/login?{urlencode({'service': service})}")
+
+
+@require_GET
+def mv_login_retorno(request):
+    """Recebe o ticket do CAS, valida na API e vincula o login MV ao usuário."""
+    salvo = request.session.pop(MV_LOGIN_STATE_KEY, None) or {}
+    state = request.GET.get("state") or ""
+    ticket = request.GET.get("ticket") or ""
+    contexto = {"ok": False, "vinculo": None, "erro": None}
+    if (
+        not salvo.get("state")
+        or not secrets.compare_digest(str(salvo["state"]), state)
+        or time.time() - float(salvo.get("criado") or 0) > MV_LOGIN_STATE_TTL_SECONDS
+    ):
+        contexto["erro"] = "O login MV expirou ou não foi iniciado por esta tela. Tente novamente."
+    elif not ticket:
+        contexto["erro"] = "O CAS da MV não confirmou o login."
+    else:
+        try:
+            contexto["vinculo"] = api_post(
+                "/mv/cas/validar",
+                {"ticket": ticket, "service": _mv_cas_service_url(request, state)},
+            )
+            contexto["ok"] = True
+        except ApiError as exc:
+            contexto["erro"] = extract_api_error_message(exc)
+    response = render(request, "mv_login_retorno.html", contexto)
+    response["Cache-Control"] = "private, no-store"
+    return response
 CP_NFSE_SITUACOES = (
     ("pendente", "A lançar"),
     ("pronta", "Prontas para o financeiro"),
@@ -9516,6 +9569,7 @@ def contas_pagar_nfse_setor(request):
             "itens": payload.get("itens", []),
             "pode_classificar": pode_classificar,
             "nota_aberta": nota_aberta,
+            "mv_vinculo": _mv_vinculo(),
         },
     )
     response["Cache-Control"] = "private, no-store"
@@ -9659,6 +9713,7 @@ def contas_pagar_nfse_regras(request):
         except ApiError as exc:
             messages.error(request, f"Não foi possível carregar os vínculos do usuário: {exc}")
 
+    contexto["mv_vinculo"] = _mv_vinculo()
     response = render(request, "contas_pagar_nfse_regras.html", contexto)
     response["Cache-Control"] = "private, no-store"
     return response

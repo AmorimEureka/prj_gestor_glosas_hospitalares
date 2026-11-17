@@ -1,0 +1,27 @@
+<div class="mv-login-status d-flex flex-wrap align-items-center gap-2 mb-3">
+  {% if mv_vinculo and mv_vinculo.cd_usuario_mv and mv_vinculo.origem == 'cas' %}
+    <span class="badge {% if mv_vinculo.pode_gravar_no_mv %}text-bg-success{% else %}text-bg-secondary{% endif %}">Login MV: {{ mv_vinculo.cd_usuario_mv }}{% if mv_vinculo.pode_gravar_no_mv %} ✓{% endif %}</span>
+    <button type="button" class="btn btn-link btn-sm p-0" data-mv-login>Trocar</button>
+  {% else %}
+    <span class="text-muted small">Para lançar no MV pelo Receita Certa, entre com o seu login MV.</span>
+    <button type="button" class="btn btn-outline-primary btn-sm" data-mv-login>Entrar com login MV</button>
+  {% endif %}
+</div>
+<script>
+  (function () {
+    document.querySelectorAll("[data-mv-login]").forEach(function (botao) {
+      botao.addEventListener("click", function () {
+        var largura = 520, altura = 680;
+        var esquerda = window.screenX + Math.max(0, (window.outerWidth - largura) / 2);
+        var topo = window.screenY + Math.max(0, (window.outerHeight - altura) / 2);
+        var popup = window.open("{% url 'mv_login_iniciar' %}", "mv-login",
+          "width=" + largura + ",height=" + altura + ",left=" + esquerda + ",top=" + topo);
+        if (!popup) { window.location.href = "{% url 'mv_login_iniciar' %}"; }
+      });
+    });
+    window.addEventListener("message", function (evento) {
+      if (evento.origin !== window.location.origin || !evento.data || evento.data.tipo !== "mv-login") { return; }
+      if (evento.data.ok) { window.location.reload(); }
+    });
+  })();
+</script>

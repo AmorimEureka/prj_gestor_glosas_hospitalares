@@ -158,6 +158,8 @@ urlpatterns = [
         views.contas_pagar_nfse_setor,
         name="contas_pagar_nfse_setor",
     ),
+    path("mv/login/", views.mv_login_iniciar, name="mv_login_iniciar"),
+    path("mv/login/retorno/", views.mv_login_retorno, name="mv_login_retorno"),
     path(
         "financeiro/contas-a-pagar/boletos/<int:boleto_id>/pdf/",
         views.contas_pagar_boleto_pdf,

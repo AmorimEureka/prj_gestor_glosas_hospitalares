@@ -46,6 +46,9 @@ class NfseSetorViewTests(TestCase):
             'telas_permitidas': ['contas_pagar_nfse_setor'],
         }
         session.save()
+        vinculo = patch('core.views._mv_vinculo', return_value=None)
+        vinculo.start()
+        self.addCleanup(vinculo.stop)
 
     @patch('core.views.api_get')
     def test_lista_notas_do_setor(self, api_get):
@@ -102,6 +105,9 @@ class NfseRegrasViewTests(TestCase):
             'telas_permitidas': ['contas_pagar_nfse_regras'],
         }
         session.save()
+        vinculo = patch('core.views._mv_vinculo', return_value=None)
+        vinculo.start()
+        self.addCleanup(vinculo.stop)
 
     @staticmethod
     def respostas(path, params=None):
@@ -201,6 +207,9 @@ class NfseBoletoViewTests(TestCase):
         session['api_user'] = {'id': 7, 'nome': 'Setor TI', 'perfil': 'usuario',
                                'telas_permitidas': ['contas_pagar_nfse_setor']}
         session.save()
+        vinculo = patch('core.views._mv_vinculo', return_value=None)
+        vinculo.start()
+        self.addCleanup(vinculo.stop)
 
     @staticmethod
     def pdf(nome='boleto.pdf'):
