@@ -312,3 +312,41 @@ class NfseBoletoViewTests(TestCase):
         self.assertEqual(response['Content-Type'], 'application/pdf')
         self.assertEqual(b''.join(response.streaming_content), b'%PDF-1.4')
         api_get_stream.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/boletos/9/arquivo')
+
+
+class NfseMenuTests(TestCase):
+    def entrar(self, telas, perfil='usuario'):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 3, 'nome': 'X', 'perfil': perfil, 'telas_permitidas': telas}
+        session.save()
+
+    @patch('core.views._mv_vinculo', return_value=None)
+    @patch('core.views.api_get', return_value={'oficinas': [], 'itens': []})
+    def test_setor_ve_so_nfse_do_setor(self, *_):
+        self.entrar(['contas_pagar_nfse_setor'])
+        html = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/').content.decode()
+
+        self.assertIn('4. NFS-e do setor', html)
+        self.assertNotIn('5. Setores dos fornecedores', html)
+
+    @patch('core.views._mv_vinculo', return_value=None)
+    @patch('core.views.api_get', return_value={'oficinas': [], 'itens': []})
+    def test_financeiro_ve_os_dois_itens(self, *_):
+        self.entrar(['contas_pagar_nfse_regras'])
+        html = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/').content.decode()
+
+        self.assertIn('4. NFS-e do setor', html)
+        self.assertIn('5. Setores dos fornecedores', html)
+        self.assertIn('/financeiro/contas-a-pagar/setores-dos-fornecedores/', html)
+
+    @patch('core.views.get_cached_api_payload', return_value={'fornecedores': [], 'resumo': {}, 'historico': [], 'opcoes_classificacao': []})
+    def test_sem_as_telas_novas_o_menu_nao_mostra(self, *_):
+        self.entrar(['contas_pagar_operacao'])
+        response = self.client.get('/financeiro/contas-a-pagar/operacao/')
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('1. Operação', html)
+
+        self.assertNotIn('4. NFS-e do setor', html)
+        self.assertNotIn('5. Setores dos fornecedores', html)
