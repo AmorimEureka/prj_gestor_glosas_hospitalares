@@ -32,7 +32,7 @@
           <tr>
             <td>{{ nota.prestador }}<br><small class="text-muted">{{ nota.prestador_cnpj }}</small></td>
             <td>{{ nota.numero_nfse }}<br><small class="text-muted">{{ nota.data_emissao|api_date }}</small></td>
-            <td><small>{{ nota.tomador }}</small></td>
+            <td><small>{{ nota.empresa|default:nota.tomador }}</small></td>
             <td class="text-end">R$ {{ nota.valor_servicos|br_currency }}</td>
             <td><small>{{ nota.motivo }}</small></td>
             <td>

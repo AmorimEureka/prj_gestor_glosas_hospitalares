@@ -51,7 +51,8 @@ class NfseSetorViewTests(TestCase):
     def test_lista_notas_do_setor(self, api_get):
         api_get.return_value = {
             'desde': '2026-10-01', 'situacao': 'pendente',
-            'oficinas': [{'cd_oficina': 2, 'ds_oficina': 'TECNOLOGIA DA INFORMACAO', 'quantidade': 1, 'valor': '1500.50'}],
+            'oficinas': [{'cd_oficina': 2, 'ds_oficina': 'TECNOLOGIA DA INFORMACAO', 'cd_multi_empresa': 1,
+                          'empresa': 'HOSPITAL PRONTOCARDIO', 'quantidade': 1, 'valor': '1500.50'}],
             'itens': [NOTA],
         }
 
@@ -61,6 +62,7 @@ class NfseSetorViewTests(TestCase):
         self.assertContains(response, 'Software SA')
         self.assertContains(response, 'A lançar')
         self.assertContains(response, '1.500,50')
+        self.assertContains(response, '· HOSPITAL PRONTOCARDIO')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
             {'situacao': 'pendente', 'cd_oficina': '', 'desde': ''},
