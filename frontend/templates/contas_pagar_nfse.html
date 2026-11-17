@@ -35,7 +35,7 @@
     {% for grupo in oficinas %}
     <a class="btn {% if filtros.cd_oficina and grupo.cd_oficina|stringformat:'s' == filtros.cd_oficina %}btn-primary{% else %}btn-outline-primary{% endif %}"
        href="?situacao={{ filtros.situacao }}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}{% if grupo.cd_oficina %}&cd_oficina={{ grupo.cd_oficina }}{% endif %}">
-      {{ grupo.ds_oficina }} <span class="badge text-bg-light ms-1">{{ grupo.quantidade }}</span>
+      {{ grupo.ds_oficina }}{% if grupo.empresa %} <small class="opacity-75">· {{ grupo.empresa }}</small>{% endif %} <span class="badge text-bg-light ms-1">{{ grupo.quantidade }}</span>
       <small class="ms-1">R$ {{ grupo.valor|br_currency }}</small>
     </a>
     {% endfor %}
@@ -56,7 +56,7 @@
             <td>{{ item.data_emissao|api_date }}</td>
             <td><strong>{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<br><small class="text-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}</td>
             <td>{{ item.prestador }}<br><small class="text-muted">{{ item.prestador_cnpj }}</small>{% if item.discriminacao %}<br><small class="text-muted cp-nfse-discriminacao" title="{{ item.discriminacao }}">{{ item.discriminacao|truncatechars:90 }}</small>{% endif %}</td>
-            <td><small>{{ item.tomador }}</small></td>
+            <td><small>{{ item.empresa|default:item.tomador }}</small></td>
             <td>{% if item.ds_oficina %}{{ item.ds_oficina }}{% else %}<span class="text-warning">Sem setor</span>{% endif %}</td>
             <td class="text-end">R$ {{ item.valor_servicos|br_currency }}</td>
             <td class="text-end">R$ {{ item.valor_liquido|br_currency }}</td>
