@@ -85,6 +85,16 @@ SCREEN_GROUPS = (
                 "label": "Contas a Pagar · Gestão",
                 "route_name": "contas_pagar_gestao",
             },
+            {
+                "key": "contas_pagar_nfse_setor",
+                "label": "Contas a Pagar · NFS-e do setor",
+                "route_name": "contas_pagar_nfse_setor",
+            },
+            {
+                "key": "contas_pagar_nfse_regras",
+                "label": "Contas a Pagar · Setores dos fornecedores",
+                "route_name": "contas_pagar_nfse_regras",
+            },
         ),
     },
     {
@@ -129,7 +139,7 @@ SCREEN_GROUPS = (
     },
 )
 
-RESTRICTED_KEYS = {'spu_automacao'}
+RESTRICTED_KEYS = {'spu_automacao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'}
 SCREEN_GROUPS = SCREEN_GROUPS + ({'label': 'Automação', 'screens': (
     {'key': 'spu_automacao', 'label': 'Desktop SPU', 'route_name': 'spu_recaptcha_viewer'},
 )},)
@@ -176,6 +186,8 @@ ROUTE_PERMISSIONS = {
     "contas_pagar_operacao": "contas_pagar_operacao",
     "contas_pagar_acompanhamento": "contas_pagar_acompanhamento",
     "contas_pagar_gestao": "contas_pagar_gestao",
+    "contas_pagar_nfse_setor": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
+    "contas_pagar_nfse_regras": "contas_pagar_nfse_regras",
     "fornecedores_criticos": "fornecedores_criticos",
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
