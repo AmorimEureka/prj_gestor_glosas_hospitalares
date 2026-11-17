@@ -43,6 +43,47 @@
   </nav>
   {% endif %}
 
+  {% if nota_aberta %}
+  <section class="panel cp-nfse-boletos" id="boletos">
+    <div class="panel-header"><span class="panel-title">Boletos da NFS-e {{ nota_aberta.nota.numero_nfse }} · {{ nota_aberta.nota.prestador_razao_social }}</span>
+      <span class="results-subtitle">{{ nota_aberta.resumo.quantidade }} boleto(s) · R$ {{ nota_aberta.resumo.soma|br_currency }} de R$ {{ nota_aberta.resumo.valor_liquido|br_currency }} (valor líquido da nota){% if nota_aberta.resumo.pronta %} · <strong class="text-success">pronta para o financeiro</strong>{% endif %}</span></div>
+    {% if nota_aberta.boletos %}
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Vencimento</th><th class="text-end">Valor</th><th>Banco</th><th>Linha digitável</th><th>Conferência</th><th></th></tr></thead>
+      <tbody>
+        {% for boleto in nota_aberta.boletos %}
+        <tr>
+          <td>{{ boleto.vencimento|api_date }}</td>
+          <td class="text-end">R$ {{ boleto.valor|br_currency }}</td>
+          <td>{{ boleto.banco|default:'Arrecadação' }}</td>
+          <td><small class="font-monospace">{{ boleto.linha_digitavel }}</small>{% if boleto.origem_leitura == 'manual' %}<br><small class="text-muted">digitada</small>{% endif %}</td>
+          <td>{% for d in boleto.divergencias %}<div class="text-danger small">{{ d }}</div>{% empty %}<span class="text-success small">Confere com a NFS-e</span>{% endfor %}</td>
+          <td class="text-nowrap">
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'contas_pagar_boleto_pdf' boleto.id %}" target="_blank" rel="noopener">PDF</a>
+            <form method="post" class="d-inline">{% csrf_token %}
+              <input type="hidden" name="acao" value="excluir_boleto"><input type="hidden" name="boleto_id" value="{{ boleto.id }}">
+              <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Excluir este boleto?')">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-3 align-items-end">{% csrf_token %}
+      <input type="hidden" name="acao" value="anexar_boleto">
+      <input type="hidden" name="cnpj" value="{{ nota_aberta.nota.prestador_cnpj }}"><input type="hidden" name="numero" value="{{ nota_aberta.nota.numero_nfse }}">
+      <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+      {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+      <label class="filter-group"><span>PDF do boleto</span><input class="form-control" type="file" name="arquivo" accept="application/pdf" required></label>
+      <label class="filter-group"><span>Linha digitável (só se o PDF for imagem)</span><input class="form-control" name="linha_digitavel" maxlength="60" inputmode="numeric" placeholder="Opcional"></label>
+      <label class="filter-group"><span>Vencimento (contas de consumo)</span><input class="form-control" type="date" name="vencimento"></label>
+      <button class="btn btn-primary" type="submit">Anexar boleto</button>
+    </form>
+  </section>
+  {% endif %}
+
   <section class="panel">
     {% if itens %}
     <div class="table-responsive">
@@ -63,7 +104,13 @@
             <td>
               {% if item.situacao == 'lancada' %}<span class="badge text-bg-success">Lançada no MV</span>{% if item.mv.cd_ent_serv %}<br><small>Entrada {{ item.mv.cd_ent_serv }}</small>{% endif %}{% if item.mv.cd_con_pag %}<br><small>Título {{ item.mv.cd_con_pag }}</small>{% endif %}
               {% elif item.situacao == 'a_classificar' %}<span class="badge text-bg-warning">Sem setor</span><br><small class="text-muted">{{ item.motivo }}</small>{% if pode_classificar %}<br><a href="{% url 'contas_pagar_nfse_regras' %}">Classificar</a>{% endif %}
-              {% else %}<span class="badge text-bg-primary">A lançar</span>{% endif %}
+              {% else %}
+                {% if item.pronta %}<span class="badge text-bg-success">Pronta para o financeiro</span>
+                {% elif item.boletos.com_divergencia %}<span class="badge text-bg-danger">Boleto com divergência</span>
+                {% else %}<span class="badge text-bg-primary">A lançar · falta boleto</span>{% endif %}
+                {% if item.boletos %}<br><small>{{ item.boletos.quantidade }} boleto(s) · R$ {{ item.boletos.soma|br_currency }} · venc. {{ item.boletos.primeiro_vencimento|api_date }}</small>{% endif %}
+                <br><a href="?situacao={{ filtros.situacao }}{% if filtros.cd_oficina %}&cd_oficina={{ filtros.cd_oficina }}{% endif %}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}&nota={{ item.chave }}#boletos">{% if item.boletos %}Ver boletos{% else %}Anexar boleto{% endif %}</a>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

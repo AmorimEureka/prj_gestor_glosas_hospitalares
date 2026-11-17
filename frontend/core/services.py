@@ -105,6 +105,15 @@ def api_post(path: str, data: dict):
         raise ApiError("API retornou uma resposta invalida para JSON.") from exc
 
 
+def api_post_files(path: str, files: dict, data: dict | None = None):
+    """POST multipart (upload de arquivo) para a API."""
+    response = api_request("POST", path, files=files, data=data or {})
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc
+
+
 def api_put(path: str, data: dict):
     response = api_request("PUT", path, json=data)
     try:

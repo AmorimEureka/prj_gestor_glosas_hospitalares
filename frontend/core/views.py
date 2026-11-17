@@ -45,6 +45,7 @@ from .services import (
     api_get_stream,
     api_patch,
     api_post,
+    api_post_files,
     api_put,
 )
 from .spu_recaptcha import (
@@ -9409,6 +9410,7 @@ def contas_pagar_gestao(request):
 CP_NFSE_PATH = f"{CONTAS_PAGAR_PATH}/nfse"
 CP_NFSE_SITUACOES = (
     ("pendente", "A lançar"),
+    ("pronta", "Prontas para o financeiro"),
     ("a_classificar", "Sem setor"),
     ("lancada", "Já lançadas no MV"),
     ("todas", "Todas"),
@@ -9422,9 +9424,59 @@ def _oficinas_por_empresa(oficinas):
     return agrupadas
 
 
-@require_GET
+CP_BOLETO_MAX_BYTES = 5 * 1024 * 1024
+
+
+def _contas_pagar_nfse_setor_post(request):
+    acao = request.POST.get("acao")
+    cnpj = re.sub(r"\D", "", request.POST.get("cnpj") or "")
+    numero = re.sub(r"[^0-9A-Za-z]", "", request.POST.get("numero") or "")
+    if acao == "anexar_boleto":
+        arquivo = request.FILES.get("arquivo")
+        if len(cnpj) != 14 or not numero or arquivo is None:
+            messages.error(request, "Selecione o PDF do boleto.")
+            return
+        if arquivo.size > CP_BOLETO_MAX_BYTES:
+            messages.error(request, "O PDF do boleto deve ter até 5 MB.")
+            return
+        dados = {}
+        if (request.POST.get("linha_digitavel") or "").strip():
+            dados["linha_digitavel"] = request.POST["linha_digitavel"].strip()[:60]
+        if (request.POST.get("vencimento") or "").strip():
+            dados["vencimento"] = request.POST["vencimento"].strip()
+        resultado = api_post_files(
+            f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/boletos",
+            {"arquivo": (arquivo.name, arquivo.read(), "application/pdf")},
+            dados,
+        )
+        divergencias = resultado.get("divergencias") or []
+        if divergencias:
+            messages.warning(request, "Boleto anexado com divergências: " + " ".join(divergencias))
+        else:
+            messages.success(request, "Boleto anexado e conferido. A nota está pronta para o financeiro.")
+    elif acao == "excluir_boleto":
+        boleto_id = as_int_or_none(request.POST.get("boleto_id"))
+        if not boleto_id:
+            messages.error(request, "Boleto inválido.")
+            return
+        api_delete(f"{CP_NFSE_PATH}/boletos/{boleto_id}")
+        messages.success(request, "Boleto excluído.")
+    else:
+        messages.error(request, "Ação inválida.")
+
+
+@require_http_methods(["GET", "POST"])
 def contas_pagar_nfse_setor(request):
     """NFS-e recebidas pelas oficinas do usuário que ainda não foram lançadas no MV."""
+    if request.method == "POST":
+        try:
+            _contas_pagar_nfse_setor_post(request)
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível salvar o boleto: {extract_api_error_message(exc)}")
+        retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_oficina", "desde", "nota"} and v}
+        destino = reverse("contas_pagar_nfse_setor")
+        return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
+
     user = request.session.get("api_user") or {}
     pode_classificar = can_access_screen(user, "contas_pagar_nfse_regras")
     situacoes = CP_NFSE_SITUACOES if pode_classificar else tuple(
@@ -9443,6 +9495,15 @@ def contas_pagar_nfse_setor(request):
         payload = api_get(f"{CP_NFSE_PATH}/recebidas", filtros)
     except ApiError as exc:
         messages.error(request, f"Não foi possível carregar as NFS-e recebidas: {exc}")
+    nota_aberta = None
+    chave = request.GET.get("nota") or ""
+    if re.fullmatch(r"\d{14}-[0-9A-Za-z]{1,30}", chave):
+        cnpj, numero = chave.split("-", 1)
+        try:
+            nota_aberta = api_get(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/boletos")
+            nota_aberta["chave"] = chave
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível carregar os boletos da nota: {extract_api_error_message(exc)}")
     response = render(
         request,
         "contas_pagar_nfse.html",
@@ -9454,8 +9515,36 @@ def contas_pagar_nfse_setor(request):
             "oficinas": payload.get("oficinas", []),
             "itens": payload.get("itens", []),
             "pode_classificar": pode_classificar,
+            "nota_aberta": nota_aberta,
         },
     )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@require_GET
+def contas_pagar_boleto_pdf(request, boleto_id):
+    try:
+        upstream = api_get_stream(f"{CP_NFSE_PATH}/boletos/{int(boleto_id)}/arquivo")
+    except ApiError as exc:
+        status_code = exc.status_code if exc.status_code and 400 <= exc.status_code <= 599 else 502
+        return HttpResponse(
+            f"Boleto: {extract_api_error_message(exc)}",
+            status=status_code,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    def iter_pdf():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = StreamingHttpResponse(iter_pdf(), content_type="application/pdf")
+    response["Content-Disposition"] = upstream.headers.get("Content-Disposition") or f'inline; filename="boleto-{boleto_id}.pdf"'
+    response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = "private, no-store"
     return response
 

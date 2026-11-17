@@ -188,6 +188,7 @@ ROUTE_PERMISSIONS = {
     "contas_pagar_gestao": "contas_pagar_gestao",
     "contas_pagar_nfse_setor": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
     "contas_pagar_nfse_regras": "contas_pagar_nfse_regras",
+    "contas_pagar_boleto_pdf": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
     "fornecedores_criticos": "fornecedores_criticos",
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
