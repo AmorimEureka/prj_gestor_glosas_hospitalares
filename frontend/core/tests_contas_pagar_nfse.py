@@ -97,6 +97,35 @@ class NfseSetorViewTests(TestCase):
         self.assertEqual(len(response.context['itens']), 1)
 
     @patch('core.views.api_get')
+    def test_mostra_status_do_iss_e_bloqueia_boleto_da_cancelada(self, api_get):
+        normal = {**NOTA, 'status_nfse': 'NORMAL', 'status_nfse_consultado_em': '2026-11-18T11:40:00+00:00'}
+        cancelada = {**NOTA, 'chave': '07530025000146-388581', 'numero_nfse': '388581', 'situacao': 'cancelada',
+                     'status_nfse': 'CANCELADA', 'status_nfse_consultado_em': None}
+        api_get.return_value = {'oficinas': [], 'itens': [normal, cancelada]}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=todas')
+
+        self.assertContains(response, 'Status ISS')
+        self.assertContains(response, 'cp-nfse-status--normal">Normal')
+        self.assertContains(response, '18/11/2026 08:40')  # UTC -> Fortaleza
+        self.assertContains(response, 'cp-nfse-status--cancelada">Cancelada')
+        self.assertContains(response, 'Cancelada no ISS</span>')
+        self.assertNotContains(response, 'nota=07530025000146-388581#boletos')
+        self.assertContains(response, 'is-cancelada')
+
+    @patch('core.views.api_get')
+    def test_status_nao_consultado(self, api_get):
+        api_get.return_value = {'oficinas': [], 'itens': [{**NOTA, 'status_nfse': None}]}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/')
+
+        self.assertContains(response, 'Não consultado')
+
+    def test_filtro_canceladas_disponivel(self):
+        from core.views import CP_NFSE_SITUACOES
+        self.assertIn(('cancelada', 'Canceladas no ISS'), CP_NFSE_SITUACOES)
+
+    @patch('core.views.api_get')
     def test_setor_nao_pode_pedir_notas_sem_setor(self, api_get):
         api_get.return_value = {'oficinas': [], 'itens': []}
 

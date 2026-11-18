@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from copy import deepcopy
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 import json
 import logging
@@ -9533,6 +9534,22 @@ def mv_login_retorno(request):
 CP_NFSE_POR_PAGINA = 10
 
 
+CP_NFSE_FUSO = ZoneInfo("America/Fortaleza")
+
+
+def _cp_nfse_hora_local(valor):
+    """atualizado_em vem em UTC (timestamptz); a tela mostra o horário de Fortaleza."""
+    if not valor:
+        return None
+    try:
+        momento = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if momento.tzinfo is None:
+        return momento
+    return momento.astimezone(CP_NFSE_FUSO).replace(tzinfo=None)
+
+
 def _cp_nfse_decimal(valor):
     try:
         return Decimal(str(valor if valor not in (None, "") else 0))
@@ -9545,6 +9562,7 @@ CP_NFSE_SITUACOES = (
     ("pronta", "Prontas para o financeiro"),
     ("a_classificar", "Sem setor"),
     ("lancada", "Já lançadas no MV"),
+    ("cancelada", "Canceladas no ISS"),
     ("todas", "Todas"),
 )
 
@@ -9628,6 +9646,8 @@ def contas_pagar_nfse_setor(request):
     except ApiError as exc:
         messages.error(request, f"Não foi possível carregar as NFS-e recebidas: {exc}")
     itens = payload.get("itens", [])
+    for item in itens:
+        item["status_nfse_consultado_em"] = _cp_nfse_hora_local(item.get("status_nfse_consultado_em"))
     base_query = {k: v for k, v in filtros.items() if v}
     total = len(itens)
     total_pages = max(ceil(total / CP_NFSE_POR_PAGINA), 1)

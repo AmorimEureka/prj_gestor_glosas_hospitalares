@@ -15446,7 +15446,7 @@ button.follow-up-glosa-chevron:focus-visible {
   margin-bottom: 0;
   font-size: 13px;
   table-layout: fixed;
-  min-width: 980px;
+  min-width: 1090px;
 }
 
 .cp-nfse-table col.cp-col-emissao { width: 92px; }
@@ -15455,6 +15455,45 @@ button.follow-up-glosa-chevron:focus-visible {
 .cp-nfse-table col.cp-col-setor { width: 150px; }
 .cp-nfse-table col.cp-col-valor { width: 112px; }
 .cp-nfse-table col.cp-col-situacao { width: 190px; }
+.cp-nfse-table col.cp-col-status { width: 112px; }
+
+.cp-nfse-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.cp-nfse-status--normal {
+  background: #e8f6ee;
+  border-color: #b8e0c8;
+  color: #1f7a45;
+}
+
+.cp-nfse-status--cancelada {
+  background: #fdecea;
+  border-color: #f2b8b2;
+  color: #b42318;
+}
+
+.cp-nfse-status--sem {
+  background: #f2f4f7;
+  border-color: #d0d5dd;
+  color: #667085;
+}
+
+.cp-nfse-table tbody tr.is-cancelada > td {
+  background: #fff8f7;
+}
+
+.cp-nfse-table tbody tr.is-cancelada .cp-nfse-numero {
+  text-decoration: line-through;
+  text-decoration-color: #b42318;
+}
 
 .cp-nfse-table thead th {
   position: sticky;
