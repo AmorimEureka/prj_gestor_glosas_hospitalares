@@ -111,6 +111,76 @@
       <label class="filter-group"><span>Vencimento <small>(contas de consumo)</small></span><input class="form-control" type="date" name="vencimento"></label>
       <button class="btn btn-primary" type="submit">Anexar boleto</button>
     </form>
+
+    {% if pode_classificar %}
+    <div class="cp-imp" id="simulacao">
+      <div class="cp-imp__head">
+        <div>
+          <span class="panel-title">Importação para o MV</span>
+          <span class="results-subtitle">Simulação: mostra o que seria gravado no MV e o que impede a importação. Nada é gravado.</span>
+        </div>
+        {% if mv_vinculo.pode_gravar_no_mv %}
+        <a class="btn {% if simulacao %}btn-outline-primary{% else %}btn-primary{% endif %}" href="?{% querystring simular='1' %}#simulacao">{% if simulacao %}Simular de novo{% else %}Simular importação no MV{% endif %}</a>
+        {% else %}
+        <span class="cp-nfse-muted">Entre com o seu login MV (no alto da página) para simular.</span>
+        {% endif %}
+      </div>
+
+      {% if simulacao %}
+      <div class="cp-imp__status {% if simulacao.apta %}is-apta{% else %}is-bloqueada{% endif %}">
+        {% if simulacao.apta %}
+        <strong>Apta para importar.</strong> Todas as validações da importação do MV passaram.
+        {% else %}
+        <strong>Não pode ser importada ainda.</strong> Resolva {{ simulacao.pendencias|length }} pendência{{ simulacao.pendencias|length|pluralize }}:
+        <ul>{% for p in simulacao.pendencias %}<li>{% if p.codigo|slice:":1" == "-" %}<code>{{ p.codigo }}</code> {% endif %}{{ p.mensagem }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+      {% for aviso in simulacao.avisos %}<div class="cp-imp__aviso">{{ aviso }}</div>{% endfor %}
+
+      {% with e=simulacao.escolhas %}
+      <dl class="cp-imp__escolhas">
+        <div><dt>Usuário MV</dt><dd>{{ e.usuario_mv|default:'—' }}</dd></div>
+        <div><dt>Fornecedor</dt><dd>{% if e.fornecedor %}{{ e.fornecedor.cd_fornecedor }} · {{ e.fornecedor.nm_fornecedor }}{% else %}—{% endif %}</dd></div>
+        <div><dt>Oficina / setor</dt><dd>{% if e.oficina %}{{ e.oficina.cd_oficina }} · {{ e.oficina.ds_oficina }} (setor {{ e.oficina.cd_setor|default:'—' }}){% else %}—{% endif %}</dd></div>
+        <div><dt>Serviço</dt><dd>{% if e.servico %}{{ e.servico.cd_servico }} · {{ e.servico.nm_servico }}{% else %}—{% endif %}</dd></div>
+        <div><dt>Conta do fornecedor</dt><dd>{{ e.conta_fornecedor.cd_reduzido|default:'—' }}</dd></div>
+        <div><dt>Modelo usado</dt><dd>{% if e.modelo %}entrada {{ e.modelo.cd_ent_serv }} (NF {{ e.modelo.nr_documento }}, {{ e.modelo.cd_usuario }}){% else %}sem lançamento anterior{% endif %}</dd></div>
+      </dl>
+      {% endwith %}
+
+      {% if simulacao.gravacoes %}
+      <div class="cp-imp__gravacoes">
+        {% for g in simulacao.gravacoes %}
+        <details class="cp-imp__tabela">
+          <summary><span class="cp-imp__ordem">{{ g.ordem }}</span> <code>{{ g.operacao }} {{ g.tabela }}</code> <small>{{ g.linhas|length }} campo{{ g.linhas|length|pluralize }}</small></summary>
+          {% if g.observacao %}<p class="cp-nfse-muted">{{ g.observacao }}</p>{% endif %}
+          <table class="table table-sm cp-imp__campos">
+            <thead><tr><th>Campo</th><th>Valor</th><th>Origem</th></tr></thead>
+            <tbody>{% for l in g.linhas %}<tr><td><code>{{ l.campo }}</code></td><td>{{ l.valor }}</td><td class="cp-nfse-muted">{{ l.origem }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </details>
+        {% endfor %}
+        {% with imp=simulacao.importacao %}{% if imp.chamada %}
+        <details class="cp-imp__tabela" open>
+          <summary><span class="cp-imp__ordem">{{ simulacao.gravacoes|length|add:1 }}</span> <code>{{ imp.chamada }}</code> <small>gera o título no Contas a Pagar</small></summary>
+          <p class="cp-nfse-muted">Parâmetros: fornecedor {{ imp.parametros.p_cd_fornecedor }}, documento {{ imp.parametros.p_nr_documento }}, série {{ imp.parametros.p_nr_serie }}, empresa {{ imp.parametros.p_cd_multi_empresa }}.</p>
+          {% with t=imp.titulo_previsto %}
+          <dl class="cp-imp__escolhas">
+            <div><dt>Título</dt><dd>{{ t.tabela }} · tipo {{ t.tp_con_pag }}</dd></div>
+            <div><dt>Valor bruto</dt><dd>{{ t.valor_fmt }}</dd></div>
+            <div><dt>Conta contábil</dt><dd>{{ t.cd_reduzido|default:'—' }}</dd></div>
+            <div><dt>Setor</dt><dd>{{ t.cd_setor|default:'—' }}</dd></div>
+            <div><dt>Lançado por</dt><dd>{{ t.cd_usuario_ins }}</dd></div>
+            <div><dt>Parcelas</dt><dd>{% for p in t.parcelas %}{{ p.nr_parcela }}ª · {{ p.vencimento_fmt }} · {{ p.valor_fmt }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>
+          </dl>
+          {% endwith %}
+        </details>
+        {% endif %}{% endwith %}
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
   </section>
   {% endif %}
 
