@@ -37,6 +37,12 @@
         <form method="post" class="login-form">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">
+          {% if sessao_expirada and not error %}
+            <div class="login-error" role="status">
+              <span aria-hidden="true">!</span>
+              Sua sessão expirou. Entre novamente para continuar de onde parou.
+            </div>
+          {% endif %}
           {% if error %}
             <div class="login-error" role="alert">
               <span aria-hidden="true">!</span>

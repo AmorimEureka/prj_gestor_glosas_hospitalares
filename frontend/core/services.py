@@ -5,6 +5,14 @@ from django.conf import settings
 
 
 _request_api_token = ContextVar("request_api_token", default=None)
+# Marca a requisição em que a API recusou o token do usuário (vencido ou revogado).
+_request_api_token_recusado = ContextVar("request_api_token_recusado", default=None)
+DETALHE_TOKEN_RECUSADO = "Could not validate credentials"
+
+
+def token_api_recusado() -> bool:
+    estado = _request_api_token_recusado.get()
+    return bool(estado and estado.get("recusado"))
 
 
 class ApiError(RuntimeError):
@@ -14,11 +22,25 @@ class ApiError(RuntimeError):
 
 
 def set_request_api_token(token: str | None):
-    return _request_api_token.set(token)
+    return (_request_api_token.set(token), _request_api_token_recusado.set({"recusado": False}))
 
 
 def reset_request_api_token(context_token):
-    _request_api_token.reset(context_token)
+    token, recusado = context_token
+    _request_api_token_recusado.reset(recusado)
+    _request_api_token.reset(token)
+
+
+def _marcar_token_recusado(response, token_explicito) -> None:
+    if response.status_code != 401 or token_explicito:
+        return
+    try:
+        detalhe = response.json().get("detail")
+    except ValueError:
+        return
+    estado = _request_api_token_recusado.get()
+    if detalhe == DETALHE_TOKEN_RECUSADO and estado is not None:
+        estado["recusado"] = True
 
 
 def api_headers(token: str | None = None) -> dict[str, str]:
@@ -57,6 +79,7 @@ def api_request(
 
     if response.status_code >= 400:
         message = response.text
+        _marcar_token_recusado(response, token)
         response.close()
         raise ApiError(message, response.status_code)
     return response

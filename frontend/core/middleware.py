@@ -1,4 +1,4 @@
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -16,6 +16,7 @@ from .services import (
     api_get,
     reset_request_api_token,
     set_request_api_token,
+    token_api_recusado,
 )
 
 ACOMPANHAMENTO_PARTICULAR_SOURCE_SCREENS = {
@@ -41,6 +42,18 @@ class ApiSessionMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
+
+    @staticmethod
+    def _sessao_expirada(request):
+        """O login no Receita Certa venceu (8 h) ou foi revogado: encerra a sessão e volta para a mesma tela depois do login."""
+        if request.method == "GET":
+            destino = request.get_full_path()
+        else:
+            destino = request.headers.get("Referer") or request.path
+            destino = urlsplit(destino)
+            destino = destino.path + (f"?{destino.query}" if destino.query else "")
+        request.session.flush()
+        return redirect(f"/login/?{urlencode({'next': destino, 'sessao': 'expirada'})}")
 
     def __call__(self, request):
         is_public = (
@@ -99,6 +112,8 @@ class ApiSessionMiddleware:
         try:
             response = self.get_response(request)
             content_type = response.headers.get("Content-Type", "")
+            if not is_public and access_token and token_api_recusado() and not content_type.startswith("application/json"):
+                return self._sessao_expirada(request)
             if (
                 not is_public
                 and access_token
