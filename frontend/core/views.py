@@ -9606,6 +9606,9 @@ def _cp_formatar_simulacao(resultado):
         parcela["valor_fmt"] = _cp_valor_mv("vl_duplicata", parcela.get("vl_duplicata"))
     if titulo:
         titulo["valor_fmt"] = _cp_valor_mv("vl_bruto_conta", titulo.get("vl_bruto_conta"))
+        titulo["liquido_fmt"] = _cp_valor_mv("vl_liquido", titulo.get("vl_liquido"))
+        for imposto in titulo.get("impostos") or []:
+            imposto["valor_fmt"] = _cp_valor_mv("vl_imposto", imposto.get("valor"))
     return resultado
 
 

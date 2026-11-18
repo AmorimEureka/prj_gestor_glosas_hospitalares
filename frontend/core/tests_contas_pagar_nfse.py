@@ -745,3 +745,30 @@ class PdfOficialNfseTests(TestCase):
     def test_chave_invalida(self, api_get_stream):
         self.assertEqual(self.client.get('/financeiro/contas-a-pagar/nfse/63554067000198/93-1/pdf/').status_code, 404)
         api_get_stream.assert_not_called()
+
+
+class SimulacaoComImpostosTests(TestCase):
+    URL = '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta&nota=63554067000198-93125822&simular=1'
+
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'usuario',
+                               'telas_permitidas': ['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras']}
+        session.save()
+        vinculo = patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+        vinculo.start()
+        self.addCleanup(vinculo.stop)
+
+    @patch('core.views.api_get', side_effect=lambda path, params=None: BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []})
+    @patch('core.views.api_post')
+    def test_titulo_previsto_mostra_liquido_e_titulos_de_imposto(self, api_post, api_get):
+        titulo = {**SIMULACAO['importacao']['titulo_previsto'], 'vl_bruto_conta': '30487.20', 'vl_liquido': '27697.63',
+                  'parcelas': [{'nr_parcela': 1, 'dt_vencimento': '2026-11-25', 'vl_duplicata': '27697.63'}],
+                  'impostos': [{'cd_detalhamento': 2, 'ds_detalhamento': 'IRRF - P. JURÍDICA', 'nr_documento': 'D-45', 'valor': '457.30'},
+                               {'cd_detalhamento': 11, 'ds_detalhamento': 'CSRF RETIDA 4,65%', 'nr_documento': 'D-45', 'valor': '1417.65'}]}
+        api_post.return_value = {**SIMULACAO, 'importacao': {**SIMULACAO['importacao'], 'titulo_previsto': titulo}}
+        response = self.client.get(self.URL)
+        self.assertContains(response, 'Líquido a pagar ao fornecedor')
+        self.assertContains(response, 'R$ 27.697,63')
+        self.assertContains(response, 'D-45 · 11 CSRF RETIDA 4,65% · R$ 1.417,65')
