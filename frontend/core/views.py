@@ -519,7 +519,8 @@ def login_view(request):
     return render(
         request,
         "login.html",
-        {"email": email, "error": error, "next": next_url},
+        {"email": email, "error": error, "next": next_url,
+         "sessao_expirada": request.method == "GET" and request.GET.get("sessao") == "expirada"},
     )
 
 
