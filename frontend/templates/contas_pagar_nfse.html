@@ -5,18 +5,19 @@
 {% block content %}
 <section class="cp-nfse-page">
   <header class="panel cp-nfse-intro">
-    <h2 class="h5 mb-1">Notas fiscais de serviço recebidas que ainda não foram lançadas no financeiro</h2>
-    <p class="mb-0 text-muted">
-      Notas emitidas no ISS Fortaleza para as empresas do grupo{% if desde %}, emitidas desde {{ desde|api_date }}{% endif %}.
-      Cada nota aparece para o setor do fornecedor. Notas de fornecedores de outros municípios ainda não são listadas aqui.
-    </p>
+    <div>
+      <h2 class="cp-nfse-intro__title">NFS-e recebidas ainda não lançadas no financeiro</h2>
+      <p class="cp-nfse-intro__text">
+        Notas emitidas no ISS Fortaleza para as empresas do grupo{% if desde %} desde <strong>{{ desde|api_date }}</strong>{% endif %}.
+        Cada nota aparece para o setor do fornecedor. Notas de outros municípios ainda não são listadas.
+      </p>
+    </div>
+    {% include "partials/mv_login_status.html" %}
   </header>
 
-  {% include "partials/mv_login_status.html" %}
-
-  <form method="get" class="panel filter-panel d-flex flex-wrap gap-3 align-items-end">
+  <form method="get" class="panel filter-panel cp-nfse-filters">
     <label class="filter-group"><span>Situação</span>
-      <select class="form-select" name="situacao">
+      <select class="form-select" name="situacao" onchange="this.form.submit()">
         {% for valor, rotulo in situacoes %}<option value="{{ valor }}" {% if filtros.situacao == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
       </select>
     </label>
@@ -33,85 +34,138 @@
   {% if aviso %}<div class="alert alert-info">{{ aviso }}</div>{% endif %}
 
   {% if oficinas %}
-  <nav class="cp-nfse-setores d-flex flex-wrap gap-2 my-3" aria-label="Setores">
+  <nav class="cp-nfse-setores" aria-label="Setores">
+    {% if filtros.cd_oficina %}
+    <a class="cp-nfse-setor cp-nfse-setor--todos" href="?situacao={{ filtros.situacao }}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}">
+      <span class="cp-nfse-setor__nome">Todos os setores</span>
+      <span class="cp-nfse-setor__meta">Limpar o filtro de setor</span>
+    </a>
+    {% endif %}
     {% for grupo in oficinas %}
-    <a class="btn {% if filtros.cd_oficina and grupo.cd_oficina|stringformat:'s' == filtros.cd_oficina %}btn-primary{% else %}btn-outline-primary{% endif %}"
+    <a class="cp-nfse-setor{% if filtros.cd_oficina and grupo.cd_oficina|stringformat:'s' == filtros.cd_oficina %} is-active{% endif %}{% if not grupo.cd_oficina %} cp-nfse-setor--sem{% endif %}"
        href="?situacao={{ filtros.situacao }}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}{% if grupo.cd_oficina %}&cd_oficina={{ grupo.cd_oficina }}{% endif %}">
-      {{ grupo.ds_oficina }}{% if grupo.empresa %} <small class="opacity-75">· {{ grupo.empresa }}</small>{% endif %} <span class="badge text-bg-light ms-1">{{ grupo.quantidade }}</span>
-      <small class="ms-1">R$ {{ grupo.valor|br_currency }}</small>
+      <span class="cp-nfse-setor__nome">{{ grupo.ds_oficina }}</span>
+      {% if grupo.empresa %}<span class="cp-nfse-setor__empresa">{{ grupo.empresa }}</span>{% endif %}
+      <span class="cp-nfse-setor__meta"><b>{{ grupo.quantidade }}</b> nota{{ grupo.quantidade|pluralize }} · R$ {{ grupo.valor|br_currency }}</span>
     </a>
     {% endfor %}
-    {% if filtros.cd_oficina %}<a class="btn btn-link" href="?situacao={{ filtros.situacao }}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}">Todos os setores</a>{% endif %}
   </nav>
   {% endif %}
 
   {% if nota_aberta %}
   <section class="panel cp-nfse-boletos" id="boletos">
-    <div class="panel-header"><span class="panel-title">Boletos da NFS-e {{ nota_aberta.nota.numero_nfse }} · {{ nota_aberta.nota.prestador_razao_social }}</span>
-      <span class="results-subtitle">{{ nota_aberta.resumo.quantidade }} boleto(s) · R$ {{ nota_aberta.resumo.soma|br_currency }} de R$ {{ nota_aberta.resumo.valor_liquido|br_currency }} (valor líquido da nota){% if nota_aberta.resumo.pronta %} · <strong class="text-success">pronta para o financeiro</strong>{% endif %}</span></div>
+    <div class="cp-nfse-boletos__head">
+      <div>
+        <span class="panel-title">Boletos da NFS-e {{ nota_aberta.nota.numero_nfse }}</span>
+        <span class="results-subtitle">{{ nota_aberta.nota.prestador_razao_social }}</span>
+      </div>
+      <div class="cp-nfse-boletos__resumo">
+        <span><small>Boletos</small><strong>{{ nota_aberta.resumo.quantidade }}</strong></span>
+        <span><small>Soma dos boletos</small><strong>R$ {{ nota_aberta.resumo.soma|br_currency }}</strong></span>
+        <span><small>Líquido da nota</small><strong>R$ {{ nota_aberta.resumo.valor_liquido|br_currency }}</strong></span>
+        {% if nota_aberta.resumo.pronta %}<span class="badge text-bg-success align-self-center">Pronta para o financeiro</span>
+        {% elif nota_aberta.resumo.com_divergencia %}<span class="badge text-bg-danger align-self-center">Boleto com divergência</span>{% endif %}
+      </div>
+      <a class="btn-close" href="?{% querystring nota='' %}" aria-label="Fechar"></a>
+    </div>
+
     {% if nota_aberta.boletos %}
-    <table class="table table-sm align-middle">
-      <thead><tr><th>Vencimento</th><th class="text-end">Valor</th><th>Banco</th><th>Linha digitável</th><th>Conferência</th><th></th></tr></thead>
-      <tbody>
-        {% for boleto in nota_aberta.boletos %}
-        <tr>
-          <td>{{ boleto.vencimento|api_date }}</td>
-          <td class="text-end">R$ {{ boleto.valor|br_currency }}</td>
-          <td>{{ boleto.banco|default:'Arrecadação' }}</td>
-          <td><small class="font-monospace">{{ boleto.linha_digitavel }}</small>{% if boleto.origem_leitura == 'manual' %}<br><small class="text-muted">digitada</small>{% endif %}</td>
-          <td>{% for d in boleto.divergencias %}<div class="text-danger small">{{ d }}</div>{% empty %}<span class="text-success small">Confere com a NFS-e</span>{% endfor %}</td>
-          <td class="text-nowrap">
-            <a class="btn btn-outline-secondary btn-sm" href="{% url 'contas_pagar_boleto_pdf' boleto.id %}" target="_blank" rel="noopener">PDF</a>
-            <form method="post" class="d-inline">{% csrf_token %}
-              <input type="hidden" name="acao" value="excluir_boleto"><input type="hidden" name="boleto_id" value="{{ boleto.id }}">
-              <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
-              <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Excluir este boleto?')">Excluir</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle cp-nfse-boletos__tabela">
+        <thead><tr><th>Vencimento</th><th class="text-end">Valor</th><th>Banco</th><th>Linha digitável</th><th>Conferência</th><th></th></tr></thead>
+        <tbody>
+          {% for boleto in nota_aberta.boletos %}
+          <tr>
+            <td class="text-nowrap">{{ boleto.vencimento|api_date }}</td>
+            <td class="text-end text-nowrap">R$ {{ boleto.valor|br_currency }}</td>
+            <td>{{ boleto.banco|default:'Arrecadação' }}</td>
+            <td><small class="font-monospace">{{ boleto.linha_digitavel }}</small>{% if boleto.origem_leitura == 'manual' %}<br><small class="text-muted">digitada</small>{% endif %}</td>
+            <td>{% for d in boleto.divergencias %}<div class="text-danger small">{{ d }}</div>{% empty %}<span class="text-success small">Confere com a NFS-e</span>{% endfor %}</td>
+            <td class="text-nowrap text-end">
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'contas_pagar_boleto_pdf' boleto.id %}" target="_blank" rel="noopener">PDF</a>
+              <form method="post" class="d-inline">{% csrf_token %}
+                <input type="hidden" name="acao" value="excluir_boleto"><input type="hidden" name="boleto_id" value="{{ boleto.id }}">
+                <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+                {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+                {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+                <input type="hidden" name="page" value="{{ pagination.page }}">
+                <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Excluir este boleto?')">Excluir</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endif %}
-    <form method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-3 align-items-end">{% csrf_token %}
+
+    <form method="post" enctype="multipart/form-data" class="cp-nfse-boletos__form">{% csrf_token %}
       <input type="hidden" name="acao" value="anexar_boleto">
       <input type="hidden" name="cnpj" value="{{ nota_aberta.nota.prestador_cnpj }}"><input type="hidden" name="numero" value="{{ nota_aberta.nota.numero_nfse }}">
       <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
       {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+      {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+      <input type="hidden" name="page" value="{{ pagination.page }}">
       <label class="filter-group"><span>PDF do boleto</span><input class="form-control" type="file" name="arquivo" accept="application/pdf" required></label>
-      <label class="filter-group"><span>Linha digitável (só se o PDF for imagem)</span><input class="form-control" name="linha_digitavel" maxlength="60" inputmode="numeric" placeholder="Opcional"></label>
-      <label class="filter-group"><span>Vencimento (contas de consumo)</span><input class="form-control" type="date" name="vencimento"></label>
+      <label class="filter-group"><span>Linha digitável <small>(só se o PDF for imagem)</small></span><input class="form-control" name="linha_digitavel" maxlength="60" inputmode="numeric" placeholder="Opcional"></label>
+      <label class="filter-group"><span>Vencimento <small>(contas de consumo)</small></span><input class="form-control" type="date" name="vencimento"></label>
       <button class="btn btn-primary" type="submit">Anexar boleto</button>
     </form>
   </section>
   {% endif %}
 
-  <section class="panel">
+  <section class="panel results-summary-panel cp-nfse-results">
+    <div class="panel-header">
+      <div class="results-heading">
+        <div>
+          <span class="panel-title">Notas recebidas</span>
+          {% if pagination.total %}
+          <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} nota{{ pagination.total|pluralize }} exibida{{ pagination.total|pluralize }} · R$ {{ valor_total|br_currency }} em valor líquido</span>
+          {% else %}
+          <span class="results-subtitle">Nenhuma nota nesta situação.</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if pagination.total %}
+      <div class="results-toolbar note-request-results-toolbar">
+        <span class="note-request-results-total"><span>Registros</span><strong>{{ pagination.total }}</strong></span>
+        {% include "_workflow_pagination.html" with pagination_id="cp-nfse-page-select" %}
+      </div>
+      {% endif %}
+    </div>
+
     {% if itens %}
     <div class="table-responsive">
-      <table class="table table-hover align-middle cp-nfse-table">
+      <table class="table align-middle cp-nfse-table">
+        <colgroup>
+          <col class="cp-col-emissao"><col class="cp-col-nfse"><col><col class="cp-col-tomador"><col class="cp-col-setor"><col class="cp-col-valor"><col class="cp-col-valor"><col class="cp-col-situacao">
+        </colgroup>
         <thead>
           <tr><th>Emissão</th><th>NFS-e</th><th>Fornecedor</th><th>Tomador</th><th>Setor</th><th class="text-end">Valor</th><th class="text-end">Líquido</th><th>Situação</th></tr>
         </thead>
         <tbody>
           {% for item in itens %}
-          <tr>
-            <td>{{ item.data_emissao|api_date }}</td>
-            <td><strong>{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<br><small class="text-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}</td>
-            <td>{{ item.prestador }}<br><small class="text-muted">{{ item.prestador_cnpj }}</small>{% if item.discriminacao %}<br><small class="text-muted cp-nfse-discriminacao" title="{{ item.discriminacao }}">{{ item.discriminacao|truncatechars:90 }}</small>{% endif %}</td>
-            <td><small>{{ item.empresa|default:item.tomador }}</small></td>
-            <td>{% if item.ds_oficina %}{{ item.ds_oficina }}{% else %}<span class="text-warning">Sem setor</span>{% endif %}</td>
-            <td class="text-end">R$ {{ item.valor_servicos|br_currency }}</td>
-            <td class="text-end">R$ {{ item.valor_liquido|br_currency }}</td>
+          <tr class="{% if nota_aberta and nota_aberta.chave == item.chave %}is-selected{% endif %}">
+            <td class="text-nowrap">{{ item.data_emissao|api_date }}</td>
+            <td><strong class="cp-nfse-numero">{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<small class="cp-nfse-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}</td>
             <td>
-              {% if item.situacao == 'lancada' %}<span class="badge text-bg-success">Lançada no MV</span>{% if item.mv.cd_ent_serv %}<br><small>Entrada {{ item.mv.cd_ent_serv }}</small>{% endif %}{% if item.mv.cd_con_pag %}<br><small>Título {{ item.mv.cd_con_pag }}</small>{% endif %}
-              {% elif item.situacao == 'a_classificar' %}<span class="badge text-bg-warning">Sem setor</span><br><small class="text-muted">{{ item.motivo }}</small>{% if pode_classificar %}<br><a href="{% url 'contas_pagar_nfse_regras' %}">Classificar</a>{% endif %}
+              <strong class="cp-nfse-fornecedor">{{ item.prestador }}</strong>
+              <small class="cp-nfse-muted font-monospace">{{ item.prestador_cnpj }}</small>
+              {% if item.discriminacao %}<small class="cp-nfse-discriminacao" title="{{ item.discriminacao }}">{{ item.discriminacao }}</small>{% endif %}
+            </td>
+            <td><small>{{ item.empresa|default:item.tomador }}</small></td>
+            <td>{% if item.ds_oficina %}<small>{{ item.ds_oficina }}</small>{% else %}<span class="badge text-bg-warning">Sem setor</span>{% endif %}</td>
+            <td class="text-end text-nowrap">R$ {{ item.valor_servicos|br_currency }}</td>
+            <td class="text-end text-nowrap"><strong>R$ {{ item.valor_liquido|br_currency }}</strong></td>
+            <td class="cp-nfse-situacao">
+              {% if item.situacao == 'lancada' %}<span class="badge text-bg-success">Lançada no MV</span>{% if item.mv.cd_ent_serv %}<small class="cp-nfse-muted">Entrada {{ item.mv.cd_ent_serv }}</small>{% endif %}{% if item.mv.cd_con_pag %}<small class="cp-nfse-muted">Título {{ item.mv.cd_con_pag }}</small>{% endif %}
+              {% elif item.situacao == 'a_classificar' %}<span class="badge text-bg-warning">Sem setor</span><small class="cp-nfse-muted">{{ item.motivo }}</small>{% if pode_classificar %}<a class="btn btn-outline-primary btn-sm mt-1" href="{% url 'contas_pagar_nfse_regras' %}">Classificar</a>{% endif %}
               {% else %}
                 {% if item.pronta %}<span class="badge text-bg-success">Pronta para o financeiro</span>
                 {% elif item.boletos.com_divergencia %}<span class="badge text-bg-danger">Boleto com divergência</span>
                 {% else %}<span class="badge text-bg-primary">A lançar · falta boleto</span>{% endif %}
-                {% if item.boletos %}<br><small>{{ item.boletos.quantidade }} boleto(s) · R$ {{ item.boletos.soma|br_currency }} · venc. {{ item.boletos.primeiro_vencimento|api_date }}</small>{% endif %}
-                <br><a href="?situacao={{ filtros.situacao }}{% if filtros.cd_oficina %}&cd_oficina={{ filtros.cd_oficina }}{% endif %}{% if filtros.desde %}&desde={{ filtros.desde }}{% endif %}&nota={{ item.chave }}#boletos">{% if item.boletos %}Ver boletos{% else %}Anexar boleto{% endif %}</a>
+                {% if item.boletos %}<small class="cp-nfse-muted">{{ item.boletos.quantidade }} boleto(s) · R$ {{ item.boletos.soma|br_currency }} · venc. {{ item.boletos.primeiro_vencimento|api_date }}</small>{% endif %}
+                <a class="btn {% if item.boletos %}btn-outline-primary{% else %}btn-primary{% endif %} btn-sm mt-1" href="?{% querystring nota=item.chave %}#boletos">{% if item.boletos %}Ver boletos{% else %}Anexar boleto{% endif %}</a>
               {% endif %}
             </td>
           </tr>
@@ -119,6 +173,13 @@
         </tbody>
       </table>
     </div>
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer cp-nfse-pagination-footer">
+      {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
+      <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}
+    </div>
+    {% endif %}
     {% elif not aviso %}
     <div class="empty-state"><strong>Nenhuma nota nesta situação.</strong><span>As notas recebidas são atualizadas a cada 2 horas em dias úteis.</span></div>
     {% endif %}

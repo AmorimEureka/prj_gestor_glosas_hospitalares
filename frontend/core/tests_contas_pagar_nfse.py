@@ -65,11 +65,36 @@ class NfseSetorViewTests(TestCase):
         self.assertContains(response, 'Software SA')
         self.assertContains(response, 'A lançar')
         self.assertContains(response, '1.500,50')
-        self.assertContains(response, '· HOSPITAL PRONTOCARDIO')
+        self.assertContains(response, 'cp-nfse-setor__empresa">HOSPITAL PRONTOCARDIO')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
             {'situacao': 'pendente', 'cd_oficina': '', 'desde': ''},
         )
+
+    @patch('core.views.api_get')
+    def test_pagina_dez_notas_por_vez_mantendo_filtros(self, api_get):
+        itens = [{**NOTA, 'numero_nfse': f'9{n:03d}', 'chave': f'12345678000199-9{n:03d}', 'valor_liquido': '10.00'}
+                 for n in range(23)]
+        api_get.return_value = {'oficinas': [], 'itens': itens}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?cd_oficina=2&page=3')
+
+        self.assertEqual(response.context['pagination']['page'], 3)
+        self.assertEqual(response.context['pagination']['total_pages'], 3)
+        self.assertEqual([i['numero_nfse'] for i in response.context['itens']], ['9020', '9021', '9022'])
+        self.assertContains(response, '21-23 de 23 notas exibidas')
+        self.assertContains(response, 'R$ 230,00')
+        self.assertContains(response, 'href="?situacao=pendente&amp;cd_oficina=2&amp;page=2"')
+        self.assertContains(response, 'cd_oficina=2&amp;page=3&amp;nota=12345678000199-9020#boletos')
+
+    @patch('core.views.api_get')
+    def test_pagina_alem_do_fim_mostra_a_ultima(self, api_get):
+        api_get.return_value = {'oficinas': [], 'itens': [NOTA]}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?page=9')
+
+        self.assertEqual(response.context['pagination']['page'], 1)
+        self.assertEqual(len(response.context['itens']), 1)
 
     @patch('core.views.api_get')
     def test_setor_nao_pode_pedir_notas_sem_setor(self, api_get):

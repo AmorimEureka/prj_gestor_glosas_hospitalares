@@ -9530,6 +9530,16 @@ def mv_login_retorno(request):
     response = render(request, "mv_login_retorno.html", contexto)
     response["Cache-Control"] = "private, no-store"
     return response
+CP_NFSE_POR_PAGINA = 10
+
+
+def _cp_nfse_decimal(valor):
+    try:
+        return Decimal(str(valor if valor not in (None, "") else 0))
+    except InvalidOperation:
+        return Decimal("0")
+
+
 CP_NFSE_SITUACOES = (
     ("pendente", "A lançar"),
     ("pronta", "Prontas para o financeiro"),
@@ -9595,7 +9605,7 @@ def contas_pagar_nfse_setor(request):
             _contas_pagar_nfse_setor_post(request)
         except ApiError as exc:
             messages.error(request, f"Não foi possível salvar o boleto: {extract_api_error_message(exc)}")
-        retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_oficina", "desde", "nota"} and v}
+        retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_oficina", "desde", "page", "nota"} and v}
         destino = reverse("contas_pagar_nfse_setor")
         return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
 
@@ -9617,6 +9627,29 @@ def contas_pagar_nfse_setor(request):
         payload = api_get(f"{CP_NFSE_PATH}/recebidas", filtros)
     except ApiError as exc:
         messages.error(request, f"Não foi possível carregar as NFS-e recebidas: {exc}")
+    itens = payload.get("itens", [])
+    base_query = {k: v for k, v in filtros.items() if v}
+    total = len(itens)
+    total_pages = max(ceil(total / CP_NFSE_POR_PAGINA), 1)
+    page = min(as_positive_int(request.GET.get("page"), 1), total_pages)
+    offset = (page - 1) * CP_NFSE_POR_PAGINA
+    itens_pagina = itens[offset:offset + CP_NFSE_POR_PAGINA]
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": f"?{urlencode({**base_query, 'page': page - 1})}" if page > 1 else "",
+        "next_url": f"?{urlencode({**base_query, 'page': page + 1})}" if page < total_pages else "",
+        "start": offset + 1 if itens_pagina else 0,
+        "end": offset + len(itens_pagina),
+        "total": total,
+        "query": base_query,
+    }
     nota_aberta = None
     chave = request.GET.get("nota") or ""
     if re.fullmatch(r"\d{14}-[0-9A-Za-z]{1,30}", chave):
@@ -9635,7 +9668,9 @@ def contas_pagar_nfse_setor(request):
             "aviso": payload.get("aviso"),
             "desde": payload.get("desde"),
             "oficinas": payload.get("oficinas", []),
-            "itens": payload.get("itens", []),
+            "itens": itens_pagina,
+            "pagination": pagination,
+            "valor_total": sum((_cp_nfse_decimal(i.get("valor_liquido")) for i in itens), Decimal("0")),
             "pode_classificar": pode_classificar,
             "nota_aberta": nota_aberta,
             "mv_vinculo": _mv_vinculo(),
