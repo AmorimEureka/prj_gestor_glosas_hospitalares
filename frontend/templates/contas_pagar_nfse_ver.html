@@ -1,0 +1,111 @@
+{% load core_extras %}<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NFS-e {{ nfse.numero_nfse }} · {{ nfse.prestador_razao_social }}</title>
+  <style>
+    :root { --borda: #cbd5e1; --suave: #64748b; --fundo: #f1f5f9; --tinta: #0f172a; --destaque: #0f5c6e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fundo); color: var(--tinta); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+    .barra { display: flex; gap: .5rem; justify-content: flex-end; max-width: 900px; margin: 16px auto 0; padding: 0 16px; }
+    .barra a, .barra button { border: 1px solid var(--destaque); background: #fff; color: var(--destaque); border-radius: 6px; padding: .4rem .9rem; font: inherit; cursor: pointer; text-decoration: none; }
+    .barra button { background: var(--destaque); color: #fff; }
+    .folha { max-width: 900px; margin: 12px auto 32px; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 24px 28px; }
+    header { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; border-bottom: 2px solid var(--destaque); padding-bottom: 12px; }
+    h1 { font-size: 1.15rem; margin: 0 0 .2rem; }
+    .sub { color: var(--suave); font-size: .85rem; }
+    .numero { text-align: right; }
+    .numero strong { display: block; font-size: 1.6rem; color: var(--destaque); }
+    .status { display: inline-block; padding: .1rem .6rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: #e8f6ee; color: #14532d; border: 1px solid #b7e2c7; }
+    .status.is-cancelada { background: #fdecec; color: #7f1d1d; border-color: #f5c2c2; }
+    section { margin-top: 18px; }
+    h2 { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--destaque); margin: 0 0 6px; }
+    .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 20px; }
+    .grade div small { display: block; color: var(--suave); font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; }
+    .caixa { border: 1px solid var(--borda); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+    td:last-child { text-align: right; white-space: nowrap; }
+    tr.total td { font-weight: 700; border-top: 2px solid var(--tinta); border-bottom: 0; font-size: 1.05rem; }
+    .chave { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; word-break: break-all; }
+    .rodape { margin-top: 20px; color: var(--suave); font-size: .78rem; }
+    @media (max-width: 600px) { .folha { padding: 16px; } .numero { text-align: left; } }
+    @media print { body { background: #fff; } .barra { display: none; } .folha { border: 0; margin: 0; max-width: none; } }
+  </style>
+</head>
+<body>
+  <div class="barra">
+    <a href="{% url 'contas_pagar_nfse_xml' cnpj numero %}">Baixar XML</a>
+    <button type="button" onclick="window.print()">Imprimir</button>
+  </div>
+  <main class="folha">
+    <header>
+      <div>
+        <h1>Nota Fiscal de Serviço Eletrônica</h1>
+        <div class="sub">Espelho gerado pelo Receita Certa a partir do XML do ISS Fortaleza. Não substitui o documento oficial.</div>
+        <div style="margin-top:.4rem">{% if nfse.status_nfse %}<span class="status {% if nfse.status_nfse != 'NORMAL' %}is-cancelada{% endif %}">ISS: {{ nfse.status_nfse|lower|capfirst }}</span>{% else %}<span class="status" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">ISS: não consultado</span>{% endif %}</div>
+      </div>
+      <div class="numero">
+        <small class="sub">Número</small><strong>{{ nfse.numero_nfse }}</strong>
+        <div class="sub">Código de verificação {{ nfse.codigo_verificacao_nfse|default:'—' }}</div>
+        <div class="sub">Emissão {{ nfse.data_emissao|api_datetime }} · Competência {{ nfse.competencia_fmt|default:'—' }}</div>
+      </div>
+    </header>
+
+    <section>
+      <h2>Prestador</h2>
+      <div class="grade">
+        <div style="grid-column: 1 / -1"><small>Razão social</small>{{ nfse.prestador_razao_social }}{% if nfse.prestador_nome_fantasia %} ({{ nfse.prestador_nome_fantasia }}){% endif %}</div>
+        <div><small>CNPJ</small>{{ nfse.prestador_cnpj_fmt }}</div>
+        <div><small>Inscrição municipal</small>{{ nfse.prestador_inscricao_municipal|default:'—' }}</div>
+        <div><small>Contato</small>{{ nfse.prestador_email|default:'—' }}{% if nfse.prestador_telefone %} · {{ nfse.prestador_telefone }}{% endif %}</div>
+        <div style="grid-column: 1 / -1"><small>Endereço</small>{{ nfse.prestador_endereco|default:'' }}{% if nfse.prestador_numero_endereco %}, {{ nfse.prestador_numero_endereco }}{% endif %}{% if nfse.prestador_complemento_endereco %} {{ nfse.prestador_complemento_endereco }}{% endif %}{% if nfse.prestador_bairro %} · {{ nfse.prestador_bairro }}{% endif %}{% if nfse.prestador_uf %} · {{ nfse.prestador_uf }}{% endif %}{% if nfse.prestador_cep %} · CEP {{ nfse.prestador_cep }}{% endif %}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tomador</h2>
+      <div class="grade">
+        <div style="grid-column: 1 / -1"><small>Razão social</small>{{ nfse.tomador_razao_social }}</div>
+        <div><small>CNPJ</small>{{ nfse.tomador_cnpj_fmt }}</div>
+        <div><small>E-mail</small>{{ nfse.tomador_email|default:'—' }}</div>
+        <div style="grid-column: 1 / -1"><small>Endereço</small>{{ nfse.tomador_endereco|default:'' }}{% if nfse.tomador_numero_endereco %}, {{ nfse.tomador_numero_endereco }}{% endif %}{% if nfse.tomador_bairro %} · {{ nfse.tomador_bairro }}{% endif %}{% if nfse.tomador_uf %} · {{ nfse.tomador_uf }}{% endif %}{% if nfse.tomador_cep %} · CEP {{ nfse.tomador_cep }}{% endif %}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Discriminação do serviço</h2>
+      <div class="caixa">{{ nfse.discriminacao|default:'—' }}</div>
+      <div class="grade" style="margin-top:8px">
+        <div><small>Item da lista de serviço</small>{{ nfse.codigo_item_lista_servico|default:'—' }}</div>
+        <div><small>CNAE</small>{{ nfse.codigo_cnae|default:'—' }}</div>
+        <div><small>Código de tributação</small>{{ nfse.codigo_tributacao|default:'—' }}</div>
+        <div><small>RPS</small>{{ nfse.rps_numero|default:'—' }}{% if nfse.rps_serie %} série {{ nfse.rps_serie }}{% endif %}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Valores</h2>
+      <table>
+        <tr><td>Valor dos serviços</td><td>R$ {{ nfse.valor_servicos|br_currency }}</td></tr>
+        <tr><td>Deduções</td><td>R$ {{ nfse.valor_deducoes|br_currency }}</td></tr>
+        <tr><td>Descontos (incondicionado / condicionado)</td><td>R$ {{ nfse.desconto_incondicionado|br_currency }} / R$ {{ nfse.desconto_condicionado|br_currency }}</td></tr>
+        <tr><td>Base de cálculo · alíquota</td><td>R$ {{ nfse.base_calculo|br_currency }} · {{ nfse.aliquota_fmt }}</td></tr>
+        <tr><td>ISS {% if iss_retido %}(retido pelo tomador){% else %}(não retido){% endif %}</td><td>R$ {{ nfse.valor_iss|br_currency }}</td></tr>
+        {% for nome, valor in retencoes %}<tr><td>Retenção · {{ nome }}</td><td>R$ {{ valor|br_currency }}</td></tr>{% endfor %}
+        <tr class="total"><td>Valor líquido</td><td>R$ {{ nfse.valor_liquido_nfse|br_currency }}</td></tr>
+      </table>
+    </section>
+
+    {% if nfse.chave_acesso %}
+    <section>
+      <h2>Chave de acesso</h2>
+      <div class="chave">{{ nfse.chave_acesso }}</div>
+    </section>
+    {% endif %}
+
+    <p class="rodape">Para conferir o documento oficial, consulte a NFS-e no portal do ISS Fortaleza com o número e o código de verificação acima.</p>
+  </main>
+</body>
+</html>

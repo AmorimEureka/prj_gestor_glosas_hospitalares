@@ -80,7 +80,8 @@
             <td class="text-end text-nowrap">R$ {{ boleto.valor|br_currency }}</td>
             <td>{{ boleto.banco|default:'Arrecadação' }}</td>
             <td><small class="font-monospace">{{ boleto.linha_digitavel }}</small>{% if boleto.origem_leitura == 'manual' %}<br><small class="text-muted">digitada</small>{% endif %}</td>
-            <td>{% for d in boleto.divergencias %}<div class="text-danger small">{{ d }}</div>{% empty %}<span class="text-success small">Confere com a NFS-e</span>{% endfor %}</td>
+            <td>{% for d in boleto.divergencias %}<div class="text-danger small">{{ d }}</div>{% empty %}<span class="text-success small">Confere com a NFS-e</span>{% endfor %}
+              {% if boleto.fora_do_prazo %}<div class="cp-nfse-atraso"><span class="badge text-bg-warning">Fora do prazo de 3 dias úteis</span> <small>prazo era {{ boleto.prazo_minimo|api_date }}{% if boleto.enviado_por_nome %} · enviado por {{ boleto.enviado_por_nome }}{% endif %}</small><div class="small">Justificativa: {{ boleto.justificativa_atraso }}</div></div>{% endif %}</td>
             <td class="text-nowrap text-end">
               <a class="btn btn-outline-secondary btn-sm" href="{% url 'contas_pagar_boleto_pdf' boleto.id %}" target="_blank" rel="noopener">PDF</a>
               <form method="post" class="d-inline">{% csrf_token %}
@@ -109,7 +110,9 @@
       <label class="filter-group"><span>PDF do boleto</span><input class="form-control" type="file" name="arquivo" accept="application/pdf" required></label>
       <label class="filter-group"><span>Linha digitável <small>(só se o PDF for imagem)</small></span><input class="form-control" name="linha_digitavel" maxlength="60" inputmode="numeric" placeholder="Opcional"></label>
       <label class="filter-group"><span>Vencimento <small>(contas de consumo)</small></span><input class="form-control" type="date" name="vencimento"></label>
+      <label class="filter-group cp-nfse-boletos__justificativa"><span>Justificativa do atraso <small>(obrigatória se vencer antes do prazo)</small></span><textarea class="form-control" name="justificativa_atraso" rows="2" maxlength="400" placeholder="Ex.: o fornecedor só enviou o boleto hoje"></textarea></label>
       <button class="btn btn-primary" type="submit">Anexar boleto</button>
+      {% if nota_aberta.prazo_minimo_hoje %}<p class="cp-nfse-boletos__prazo">Regra do financeiro: o boleto deve vencer pelo menos 3 dias úteis depois do envio. Enviando agora, vencimentos <strong>a partir de {{ nota_aberta.prazo_minimo_hoje|api_date }}</strong> não precisam de justificativa.</p>{% endif %}
     </form>
 
     {% if pode_classificar %}
@@ -241,7 +244,8 @@
           {% for item in itens %}
           <tr class="{% if nota_aberta and nota_aberta.chave == item.chave %}is-selected{% endif %}{% if item.status_nfse and item.status_nfse != 'NORMAL' %} is-cancelada{% endif %}">
             <td class="text-nowrap">{{ item.data_emissao|api_date }}</td>
-            <td><strong class="cp-nfse-numero">{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<small class="cp-nfse-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}</td>
+            <td><strong class="cp-nfse-numero">{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<small class="cp-nfse-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}
+              <a class="btn btn-outline-secondary btn-sm cp-nfse-ver" href="{% url 'contas_pagar_nfse_ver' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener" title="Abrir o espelho da NFS-e em outra aba">Ver NFS-e</a></td>
             <td>
               {% if not item.status_nfse %}<span class="cp-nfse-status cp-nfse-status--sem" title="A situação ainda não foi lida no portal do ISS.">Não consultado</span>
               {% elif item.status_nfse == 'NORMAL' %}<span class="cp-nfse-status cp-nfse-status--normal">Normal</span>
@@ -266,6 +270,7 @@
                 {% if item.pronta %}<span class="badge text-bg-success">Pronta para o financeiro</span>
                 {% elif item.boletos.com_divergencia %}<span class="badge text-bg-danger">Boleto com divergência</span>
                 {% else %}<span class="badge text-bg-primary">A lançar · falta boleto</span>{% endif %}
+                {% if item.boletos.fora_do_prazo %}<span class="badge text-bg-warning cp-nfse-prazo">Fora do prazo · justificado</span>{% endif %}
                 {% if item.boletos %}<small class="cp-nfse-muted">{{ item.boletos.quantidade }} boleto(s) · R$ {{ item.boletos.soma|br_currency }} · venc. {{ item.boletos.primeiro_vencimento|api_date }}</small>{% endif %}
                 <a class="btn {% if item.boletos %}btn-outline-primary{% else %}btn-primary{% endif %} btn-sm mt-1" href="?{% querystring nota=item.chave %}#boletos">{% if item.boletos %}Ver boletos{% else %}Anexar boleto{% endif %}</a>
               {% endif %}

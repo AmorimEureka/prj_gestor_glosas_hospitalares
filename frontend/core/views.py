@@ -21,7 +21,7 @@ import requests
 from django.contrib import messages
 from django.conf import settings
 from django.core.cache import cache
-from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -9626,13 +9626,17 @@ def _contas_pagar_nfse_setor_post(request):
             dados["linha_digitavel"] = request.POST["linha_digitavel"].strip()[:60]
         if (request.POST.get("vencimento") or "").strip():
             dados["vencimento"] = request.POST["vencimento"].strip()
+        if (request.POST.get("justificativa_atraso") or "").strip():
+            dados["justificativa_atraso"] = request.POST["justificativa_atraso"].strip()[:400]
         resultado = api_post_files(
             f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/boletos",
             {"arquivo": (arquivo.name, arquivo.read(), "application/pdf")},
             dados,
         )
         divergencias = resultado.get("divergencias") or []
-        if divergencias:
+        if resultado.get("fora_do_prazo") and not divergencias:
+            messages.success(request, "Boleto anexado fora do prazo de 3 dias úteis, com justificativa. A nota está pronta para o financeiro.")
+        elif divergencias:
             messages.warning(request, "Boleto anexado com divergências: " + " ".join(divergencias))
         else:
             messages.success(request, "Boleto anexado e conferido. A nota está pronta para o financeiro.")
@@ -9753,6 +9757,73 @@ def contas_pagar_nfse_setor(request):
             "mv_vinculo": _mv_vinculo(),
         },
     )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+CP_NFSE_CHAVE_CNPJ = re.compile(r"^\d{14}$")
+CP_NFSE_CHAVE_NUMERO = re.compile(r"^[0-9A-Za-z]{1,30}$")
+
+
+def _cp_nfse_chave_valida(cnpj, numero):
+    return bool(CP_NFSE_CHAVE_CNPJ.match(cnpj or "") and CP_NFSE_CHAVE_NUMERO.match(numero or ""))
+
+
+@require_GET
+def contas_pagar_nfse_ver(request, cnpj, numero):
+    """Espelho da NFS-e recebida, a partir do XML do ISS Fortaleza."""
+    if not _cp_nfse_chave_valida(cnpj, numero):
+        raise Http404("NFS-e inválida.")
+    try:
+        nfse = api_get(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/nfse")
+    except ApiError as exc:
+        if exc.status_code in (403, 404):
+            raise Http404(extract_api_error_message(exc)) from exc
+        messages.error(request, f"Não foi possível carregar a NFS-e: {extract_api_error_message(exc)}")
+        return redirect("contas_pagar_nfse_setor")
+    for lado in ("prestador", "tomador"):
+        digitos = re.sub(r"\D", "", str(nfse.get(f"{lado}_cnpj") or ""))
+        nfse[f"{lado}_cnpj_fmt"] = (
+            f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}" if len(digitos) == 14 else digitos
+        )
+    try:
+        aliquota = Decimal(str(nfse.get("aliquota")))
+        aliquota = aliquota * 100 if aliquota < 1 else aliquota
+        nfse["aliquota_fmt"] = f"{aliquota.normalize():f}".replace(".", ",") + "%"
+    except (InvalidOperation, ValueError, TypeError):
+        nfse["aliquota_fmt"] = nfse.get("aliquota") or "—"
+    competencia = str(nfse.get("competencia_nfse") or "")
+    nfse["competencia_fmt"] = f"{competencia[5:7]}/{competencia[:4]}" if len(competencia) >= 7 else competencia
+    retencoes = [
+        ("PIS", nfse.get("valor_pis")), ("COFINS", nfse.get("valor_cofins")), ("INSS", nfse.get("valor_inss")),
+        ("IR", nfse.get("valor_ir")), ("CSLL", nfse.get("valor_csll")), ("Outras retenções", nfse.get("outras_retencoes")),
+        ("ISS retido", nfse.get("valor_iss_retido")),
+    ]
+    response = render(request, "contas_pagar_nfse_ver.html", {
+        "nfse": nfse, "retencoes": retencoes, "cnpj": cnpj, "numero": numero,
+        "iss_retido": str(nfse.get("iss_retido") or "") == "1",
+    })
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@require_GET
+def contas_pagar_nfse_xml(request, cnpj, numero):
+    if not _cp_nfse_chave_valida(cnpj, numero):
+        raise Http404("NFS-e inválida.")
+    try:
+        upstream = api_get_stream(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/nfse/xml")
+    except ApiError as exc:
+        status_code = exc.status_code if exc.status_code and 400 <= exc.status_code <= 599 else 502
+        return HttpResponse(f"NFS-e: {extract_api_error_message(exc)}", status=status_code,
+                            content_type="text/plain; charset=utf-8")
+    try:
+        conteudo = b"".join(chunk for chunk in upstream.iter_content(chunk_size=64 * 1024) if chunk)
+    finally:
+        upstream.close()
+    response = HttpResponse(conteudo, content_type="application/xml")
+    response["Content-Disposition"] = upstream.headers.get("Content-Disposition") or f'attachment; filename="nfse-{cnpj}-{numero}.xml"'
+    response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = "private, no-store"
     return response
 

@@ -15673,3 +15673,8 @@ button.follow-up-glosa-chevron:focus-visible {
 .cp-imp__registro { border-radius: .5rem; padding: .6rem 1rem; margin-bottom: .5rem; border: 1px solid #cbd5e1; background: #f8fafc; }
 .cp-imp__registro.is-ok { border-color: #b7e2c7; background: #e8f6ee; color: #14532d; }
 .cp-imp__registro.is-erro { border-color: #f5c2c2; background: #fdecec; color: #7f1d1d; }
+.cp-nfse-ver { display: inline-block; margin-top: .35rem; padding: .1rem .5rem; font-size: .75rem; }
+.cp-nfse-prazo { display: inline-block; margin-top: .25rem; }
+.cp-nfse-atraso { margin-top: .35rem; padding: .35rem .5rem; border-radius: .35rem; background: #fff7e6; border: 1px solid #f6dca5; color: #7a4b00; }
+.cp-nfse-boletos__justificativa { flex: 1 1 320px; }
+.cp-nfse-boletos__prazo { flex-basis: 100%; margin: .25rem 0 0; font-size: .85rem; color: #475569; }
