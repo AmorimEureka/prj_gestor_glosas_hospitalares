@@ -9885,6 +9885,169 @@ def contas_pagar_boleto_pdf(request, boleto_id):
     return response
 
 
+CP_CONF_POR_PAGINA = 15
+CP_CONF_ETAPAS = (
+    ("todas", "Todas"),
+    ("a_importar", "A importar"),
+    ("pendencia", "Com pendência"),
+    ("importada", "Importadas"),
+    ("lancada_mv", "Lançadas pelo MV"),
+    ("cancelada", "Canceladas no ISS"),
+)
+CP_CONF_ROTULOS = dict(CP_CONF_ETAPAS)
+CP_CONF_ROTULO_LINHA = {
+    "a_importar": "A importar", "pendencia": "Com pendência", "importada": "Importada",
+    "lancada_mv": "Lançada pelo MV", "cancelada": "Cancelada no ISS",
+}
+CP_CONF_CHAVE = re.compile(r"^(\d{14})-([0-9A-Za-z]{1,30})$")
+
+
+def _cp_conf_data(valor):
+    if not valor:
+        return None
+    if isinstance(valor, date):
+        return valor
+    try:
+        return date.fromisoformat(str(valor)[:10])
+    except ValueError:
+        return None
+
+
+def _cp_conf_enriquecer(item, hoje):
+    vencimento = _cp_conf_data(item.get("primeiro_vencimento"))
+    item["vencimento_dias"] = (vencimento - hoje).days if vencimento else None
+    item["vencimento_atraso"] = -item["vencimento_dias"] if vencimento and item["vencimento_dias"] < 0 else 0
+    item["rotulo_etapa"] = CP_CONF_ROTULO_LINHA.get(item.get("etapa"), item.get("etapa"))
+    item["retencao"] = _cp_nfse_decimal(item.get("valor_retido"))
+    for boleto in item.get("boletos") or []:
+        boleto["enviado_em_local"] = _cp_nfse_hora_local(boleto.get("enviado_em"))
+    registro = item.get("importacao") or {}
+    for campo in ("concluido_em", "desfeita_em"):
+        if registro.get(campo):
+            registro[f"{campo}_local"] = _cp_nfse_hora_local(registro[campo])
+    return item
+
+
+def _contas_pagar_conferencia_post(request):
+    chave = request.POST.get("nota") or ""
+    encontrado = CP_CONF_CHAVE.match(chave)
+    if request.POST.get("acao") != "desfazer" or not encontrado:
+        messages.error(request, "Ação inválida.")
+        return
+    motivo = " ".join((request.POST.get("motivo") or "").split())
+    cd_con_pag = as_int_or_none(request.POST.get("cd_con_pag"))
+    confirmacoes = request.POST.getlist("confirmo")
+    exige = 2 if request.POST.get("tem_alteracoes") == "1" else 1
+    if len(motivo) < 10 or not cd_con_pag or len(confirmacoes) < exige:
+        messages.error(request, "Informe o motivo (pelo menos 10 caracteres) e marque as confirmações para desfazer.")
+        return
+    cnpj, numero = encontrado.groups()
+    try:
+        resultado = api_post(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/importacao/desfazer",
+                             {"motivo": motivo[:400], "cd_con_pag": cd_con_pag})
+    except ApiError as exc:
+        messages.error(request, f"A importação não foi desfeita: {extract_api_error_message(exc)}")
+        return
+    impostos = resultado.get("impostos") or []
+    extra = f" e {len(impostos)} título(s) de imposto" if impostos else ""
+    messages.success(
+        request,
+        f"Importação da NFS-e {numero} desfeita no MV por {resultado.get('cd_usuario_mv')}: título {resultado.get('cd_con_pag')}{extra} "
+        f"e entrada {resultado.get('cd_ent_serv')} excluídos. A nota voltou para \"Pronta para o financeiro\".",
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def contas_pagar_conferencia(request):
+    """Conferência do financeiro: todas as NFS-e enviadas pelos setores, boletos, prazos e importações."""
+    if request.method == "POST":
+        _contas_pagar_conferencia_post(request)
+        retorno = {k: v for k, v in request.POST.items() if k in {"etapa", "desde", "empresa", "busca", "page"} and v}
+        destino = reverse("contas_pagar_conferencia")
+        return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
+
+    etapa = request.GET.get("etapa") or "todas"
+    if etapa not in CP_CONF_ROTULOS:
+        etapa = "todas"
+    filtros = {
+        "etapa": etapa,
+        "desde": request.GET.get("desde") or "",
+        "empresa": request.GET.get("empresa") or "",
+        "busca": (request.GET.get("busca") or "").strip()[:80],
+    }
+    params = {"etapa": etapa}
+    if filtros["desde"]:
+        params["desde"] = filtros["desde"]
+    if filtros["empresa"].isdigit():
+        params["cd_multi_empresa"] = filtros["empresa"]
+    payload = {}
+    try:
+        payload = api_get(f"{CP_NFSE_PATH}/financeiro/conferencia", params)
+    except ApiError as exc:
+        messages.error(request, f"Não foi possível carregar a conferência: {extract_api_error_message(exc)}")
+    hoje = datetime.now(CP_NFSE_FUSO).date()
+    itens = [_cp_conf_enriquecer(i, hoje) for i in payload.get("itens", [])]
+    empresas = sorted({(i.get("cd_multi_empresa"), i.get("empresa")) for i in itens if i.get("cd_multi_empresa")},
+                      key=lambda e: e[0])
+    if filtros["busca"]:
+        termo = filtros["busca"].lower()
+        digitos = re.sub(r"\D", "", termo)
+        itens = [i for i in itens if termo in (i.get("prestador") or "").lower()
+                 or (digitos and (digitos in (i.get("prestador_cnpj") or "") or digitos == str(i.get("numero_nfse"))))]
+
+    base_query = {k: v for k, v in filtros.items() if v and not (k == "etapa" and v == "todas")}
+    total = len(itens)
+    total_pages = max(ceil(total / CP_CONF_POR_PAGINA), 1)
+    page = min(as_positive_int(request.GET.get("page"), 1), total_pages)
+    offset = (page - 1) * CP_CONF_POR_PAGINA
+    pagina = itens[offset:offset + CP_CONF_POR_PAGINA]
+    pagination = {
+        "page": page, "total_pages": total_pages,
+        "page_options": [{"number": n, "selected": n == page} for n in range(1, total_pages + 1)],
+        "has_previous": page > 1, "has_next": page < total_pages,
+        "previous_url": f"?{urlencode({**base_query, 'page': page - 1})}" if page > 1 else "",
+        "next_url": f"?{urlencode({**base_query, 'page': page + 1})}" if page < total_pages else "",
+        "start": offset + 1 if pagina else 0, "end": offset + len(pagina), "total": total, "query": base_query,
+    }
+
+    desfazer = None
+    chave_desfazer = request.GET.get("desfazer") or ""
+    encontrado = CP_CONF_CHAVE.match(chave_desfazer)
+    if encontrado:
+        cnpj, numero = encontrado.groups()
+        try:
+            desfazer = api_get(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/importacao/desfazer")
+            desfazer["chave"] = chave_desfazer
+            for alteracao in desfazer.get("alteracoes_no_mv") or []:
+                alteracao["quando"] = _cp_valor_mv("dt", alteracao.get("dt_modificacao"))
+            for parcela in desfazer.get("parcelas") or []:
+                parcela["vencimento_fmt"] = _cp_valor_mv("dt", parcela.get("dt_vencimento"))
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível preparar o desfazer: {extract_api_error_message(exc)}")
+
+    resumo = payload.get("resumo") or {}
+    cartoes = [
+        {"etapa": e, "rotulo": rotulo, **(resumo.get(e) or {"quantidade": 0, "valor_liquido": 0})}
+        for e, rotulo in CP_CONF_ETAPAS if e != "todas"
+    ]
+    response = render(request, "contas_pagar_conferencia.html", {
+        "filtros": filtros,
+        "etapas": CP_CONF_ETAPAS,
+        "cartoes": cartoes,
+        "fora_do_prazo": payload.get("fora_do_prazo") or 0,
+        "prazo_minimo_hoje": payload.get("prazo_minimo_hoje"),
+        "desde": payload.get("desde"),
+        "empresas": empresas,
+        "itens": pagina,
+        "pagination": pagination,
+        "valor_total": sum((_cp_nfse_decimal(i.get("valor_liquido")) for i in itens), Decimal("0")),
+        "desfazer": desfazer,
+        "mv_vinculo": _mv_vinculo(),
+    })
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
 def _contas_pagar_nfse_regras_post(request):
     acao = request.POST.get("acao")
     if acao == "recalcular":

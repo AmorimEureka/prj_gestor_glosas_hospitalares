@@ -15678,3 +15678,117 @@ button.follow-up-glosa-chevron:focus-visible {
 .cp-nfse-atraso { margin-top: .35rem; padding: .35rem .5rem; border-radius: .35rem; background: #fff7e6; border: 1px solid #f6dca5; color: #7a4b00; }
 .cp-nfse-boletos__justificativa { flex: 1 1 320px; }
 .cp-nfse-boletos__prazo { flex-basis: 100%; margin: .25rem 0 0; font-size: .85rem; color: #475569; }
+
+/* Contas a Pagar · Conferência do financeiro
+   Sóbria: tons neutros, um acento (primary), pontos de cor discretos para estado, números tabulares. */
+.cf-page {
+  --cf-borda: #e4e7ec;
+  --cf-fundo-suave: #f8fafc;
+  --cf-ok: #3f8f6b;
+  --cf-prazo: #b7791f;
+  --cf-alerta: #b42318;
+  --cf-neutro: #98a2b3;
+  display: grid; flex: 1; align-content: start; gap: 14px; min-height: 0; min-width: 0;
+  padding-right: 4px; padding-bottom: 20px; overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch;
+}
+.cf-page > * { min-width: 0; }
+.cf-num { font-variant-numeric: tabular-nums; }
+.cf-mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; color: var(--muted); letter-spacing: .02em; }
+.cf-muted { color: var(--muted); }
+.cf-page small { display: block; line-height: 1.35; }
+.cf-texto-alerta { color: var(--cf-alerta); }
+.cf-texto-prazo { color: var(--cf-prazo); font-weight: 600; }
+
+.cf-intro { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.cf-intro__title { font-size: 1rem; font-weight: 600; margin: 0 0 .2rem; color: var(--ink); }
+.cf-intro__text { margin: 0; color: var(--muted); font-size: .88rem; max-width: 760px; }
+
+/* Resumo por etapa */
+.cf-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.cf-resumo__item { display: grid; gap: 2px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--cf-borda);
+  border-radius: 10px; color: var(--ink); text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+a.cf-resumo__item:hover { border-color: #c7d2dc; box-shadow: 0 1px 2px rgba(16,24,40,.05); color: var(--ink); }
+.cf-resumo__item.is-active { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.cf-resumo__rotulo { display: flex; align-items: center; gap: 6px; font-size: .74rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.cf-resumo__qtd { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+.cf-resumo__valor { font-size: .8rem; color: var(--muted); }
+.cf-resumo__item--info { background: var(--cf-fundo-suave); }
+
+/* Pontos de estado */
+.cf-ponto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--cf-neutro); flex: 0 0 auto; }
+.cf-ponto--ok { background: var(--cf-ok); }
+.cf-ponto--prazo { background: var(--cf-prazo); }
+.cf-etapa--a_importar .cf-ponto { background: var(--primary); }
+.cf-etapa--pendencia .cf-ponto { background: var(--cf-alerta); }
+.cf-etapa--importada .cf-ponto { background: var(--cf-ok); }
+.cf-etapa--lancada_mv .cf-ponto { background: #7a8aa0; }
+.cf-etapa--cancelada .cf-ponto { background: #d0d5dd; }
+.cf-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--ink); white-space: nowrap; }
+
+/* Filtros */
+.cf-filtros { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.cf-filtros .filter-group { flex: 0 1 220px; margin: 0; }
+.cf-filtros .cf-filtros__busca { flex: 1 1 260px; }
+.cf-valor + small { white-space: nowrap; }
+
+/* Tabela */
+.cf-resultados__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 10px; }
+.cf-resultados__head .panel-title { display: block; }
+.cf-tabela { margin: 0; min-width: 980px; border-collapse: separate; border-spacing: 0; }
+.cf-tabela thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600;
+  background: var(--cf-fundo-suave); border-bottom: 1px solid var(--cf-borda); padding: 9px 12px; }
+.cf-tabela td { padding: 11px 12px; border-bottom: 1px solid var(--cf-borda); vertical-align: top; }
+.cf-col-venc { width: 128px; } .cf-col-setor { width: 190px; } .cf-col-valor { width: 170px; }
+.cf-col-prazo { width: 140px; } .cf-col-etapa { width: 160px; } .cf-col-acao { width: 44px; }
+.cf-linha { cursor: pointer; }
+.cf-linha:hover td { background: #fbfcfd; }
+.cf-nota.is-selected .cf-linha td { background: var(--primary-soft); }
+.cf-fornecedor { display: block; font-weight: 600; color: var(--ink); }
+.cf-setor { display: block; font-size: .86rem; }
+.cf-valor { display: block; font-weight: 600; }
+.cf-venc .cf-num { display: block; }
+.cf-venc__falta { color: var(--muted); }
+.cf-venc__falta.is-proximo { color: var(--cf-prazo); }
+.cf-venc__falta.is-vencido { color: var(--cf-alerta); }
+.cf-expandir { width: 28px; height: 28px; border: 1px solid var(--cf-borda); border-radius: 6px; background: var(--panel); color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 1.1rem; line-height: 1; transition: transform .15s; }
+.cf-expandir[aria-expanded="true"] { transform: rotate(90deg); color: var(--primary); border-color: var(--primary); }
+
+/* Detalhe da nota */
+.cf-detalhe > td { background: var(--cf-fundo-suave); padding: 14px 16px 16px; }
+.cf-detalhe__grade { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; }
+.cf-subtitulo { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+.cf-boletos { background: var(--panel); border: 1px solid var(--cf-borda); border-radius: 8px; overflow: hidden; margin: 0; font-size: .86rem; }
+.cf-boletos thead th { font-size: .7rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; background: var(--panel); }
+.cf-boletos td { border-bottom: 0; padding: 8px 10px 2px; }
+.cf-boletos__linha td { padding: 0 10px 8px; border-bottom: 1px solid var(--cf-borda); }
+.cf-boletos tbody tr:last-child td { border-bottom: 0; }
+.cf-justificativa { margin: 2px 0 0; font-size: .8rem; color: var(--ink); font-style: italic; }
+.cf-pendencias { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--cf-alerta); background: var(--panel); border-radius: 0 6px 6px 0; font-size: .86rem; }
+.cf-pendencias ul { margin: 4px 0 0; padding-left: 1.1rem; }
+.cf-dados { display: grid; gap: 8px; margin: 0 0 12px; font-size: .86rem; }
+.cf-dados dt { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.cf-dados dd { margin: 0; }
+.cf-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.cf-link { color: var(--primary); text-decoration: none; font-weight: 600; font-size: .82rem; }
+.cf-vazio { margin: 8px 0 0; color: var(--muted); }
+
+/* Desfazer importação */
+.cf-desfazer { border-left: 3px solid var(--cf-alerta); }
+.cf-desfazer__head { display: flex; justify-content: space-between; gap: 1rem; }
+.cf-desfazer__titulo { font-size: 1rem; font-weight: 600; margin: 0 0 .2rem; }
+.cf-desfazer__head p { margin: 0; font-size: .86rem; }
+.cf-desfazer__itens { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 20px; margin: 14px 0; }
+.cf-desfazer__itens dt { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.cf-desfazer__itens dd { margin: 0; }
+.cf-aviso, .cf-bloqueio { padding: 10px 12px; border-radius: 6px; font-size: .86rem; margin-bottom: 12px; }
+.cf-aviso { background: #fffaeb; border: 1px solid #fedf89; color: #7a4b00; }
+.cf-bloqueio { background: #fef3f2; border: 1px solid #fecdca; color: #7a271a; }
+.cf-aviso ul, .cf-bloqueio ul { margin: 4px 0 0; padding-left: 1.1rem; }
+.cf-desfazer__form { display: grid; gap: 10px; }
+.cf-desfazer__motivo { max-width: 720px; }
+.cf-desfazer__confirmacoes { display: grid; gap: 4px; font-size: .88rem; }
+.cf-desfazer__acoes { display: flex; gap: 8px; }
+
+@media (max-width: 900px) { .cf-detalhe__grade { grid-template-columns: 1fr; } }

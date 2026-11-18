@@ -162,6 +162,11 @@ urlpatterns = [
     path("mv/login/", views.mv_login_iniciar, name="mv_login_iniciar"),
     path("mv/login/retorno/", views.mv_login_retorno, name="mv_login_retorno"),
     path(
+        "financeiro/contas-a-pagar/conferencia/",
+        views.contas_pagar_conferencia,
+        name="contas_pagar_conferencia",
+    ),
+    path(
         "financeiro/contas-a-pagar/nfse/<str:cnpj>/<str:numero>/",
         views.contas_pagar_nfse_ver,
         name="contas_pagar_nfse_ver",
