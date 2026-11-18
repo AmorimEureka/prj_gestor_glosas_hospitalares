@@ -15299,9 +15299,33 @@ button.follow-up-glosa-chevron:focus-visible {
 /* ------------------------------------------------------------------ */
 /* Contas a Pagar · NFS-e do setor                                     */
 /* ------------------------------------------------------------------ */
-.cp-nfse-page {
+/* .content tem altura fixa e overflow hidden: a página é o contêiner de rolagem. */
+.cp-nfse-page,
+.cp-nfse-regras-page {
   display: grid;
+  flex: 1;
+  align-content: start;
   gap: 14px;
+  min-height: 0;
+  min-width: 0;
+  padding-right: 4px;
+  padding-bottom: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cp-nfse-page > *,
+.cp-nfse-regras-page > * {
+  min-width: 0;
+}
+
+.cp-nfse-page .results-summary-panel.cp-nfse-results {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 .cp-nfse-page > .panel,
