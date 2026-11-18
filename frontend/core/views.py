@@ -9575,6 +9575,38 @@ def _oficinas_por_empresa(oficinas):
 
 
 CP_BOLETO_MAX_BYTES = 5 * 1024 * 1024
+CP_SIM_DATA = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?")
+
+
+def _cp_valor_mv(campo, valor):
+    """Valor de um campo da simulação, como o financeiro lê na tela do MV."""
+    if valor is None or valor == "":
+        return "—"
+    texto = str(valor)
+    data = CP_SIM_DATA.match(texto)
+    if data:
+        ano, mes, dia, hora, minuto = data.groups()
+        return f"{dia}/{mes}/{ano}" + (f" {hora}:{minuto}" if hora and (hora, minuto) != ("00", "00") else "")
+    if campo.startswith("vl_") and "perc" in campo and re.fullmatch(r"-?\d+(\.\d+)?", texto):
+        return f"{_cp_nfse_decimal(texto):g}".replace(".", ",") + " %"
+    if campo.startswith("vl_") and re.fullmatch(r"-?\d+(\.\d+)?", texto):
+        return f"R$ {_cp_nfse_decimal(texto):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return texto
+
+
+def _cp_formatar_simulacao(resultado):
+    for gravacao in resultado.get("gravacoes") or []:
+        gravacao["linhas"] = [
+            {"campo": campo.upper(), "valor": _cp_valor_mv(campo, dado.get("valor")), "origem": dado.get("origem")}
+            for campo, dado in (gravacao.get("campos") or {}).items()
+        ]
+    titulo = (resultado.get("importacao") or {}).get("titulo_previsto") or {}
+    for parcela in titulo.get("parcelas") or []:
+        parcela["vencimento_fmt"] = _cp_valor_mv("dt", parcela.get("dt_vencimento"))
+        parcela["valor_fmt"] = _cp_valor_mv("vl_duplicata", parcela.get("vl_duplicata"))
+    if titulo:
+        titulo["valor_fmt"] = _cp_valor_mv("vl_bruto_conta", titulo.get("vl_bruto_conta"))
+    return resultado
 
 
 def _contas_pagar_nfse_setor_post(request):
@@ -9679,6 +9711,15 @@ def contas_pagar_nfse_setor(request):
             nota_aberta["chave"] = chave
         except ApiError as exc:
             messages.error(request, f"Não foi possível carregar os boletos da nota: {extract_api_error_message(exc)}")
+    simulacao = None
+    if nota_aberta and pode_classificar and request.GET.get("simular") == "1":
+        cnpj, numero = chave.split("-", 1)
+        try:
+            simulacao = _cp_formatar_simulacao(
+                api_post(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/importacao/simulacao", {})
+            )
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível simular a importação: {extract_api_error_message(exc)}")
     response = render(
         request,
         "contas_pagar_nfse.html",
@@ -9693,6 +9734,7 @@ def contas_pagar_nfse_setor(request):
             "valor_total": sum((_cp_nfse_decimal(i.get("valor_liquido")) for i in itens), Decimal("0")),
             "pode_classificar": pode_classificar,
             "nota_aberta": nota_aberta,
+            "simulacao": simulacao,
             "mv_vinculo": _mv_vinculo(),
         },
     )

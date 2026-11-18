@@ -15648,3 +15648,23 @@ button.follow-up-glosa-chevron:focus-visible {
     margin-left: 0;
   }
 }
+
+/* Contas a Pagar · simulação da importação para o MV */
+.cp-imp { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--bs-border-color, #dee2e6); }
+.cp-imp__head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .75rem; }
+.cp-imp__head .panel-title { display: block; }
+.cp-imp__status { border-radius: .5rem; padding: .75rem 1rem; margin-bottom: .5rem; }
+.cp-imp__status.is-apta { background: #e8f6ee; color: #14532d; border: 1px solid #b7e2c7; }
+.cp-imp__status.is-bloqueada { background: #fdecec; color: #7f1d1d; border: 1px solid #f5c2c2; }
+.cp-imp__status ul { margin: .4rem 0 0; padding-left: 1.2rem; }
+.cp-imp__aviso { background: #fff7e6; border: 1px solid #f6dca5; color: #7a4b00; border-radius: .5rem; padding: .5rem 1rem; margin-bottom: .5rem; font-size: .9rem; }
+.cp-imp__escolhas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem 1.25rem; margin: .75rem 0; }
+.cp-imp__escolhas dt { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: #64748b; }
+.cp-imp__escolhas dd { margin: 0; }
+.cp-imp__gravacoes { display: flex; flex-direction: column; gap: .4rem; }
+.cp-imp__tabela { border: 1px solid var(--bs-border-color, #dee2e6); border-radius: .5rem; padding: .5rem .75rem; background: #fff; }
+.cp-imp__tabela summary { cursor: pointer; display: flex; align-items: center; gap: .5rem; }
+.cp-imp__tabela summary small { color: #64748b; }
+.cp-imp__ordem { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #0f5c6e; color: #fff; font-size: .75rem; font-weight: 600; }
+.cp-imp__campos { margin: .5rem 0 0; font-size: .85rem; }
+.cp-imp__campos td:first-child { width: 30%; }

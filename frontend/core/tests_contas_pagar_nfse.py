@@ -404,3 +404,115 @@ class NfseMenuTests(TestCase):
 
         self.assertNotIn('4. NFS-e do setor', html)
         self.assertNotIn('5. Setores dos fornecedores', html)
+
+
+SIMULACAO = {
+    'simulacao': True, 'apta': True, 'pendencias': [], 'avisos': ['Há 2 cadastros com este CNPJ; usado o 3373, do último lançamento.'],
+    'escolhas': {
+        'usuario_mv': 'RH000938', 'fornecedor': {'cd_fornecedor': 3373, 'nm_fornecedor': 'HAPVIDA'},
+        'oficina': {'cd_oficina': 22, 'ds_oficina': 'CENTRAL DE RECEBIMENTO FISCAL', 'cd_setor': 68},
+        'servico': {'cd_servico': 10106, 'nm_servico': 'PLANO DE SAUDE'}, 'conta_fornecedor': {'cd_reduzido': 241},
+        'modelo': {'cd_ent_serv': 12292, 'nr_documento': '5.949', 'cd_usuario': 'RH001185'},
+    },
+    'gravacoes': [
+        {'ordem': 1, 'tabela': 'ENT_SERV', 'operacao': 'INSERT', 'campos': {
+            'vl_total': {'valor': '2708.73', 'origem': 'NFS-e'},
+            'dt_emissao': {'valor': '2026-11-01', 'origem': 'NFS-e'},
+            'hr_entrada': {'valor': '2026-11-18T10:36:36', 'origem': 'hora da importação'},
+            'vl_percentual_iss': {'valor': '0', 'origem': 'sem retenção'},
+            'cd_justifica': {'valor': None, 'origem': 'modelo'}}},
+        {'ordem': 2, 'tabela': 'DUPLICATA', 'operacao': 'INSERT', 'campos': {
+            'vl_parcela': {'valor': '2708.73', 'origem': 'boleto 4'}}},
+    ],
+    'importacao': {'chamada': 'DBAMV.FNC_IMPORTA_MGES_FNFI_SERV',
+                   'parametros': {'p_cd_fornecedor': 3373, 'p_nr_documento': '93125822', 'p_nr_serie': 'A', 'p_cd_multi_empresa': 2},
+                   'titulo_previsto': {'tabela': 'CON_PAG', 'tp_con_pag': 'ES', 'vl_bruto_conta': '2708.73', 'cd_reduzido': 241,
+                                       'cd_setor': 68, 'cd_usuario_ins': 'RH000938',
+                                       'parcelas': [{'nr_parcela': 1, 'dt_vencimento': '2026-11-25', 'vl_duplicata': '2708.73'}]}},
+}
+BOLETOS = {'nota': {'prestador_cnpj': '63554067000198', 'numero_nfse': '93125822', 'prestador_razao_social': 'HAPVIDA'},
+           'boletos': [], 'resumo': {'quantidade': 1, 'soma': '2708.73', 'valor_liquido': '2708.73', 'pronta': True}}
+
+
+class SimulacaoImportacaoTests(TestCase):
+    URL = '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta&nota=63554067000198-93125822'
+
+    def _entrar(self, telas):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'usuario', 'telas_permitidas': telas}
+        session.save()
+
+    def _api_get(self, path, params=None):
+        return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+
+    @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+    @patch('core.views.api_post', return_value=SIMULACAO)
+    @patch('core.views.api_get')
+    def test_financeiro_simula_e_ve_o_que_seria_gravado(self, api_get, api_post, _):
+        self._entrar(['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'])
+        api_get.side_effect = self._api_get
+
+        response = self.client.get(self.URL + '&simular=1')
+
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/63554067000198/93125822/importacao/simulacao', {})
+        self.assertContains(response, 'Apta para importar.')
+        self.assertContains(response, 'INSERT ENT_SERV')
+        self.assertContains(response, 'R$ 2.708,73')
+        self.assertContains(response, '01/11/2026')
+        self.assertContains(response, '18/11/2026 10:36')
+        self.assertContains(response, 'DBAMV.FNC_IMPORTA_MGES_FNFI_SERV')
+        self.assertContains(response, '1ª · 25/11/2026 · R$ 2.708,73')
+        self.assertContains(response, 'usado o 3373')
+        self.assertContains(response, '<td>0 %</td>', html=False)
+
+    @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+    @patch('core.views.api_post')
+    @patch('core.views.api_get')
+    def test_pendencias_aparecem_com_o_codigo_do_mv(self, api_get, api_post, _):
+        self._entrar(['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'])
+        api_get.side_effect = self._api_get
+        api_post.return_value = {**SIMULACAO, 'apta': False, 'gravacoes': [], 'importacao': {},
+                                 'pendencias': [{'codigo': '-20003', 'mensagem': 'Fornecedor sem conta contábil.'}]}
+
+        response = self.client.get(self.URL + '&simular=1')
+
+        self.assertContains(response, 'Não pode ser importada ainda.')
+        self.assertContains(response, '<code>-20003</code> Fornecedor sem conta contábil.', html=False)
+
+    @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+    @patch('core.views.api_post')
+    @patch('core.views.api_get')
+    def test_setor_nao_ve_nem_dispara_a_simulacao(self, api_get, api_post, _):
+        self._entrar(['contas_pagar_nfse_setor'])
+        api_get.side_effect = self._api_get
+
+        response = self.client.get(self.URL + '&simular=1')
+
+        api_post.assert_not_called()
+        self.assertNotContains(response, 'Importação para o MV')
+
+    @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': False})
+    @patch('core.views.api_post')
+    @patch('core.views.api_get')
+    def test_sem_login_mv_pede_para_entrar(self, api_get, api_post, _):
+        self._entrar(['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'])
+        api_get.side_effect = self._api_get
+
+        response = self.client.get(self.URL)
+
+        api_post.assert_not_called()
+        self.assertContains(response, 'Entre com o seu login MV')
+        self.assertNotContains(response, 'Simular importação no MV')
+
+    @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+    @patch('core.views.api_post', side_effect=ApiError('Entre com o seu login MV antes.', status_code=412))
+    @patch('core.views.api_get')
+    def test_erro_da_api_vira_mensagem(self, api_get, api_post, _):
+        self._entrar(['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'])
+        api_get.side_effect = self._api_get
+
+        response = self.client.get(self.URL + '&simular=1')
+
+        self.assertContains(response, 'Não foi possível simular a importação')
