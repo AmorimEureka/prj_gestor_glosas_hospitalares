@@ -598,3 +598,112 @@ class ImportacaoMvTests(TestCase):
         response = self._post()
         self.assertContains(response, 'A NFS-e não foi importada')
         self.assertContains(response, 'ORA-20007')
+
+
+NFSE_COMPLETA = {
+    'numero_nfse': '93125822', 'codigo_verificacao_nfse': '517884009', 'competencia_nfse': '2026-11-01-03:00',
+    'data_emissao': '2026-11-01T12:50:46', 'prestador_cnpj': '63554067000198',
+    'prestador_razao_social': 'HAPVIDA ASSISTENCIA MEDICA S.A.', 'prestador_nome_fantasia': 'HAPVIDA',
+    'tomador_cnpj': '05613278000158', 'tomador_razao_social': 'PRONTOCARDIO PRONTO ATENDIMENTO CARDIOLOGICO LTDA',
+    'discriminacao': 'ESTE PAGAMENTO REFERE-SE AO CONTRATO N0H7YV', 'valor_servicos': '2708.73',
+    'valor_liquido_nfse': '2708.73', 'valor_iss': '0', 'iss_retido': '2', 'valor_pis': '0', 'aliquota': '0.0200',
+    'chave_acesso': '23044001263554067000198000009312582226110517884000', 'status_nfse': 'NORMAL',
+}
+
+
+class VerNfseTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 7, 'nome': 'Setor', 'perfil': 'usuario', 'telas_permitidas': ['contas_pagar_nfse_setor']}
+        session.save()
+
+    @patch('core.views.api_get', return_value=NFSE_COMPLETA)
+    def test_espelho_da_nfse(self, api_get):
+        response = self.client.get('/financeiro/contas-a-pagar/nfse/63554067000198/93125822/')
+        api_get.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/63554067000198/93125822/nfse')
+        self.assertContains(response, 'HAPVIDA ASSISTENCIA MEDICA S.A.')
+        self.assertContains(response, 'Código de verificação 517884009')
+        self.assertContains(response, 'Competência 11/2026')
+        self.assertContains(response, 'R$ 2.708,73')
+        self.assertContains(response, '23044001263554067000198000009312582226110517884000')
+        self.assertContains(response, 'ISS: Normal')
+        self.assertContains(response, '63.554.067/0001-98')
+        self.assertContains(response, '· 2%')
+        self.assertContains(response, '/financeiro/contas-a-pagar/nfse/63554067000198/93125822/xml/')
+        self.assertIn('no-store', response['Cache-Control'])
+
+    @patch('core.views.api_get')
+    def test_chave_invalida_nem_chama_a_api(self, api_get):
+        response = self.client.get('/financeiro/contas-a-pagar/nfse/123/93125822/')
+        self.assertEqual(response.status_code, 404)
+        api_get.assert_not_called()
+
+    @patch('core.views.api_get', side_effect=ApiError('Esta NFS-e não é de uma oficina do seu setor.', status_code=403))
+    def test_nota_de_outro_setor(self, api_get):
+        response = self.client.get('/financeiro/contas-a-pagar/nfse/63554067000198/93125822/')
+        self.assertEqual(response.status_code, 404)
+
+    @patch('core.views.api_get_stream')
+    def test_baixa_o_xml(self, api_get_stream):
+        upstream = api_get_stream.return_value
+        upstream.iter_content.return_value = [b'<Nfse>', b'</Nfse>']
+        upstream.headers = {'Content-Disposition': 'attachment; filename="nfse-63554067000198-93125822.xml"'}
+        response = self.client.get('/financeiro/contas-a-pagar/nfse/63554067000198/93125822/xml/')
+        self.assertEqual(response.content, b'<Nfse></Nfse>')
+        self.assertEqual(response['Content-Type'], 'application/xml')
+        self.assertIn('nfse-63554067000198-93125822.xml', response['Content-Disposition'])
+        upstream.close.assert_called_once()
+
+
+class PrazoBoletoTests(TestCase):
+    URL = '/financeiro/contas-a-pagar/nfse-do-setor/'
+
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 7, 'nome': 'Setor TI', 'perfil': 'usuario', 'telas_permitidas': ['contas_pagar_nfse_setor']}
+        session.save()
+        vinculo = patch('core.views._mv_vinculo', return_value=None)
+        vinculo.start()
+        self.addCleanup(vinculo.stop)
+
+    @patch('core.views.api_get')
+    def test_linha_tem_botao_ver_nfse_e_marca_fora_do_prazo(self, api_get):
+        item = {**NOTA, 'pronta': True, 'boletos': {'quantidade': 1, 'soma': '1400.00', 'primeiro_vencimento': '2026-11-20',
+                                                   'fora_do_prazo': True}}
+        api_get.return_value = {'oficinas': [], 'itens': [item]}
+        response = self.client.get(self.URL)
+        self.assertContains(response, 'href="/financeiro/contas-a-pagar/nfse/11111111000111/123/"', html=False)
+        self.assertContains(response, 'Ver NFS-e')
+        self.assertContains(response, 'Fora do prazo · justificado')
+
+    @patch('core.views.api_get')
+    def test_painel_mostra_prazo_e_justificativa(self, api_get):
+        boletos = {
+            'nota': {'prestador_cnpj': '11111111000111', 'numero_nfse': '123', 'prestador_razao_social': 'Software SA'},
+            'boletos': [{'id': 9, 'vencimento': '2026-11-20', 'valor': '1400.00', 'banco': '341', 'linha_digitavel': '3419',
+                         'origem_leitura': 'pdf', 'divergencias': [], 'fora_do_prazo': True, 'prazo_minimo': '2026-11-23',
+                         'justificativa_atraso': 'Fornecedor só enviou hoje.', 'enviado_por_nome': 'Setor TI'}],
+            'resumo': {'quantidade': 1, 'soma': '1400.00', 'valor_liquido': '1400.00', 'pronta': True},
+            'prazo_minimo_hoje': '2026-11-23T10:00:00',
+        }
+        api_get.side_effect = lambda path, params=None: boletos if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+        response = self.client.get(self.URL + '?nota=11111111000111-123')
+        self.assertContains(response, 'a partir de 23/11/2026')
+        self.assertContains(response, 'name="justificativa_atraso"', html=False)
+        self.assertContains(response, 'Fora do prazo de 3 dias úteis')
+        self.assertContains(response, 'Justificativa: Fornecedor só enviou hoje.')
+
+    @patch('core.views.api_post_files', return_value={'divergencias': [], 'fora_do_prazo': True})
+    @patch('core.views.api_get', return_value={'oficinas': [], 'itens': []})
+    def test_envia_a_justificativa(self, api_get, api_post_files):
+        from django.core.files.uploadedfile import SimpleUploadedFile  # noqa: PLC0415
+
+        arquivo = SimpleUploadedFile('b.pdf', b'%PDF-1.4 x', content_type='application/pdf')
+        response = self.client.post(self.URL, {'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123',
+                                               'arquivo': arquivo, 'justificativa_atraso': ' Fornecedor só enviou hoje. '},
+                                    follow=True)
+        _, _, dados = api_post_files.call_args.args
+        self.assertEqual(dados['justificativa_atraso'], 'Fornecedor só enviou hoje.')
+        self.assertContains(response, 'fora do prazo de 3 dias úteis, com justificativa')
