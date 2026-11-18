@@ -36,6 +36,7 @@
 </head>
 <body>
   <div class="barra">
+    <a href="{% url 'contas_pagar_nfse_pdf' cnpj numero %}">PDF oficial da prefeitura</a>
     <a href="{% url 'contas_pagar_nfse_xml' cnpj numero %}">Baixar XML</a>
     <button type="button" onclick="window.print()">Imprimir</button>
   </div>

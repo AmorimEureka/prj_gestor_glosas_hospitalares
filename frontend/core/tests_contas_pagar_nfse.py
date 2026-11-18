@@ -674,7 +674,7 @@ class PrazoBoletoTests(TestCase):
                                                    'fora_do_prazo': True}}
         api_get.return_value = {'oficinas': [], 'itens': [item]}
         response = self.client.get(self.URL)
-        self.assertContains(response, 'href="/financeiro/contas-a-pagar/nfse/11111111000111/123/"', html=False)
+        self.assertContains(response, 'href="/financeiro/contas-a-pagar/nfse/11111111000111/123/pdf/"', html=False)
         self.assertContains(response, 'Ver NFS-e')
         self.assertContains(response, 'Fora do prazo · justificado')
 
@@ -707,3 +707,41 @@ class PrazoBoletoTests(TestCase):
         _, _, dados = api_post_files.call_args.args
         self.assertEqual(dados['justificativa_atraso'], 'Fornecedor só enviou hoje.')
         self.assertContains(response, 'fora do prazo de 3 dias úteis, com justificativa')
+
+
+class PdfOficialNfseTests(TestCase):
+    URL = '/financeiro/contas-a-pagar/nfse/63554067000198/93125822/pdf/'
+
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 7, 'nome': 'Setor', 'perfil': 'usuario', 'telas_permitidas': ['contas_pagar_nfse_setor']}
+        session.save()
+
+    @patch('core.views.api_get_stream')
+    def test_entrega_o_pdf_da_prefeitura(self, api_get_stream):
+        upstream = api_get_stream.return_value
+        upstream.iter_content.return_value = [b'%PDF-1.4 ', b'danfse']
+        upstream.headers = {'Content-Disposition': 'inline; filename="nfse-63554067000198-93125822.pdf"'}
+        response = self.client.get(self.URL)
+        api_get_stream.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/63554067000198/93125822/nfse/pdf')
+        self.assertEqual(response.content, b'%PDF-1.4 danfse')
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertTrue(response['Content-Disposition'].startswith('inline'))
+        upstream.close.assert_called_once()
+
+    @patch('core.views.api_get_stream', side_effect=ApiError('O portal do ISS Fortaleza não respondeu (ConnectError).', status_code=502))
+    def test_portal_fora_mostra_alternativa(self, api_get_stream):
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 502)
+        self.assertContains(response, 'não respondeu', status_code=502)
+        self.assertContains(response, '/financeiro/contas-a-pagar/nfse/63554067000198/93125822/', status_code=502)
+
+    @patch('core.views.api_get_stream', side_effect=ApiError('Esta NFS-e não é de uma oficina do seu setor.', status_code=403))
+    def test_nota_de_outro_setor(self, api_get_stream):
+        self.assertEqual(self.client.get(self.URL).status_code, 404)
+
+    @patch('core.views.api_get_stream')
+    def test_chave_invalida(self, api_get_stream):
+        self.assertEqual(self.client.get('/financeiro/contas-a-pagar/nfse/63554067000198/93-1/pdf/').status_code, 404)
+        api_get_stream.assert_not_called()

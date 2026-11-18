@@ -245,7 +245,7 @@
           <tr class="{% if nota_aberta and nota_aberta.chave == item.chave %}is-selected{% endif %}{% if item.status_nfse and item.status_nfse != 'NORMAL' %} is-cancelada{% endif %}">
             <td class="text-nowrap">{{ item.data_emissao|api_date }}</td>
             <td><strong class="cp-nfse-numero">{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<small class="cp-nfse-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}
-              <a class="btn btn-outline-secondary btn-sm cp-nfse-ver" href="{% url 'contas_pagar_nfse_ver' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener" title="Abrir o espelho da NFS-e em outra aba">Ver NFS-e</a></td>
+              <a class="btn btn-outline-secondary btn-sm cp-nfse-ver" href="{% url 'contas_pagar_nfse_pdf' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener" title="Abrir o PDF oficial da prefeitura em outra aba">Ver NFS-e</a></td>
             <td>
               {% if not item.status_nfse %}<span class="cp-nfse-status cp-nfse-status--sem" title="A situação ainda não foi lida no portal do ISS.">Não consultado</span>
               {% elif item.status_nfse == 'NORMAL' %}<span class="cp-nfse-status cp-nfse-status--normal">Normal</span>
