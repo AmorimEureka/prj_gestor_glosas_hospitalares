@@ -15668,3 +15668,8 @@ button.follow-up-glosa-chevron:focus-visible {
 .cp-imp__ordem { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #0f5c6e; color: #fff; font-size: .75rem; font-weight: 600; }
 .cp-imp__campos { margin: .5rem 0 0; font-size: .85rem; }
 .cp-imp__campos td:first-child { width: 30%; }
+.cp-imp__importar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .75rem 0; padding: .75rem 1rem; border: 1px solid #b7e2c7; border-radius: .5rem; background: #f3fbf6; }
+.cp-imp__importar .form-check { margin: 0; }
+.cp-imp__registro { border-radius: .5rem; padding: .6rem 1rem; margin-bottom: .5rem; border: 1px solid #cbd5e1; background: #f8fafc; }
+.cp-imp__registro.is-ok { border-color: #b7e2c7; background: #e8f6ee; color: #14532d; }
+.cp-imp__registro.is-erro { border-color: #f5c2c2; background: #fdecec; color: #7f1d1d; }
