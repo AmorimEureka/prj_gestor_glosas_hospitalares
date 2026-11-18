@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NFS-e {{ numero }} indisponível</title>
+  <style>
+    body { margin: 0; background: #f1f5f9; color: #0f172a; font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+    main { max-width: 560px; margin: 64px auto; padding: 24px 28px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; }
+    h1 { font-size: 1.1rem; margin: 0 0 .5rem; }
+    p { margin: .5rem 0; color: #334155; }
+    a { display: inline-block; margin-top: .75rem; margin-right: .5rem; padding: .45rem .9rem; border-radius: 6px; border: 1px solid #0f5c6e; color: #0f5c6e; text-decoration: none; }
+    a.primario { background: #0f5c6e; color: #fff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Não foi possível abrir o PDF da NFS-e {{ numero }}</h1>
+    <p>{{ mensagem }}</p>
+    <p>O PDF vem do portal do ISS Fortaleza. Tente de novo em alguns minutos; enquanto isso, os dados da nota estão no espelho gerado a partir do XML.</p>
+    <a class="primario" href="{% url 'contas_pagar_nfse_pdf' cnpj numero %}">Tentar de novo</a>
+    <a href="{% url 'contas_pagar_nfse_ver' cnpj numero %}">Ver dados do XML</a>
+  </main>
+</body>
+</html>

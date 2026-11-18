@@ -9808,6 +9808,32 @@ def contas_pagar_nfse_ver(request, cnpj, numero):
 
 
 @require_GET
+def contas_pagar_nfse_pdf(request, cnpj, numero):
+    """PDF oficial (DANFSe) da NFS-e, como a prefeitura emite."""
+    if not _cp_nfse_chave_valida(cnpj, numero):
+        raise Http404("NFS-e inválida.")
+    try:
+        upstream = api_get_stream(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/nfse/pdf")
+    except ApiError as exc:
+        if exc.status_code in (403, 404):
+            raise Http404(extract_api_error_message(exc)) from exc
+        response = render(request, "contas_pagar_nfse_pdf_erro.html", {
+            "mensagem": extract_api_error_message(exc), "cnpj": cnpj, "numero": numero,
+        }, status=502)
+        response["Cache-Control"] = "private, no-store"
+        return response
+    try:
+        conteudo = b"".join(chunk for chunk in upstream.iter_content(chunk_size=64 * 1024) if chunk)
+    finally:
+        upstream.close()
+    response = HttpResponse(conteudo, content_type="application/pdf")
+    response["Content-Disposition"] = upstream.headers.get("Content-Disposition") or f'inline; filename="nfse-{cnpj}-{numero}.pdf"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@require_GET
 def contas_pagar_nfse_xml(request, cnpj, numero):
     if not _cp_nfse_chave_valida(cnpj, numero):
         raise Http404("NFS-e inválida.")

@@ -167,6 +167,11 @@ urlpatterns = [
         name="contas_pagar_nfse_ver",
     ),
     path(
+        "financeiro/contas-a-pagar/nfse/<str:cnpj>/<str:numero>/pdf/",
+        views.contas_pagar_nfse_pdf,
+        name="contas_pagar_nfse_pdf",
+    ),
+    path(
         "financeiro/contas-a-pagar/nfse/<str:cnpj>/<str:numero>/xml/",
         views.contas_pagar_nfse_xml,
         name="contas_pagar_nfse_xml",
