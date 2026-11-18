@@ -138,16 +138,22 @@
     <div class="table-responsive">
       <table class="table align-middle cp-nfse-table">
         <colgroup>
-          <col class="cp-col-emissao"><col class="cp-col-nfse"><col><col class="cp-col-tomador"><col class="cp-col-setor"><col class="cp-col-valor"><col class="cp-col-valor"><col class="cp-col-situacao">
+          <col class="cp-col-emissao"><col class="cp-col-nfse"><col class="cp-col-status"><col><col class="cp-col-tomador"><col class="cp-col-setor"><col class="cp-col-valor"><col class="cp-col-valor"><col class="cp-col-situacao">
         </colgroup>
         <thead>
-          <tr><th>Emissão</th><th>NFS-e</th><th>Fornecedor</th><th>Tomador</th><th>Setor</th><th class="text-end">Valor</th><th class="text-end">Líquido</th><th>Situação</th></tr>
+          <tr><th>Emissão</th><th>NFS-e</th><th>Status ISS</th><th>Fornecedor</th><th>Tomador</th><th>Setor</th><th class="text-end">Valor</th><th class="text-end">Líquido</th><th>Situação</th></tr>
         </thead>
         <tbody>
           {% for item in itens %}
-          <tr class="{% if nota_aberta and nota_aberta.chave == item.chave %}is-selected{% endif %}">
+          <tr class="{% if nota_aberta and nota_aberta.chave == item.chave %}is-selected{% endif %}{% if item.status_nfse and item.status_nfse != 'NORMAL' %} is-cancelada{% endif %}">
             <td class="text-nowrap">{{ item.data_emissao|api_date }}</td>
             <td><strong class="cp-nfse-numero">{{ item.numero_nfse }}</strong>{% if item.codigo_verificacao %}<small class="cp-nfse-muted">Verif. {{ item.codigo_verificacao }}</small>{% endif %}</td>
+            <td>
+              {% if not item.status_nfse %}<span class="cp-nfse-status cp-nfse-status--sem" title="A situação ainda não foi lida no portal do ISS.">Não consultado</span>
+              {% elif item.status_nfse == 'NORMAL' %}<span class="cp-nfse-status cp-nfse-status--normal">Normal</span>
+              {% else %}<span class="cp-nfse-status cp-nfse-status--cancelada">{{ item.status_nfse|lower|capfirst }}</span>{% endif %}
+              {% if item.status_nfse_consultado_em %}<small class="cp-nfse-muted" title="Última consulta ao portal do ISS">{{ item.status_nfse_consultado_em|api_datetime }}</small>{% endif %}
+            </td>
             <td>
               <strong class="cp-nfse-fornecedor">{{ item.prestador }}</strong>
               <small class="cp-nfse-muted font-monospace">{{ item.prestador_cnpj }}</small>
@@ -159,6 +165,8 @@
             <td class="text-end text-nowrap"><strong>R$ {{ item.valor_liquido|br_currency }}</strong></td>
             <td class="cp-nfse-situacao">
               {% if item.situacao == 'lancada' %}<span class="badge text-bg-success">Lançada no MV</span>{% if item.mv.cd_ent_serv %}<small class="cp-nfse-muted">Entrada {{ item.mv.cd_ent_serv }}</small>{% endif %}{% if item.mv.cd_con_pag %}<small class="cp-nfse-muted">Título {{ item.mv.cd_con_pag }}</small>{% endif %}
+              {% if item.status_nfse and item.status_nfse != 'NORMAL' %}<small class="text-danger fw-semibold">NFS-e {{ item.status_nfse|lower }} no ISS. Confira com o financeiro.</small>{% endif %}
+              {% elif item.situacao == 'cancelada' %}<span class="badge text-bg-danger">Cancelada no ISS</span><small class="cp-nfse-muted">Não anexe boleto. Peça ao fornecedor a nota que substitui esta.</small>
               {% elif item.situacao == 'a_classificar' %}<span class="badge text-bg-warning">Sem setor</span><small class="cp-nfse-muted">{{ item.motivo }}</small>{% if pode_classificar %}<a class="btn btn-outline-primary btn-sm mt-1" href="{% url 'contas_pagar_nfse_regras' %}">Classificar</a>{% endif %}
               {% else %}
                 {% if item.pronta %}<span class="badge text-bg-success">Pronta para o financeiro</span>
