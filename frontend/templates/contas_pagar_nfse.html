@@ -195,10 +195,12 @@
           <dl class="cp-imp__escolhas">
             <div><dt>Título</dt><dd>{{ t.tabela }} · tipo {{ t.tp_con_pag }}</dd></div>
             <div><dt>Valor bruto</dt><dd>{{ t.valor_fmt }}</dd></div>
+            {% if t.impostos %}<div><dt>Líquido a pagar ao fornecedor</dt><dd>{{ t.liquido_fmt }}</dd></div>{% endif %}
             <div><dt>Conta contábil</dt><dd>{{ t.cd_reduzido|default:'—' }}</dd></div>
             <div><dt>Setor</dt><dd>{{ t.cd_setor|default:'—' }}</dd></div>
             <div><dt>Lançado por</dt><dd>{{ t.cd_usuario_ins }}</dd></div>
             <div><dt>Parcelas</dt><dd>{% for p in t.parcelas %}{{ p.nr_parcela }}ª · {{ p.vencimento_fmt }} · {{ p.valor_fmt }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>
+            {% if t.impostos %}<div><dt>Títulos de imposto (criados pelo MV)</dt><dd>{% for i in t.impostos %}{{ i.nr_documento }} · {{ i.cd_detalhamento }} {{ i.ds_detalhamento }} · {{ i.valor_fmt }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>{% endif %}
           </dl>
           {% endwith %}
         </details>
