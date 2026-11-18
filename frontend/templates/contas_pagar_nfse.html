@@ -136,6 +136,13 @@
         {% endif %}
       </div>
       {% for aviso in simulacao.avisos %}<div class="cp-imp__aviso">{{ aviso }}</div>{% endfor %}
+      {% with reg=simulacao.importacao_registrada %}{% if reg %}
+      <div class="cp-imp__registro {% if reg.status == 'importada' %}is-ok{% elif reg.status == 'erro' %}is-erro{% endif %}">
+        {% if reg.status == 'importada' %}<strong>Já importada no MV</strong> por {{ reg.cd_usuario_mv }} em {{ reg.concluido_em|api_datetime }}: entrada {{ reg.cd_ent_serv }}, título {{ reg.cd_con_pag }}.
+        {% elif reg.status == 'erro' %}<strong>A última tentativa de importação falhou</strong> ({{ reg.cd_usuario_mv }}, {{ reg.concluido_em|api_datetime }}). Nada foi gravado no MV. {{ reg.erro }}
+        {% else %}<strong>Importação em andamento</strong> por {{ reg.cd_usuario_mv }} desde {{ reg.iniciado_em|api_datetime }}.{% endif %}
+      </div>
+      {% endif %}{% endwith %}
 
       {% with e=simulacao.escolhas %}
       <dl class="cp-imp__escolhas">
@@ -147,6 +154,23 @@
         <div><dt>Modelo usado</dt><dd>{% if e.modelo %}entrada {{ e.modelo.cd_ent_serv }} (NF {{ e.modelo.nr_documento }}, {{ e.modelo.cd_usuario }}){% else %}sem lançamento anterior{% endif %}</dd></div>
       </dl>
       {% endwith %}
+
+      {% if simulacao.apta and simulacao.assinatura %}
+      {% if simulacao.gravacao_habilitada %}
+      <form method="post" class="cp-imp__importar" onsubmit="return confirm('Gravar esta NFS-e no MV de produção com o seu login MV ({{ simulacao.escolhas.usuario_mv }})? A entrada de serviço e o título no Contas a Pagar serão criados agora.')">{% csrf_token %}
+        <input type="hidden" name="acao" value="importar_mv"><input type="hidden" name="assinatura" value="{{ simulacao.assinatura }}">
+        <input type="hidden" name="cnpj" value="{{ nota_aberta.nota.prestador_cnpj }}"><input type="hidden" name="numero" value="{{ nota_aberta.nota.numero_nfse }}">
+        <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+        {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+        {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="conferido" value="1" required> <span class="form-check-label">Conferi fornecedor, oficina, serviço, valores e parcelas abaixo.</span></label>
+        <button class="btn btn-success" type="submit">Importar no MV</button>
+        <small class="cp-nfse-muted">Grava com o seu login MV, numa transação única: se o MV recusar, nada é gravado.</small>
+      </form>
+      {% else %}
+      <div class="cp-imp__aviso">A gravação no MV está desligada no servidor.</div>
+      {% endif %}
+      {% endif %}
 
       {% if simulacao.gravacoes %}
       <div class="cp-imp__gravacoes">

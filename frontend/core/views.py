@@ -9636,6 +9636,21 @@ def _contas_pagar_nfse_setor_post(request):
             messages.warning(request, "Boleto anexado com divergências: " + " ".join(divergencias))
         else:
             messages.success(request, "Boleto anexado e conferido. A nota está pronta para o financeiro.")
+    elif acao == "importar_mv":
+        assinatura = re.sub(r"[^0-9a-f]", "", request.POST.get("assinatura") or "")
+        if len(cnpj) != 14 or not numero or len(assinatura) < 8 or request.POST.get("conferido") != "1":
+            messages.error(request, "Confirme que conferiu os valores da simulação antes de importar.")
+            return
+        try:
+            resultado = api_post(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/importacao", {"assinatura": assinatura})
+        except ApiError as exc:
+            messages.error(request, f"A NFS-e não foi importada: {extract_api_error_message(exc)}")
+            return
+        messages.success(
+            request,
+            f"NFS-e {numero} importada no MV por {resultado.get('cd_usuario_mv')}: "
+            f"entrada de serviço {resultado.get('cd_ent_serv')} e título {resultado.get('cd_con_pag')} no Contas a Pagar.",
+        )
     elif acao == "excluir_boleto":
         boleto_id = as_int_or_none(request.POST.get("boleto_id"))
         if not boleto_id:

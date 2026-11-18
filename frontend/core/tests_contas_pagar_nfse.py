@@ -407,7 +407,8 @@ class NfseMenuTests(TestCase):
 
 
 SIMULACAO = {
-    'simulacao': True, 'apta': True, 'pendencias': [], 'avisos': ['Há 2 cadastros com este CNPJ; usado o 3373, do último lançamento.'],
+    'simulacao': True, 'apta': True, 'assinatura': '60f46a25dfb4a358498c', 'gravacao_habilitada': True,
+    'importacao_registrada': None, 'pendencias': [], 'avisos': ['Há 2 cadastros com este CNPJ; usado o 3373, do último lançamento.'],
     'escolhas': {
         'usuario_mv': 'RH000938', 'fornecedor': {'cd_fornecedor': 3373, 'nm_fornecedor': 'HAPVIDA'},
         'oficina': {'cd_oficina': 22, 'ds_oficina': 'CENTRAL DE RECEBIMENTO FISCAL', 'cd_setor': 68},
@@ -516,3 +517,84 @@ class SimulacaoImportacaoTests(TestCase):
         response = self.client.get(self.URL + '&simular=1')
 
         self.assertContains(response, 'Não foi possível simular a importação')
+
+
+class ImportacaoMvTests(TestCase):
+    URL = '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta&nota=63554067000198-93125822'
+
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token'
+        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'usuario',
+                               'telas_permitidas': ['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras']}
+        session.save()
+        vinculo = patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+        vinculo.start()
+        self.addCleanup(vinculo.stop)
+
+    def _api_get(self, path, params=None):
+        return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+
+    def _post(self, **extra):
+        dados = {'acao': 'importar_mv', 'cnpj': '63554067000198', 'numero': '93125822',
+                 'assinatura': '60f46a25dfb4a358498c', 'conferido': '1', 'situacao': 'pronta',
+                 'nota': '63554067000198-93125822', **extra}
+        return self.client.post('/financeiro/contas-a-pagar/nfse-do-setor/', dados, follow=True)
+
+    @patch('core.views.api_post', return_value=SIMULACAO)
+    @patch('core.views.api_get')
+    def test_botao_importar_aparece_so_quando_apta(self, api_get, api_post):
+        api_get.side_effect = self._api_get
+        response = self.client.get(self.URL + '&simular=1')
+        self.assertContains(response, 'Importar no MV')
+        self.assertContains(response, 'name="assinatura" value="60f46a25dfb4a358498c"', html=False)
+
+        api_post.return_value = {**SIMULACAO, 'apta': False, 'pendencias': [{'codigo': 'x', 'mensagem': 'y'}]}
+        response = self.client.get(self.URL + '&simular=1')
+        self.assertNotContains(response, 'Importar no MV')
+
+    @patch('core.views.api_post', return_value={**SIMULACAO, 'gravacao_habilitada': False})
+    @patch('core.views.api_get')
+    def test_gravacao_desligada(self, api_get, api_post):
+        api_get.side_effect = self._api_get
+        response = self.client.get(self.URL + '&simular=1')
+        self.assertNotContains(response, 'Importar no MV')
+        self.assertContains(response, 'A gravação no MV está desligada')
+
+    @patch('core.views.api_post', return_value={**SIMULACAO, 'apta': False, 'importacao_registrada': {
+        'status': 'importada', 'cd_usuario_mv': 'RH000938', 'cd_ent_serv': 12500, 'cd_con_pag': 108700,
+        'concluido_em': '2026-11-18T14:10:00+00:00', 'iniciado_em': '2026-11-18T14:09:58+00:00'}})
+    @patch('core.views.api_get')
+    def test_mostra_importacao_ja_feita(self, api_get, api_post):
+        api_get.side_effect = self._api_get
+        response = self.client.get(self.URL + '&simular=1')
+        self.assertContains(response, 'Já importada no MV')
+        self.assertContains(response, 'título 108700')
+
+    @patch('core.views.api_post', return_value={'importada': True, 'cd_usuario_mv': 'RH000938',
+                                                'cd_ent_serv': 12500, 'cd_con_pag': 108700})
+    @patch('core.views.api_get')
+    def test_importa_com_a_assinatura_conferida(self, api_get, api_post):
+        api_get.side_effect = self._api_get
+        response = self._post()
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/63554067000198/93125822/importacao',
+            {'assinatura': '60f46a25dfb4a358498c'})
+        self.assertContains(response, 'importada no MV por RH000938')
+        self.assertContains(response, 'título 108700')
+
+    @patch('core.views.api_post')
+    @patch('core.views.api_get')
+    def test_sem_confirmar_nao_importa(self, api_get, api_post):
+        api_get.side_effect = self._api_get
+        response = self._post(conferido='')
+        api_post.assert_not_called()
+        self.assertContains(response, 'Confirme que conferiu')
+
+    @patch('core.views.api_post', side_effect=ApiError('O MV recusou a importação; nada foi gravado. ORA-20007: x', status_code=422))
+    @patch('core.views.api_get')
+    def test_recusa_do_mv_vira_mensagem(self, api_get, api_post):
+        api_get.side_effect = self._api_get
+        response = self._post()
+        self.assertContains(response, 'A NFS-e não foi importada')
+        self.assertContains(response, 'ORA-20007')
