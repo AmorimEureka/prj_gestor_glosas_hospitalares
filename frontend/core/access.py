@@ -188,6 +188,7 @@ ROUTE_PERMISSIONS = {
     "contas_pagar_gestao": "contas_pagar_gestao",
     "contas_pagar_nfse_setor": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
     "contas_pagar_nfse_regras": "contas_pagar_nfse_regras",
+    "contas_pagar_conferencia": "contas_pagar_nfse_regras",
     "contas_pagar_boleto_pdf": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
     "contas_pagar_nfse_ver": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
     "contas_pagar_nfse_xml": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
