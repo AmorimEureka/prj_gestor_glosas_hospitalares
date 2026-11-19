@@ -67,6 +67,7 @@ class ConferenciaTests(TestCase):
         self.assertContains(response, '?situacao=pronta&nota=41644220000135-5744268&simular=1#simulacao', html=False)
         self.assertContains(response, 'Desfazer importação')
         self.assertContains(response, 'boletos enviados hoje vencem a partir de 24/11/2026')
+        self.assertContains(response, 'nfse-do-setor/?cadastrar=1#cadastro', html=False)
         self.assertContains(response, '6. Conferência do financeiro')
         conteudo = response.content.decode()
         self.assertLess(conteudo.index('5744268'), conteudo.index('93125822'))  # mantém a ordem por vencimento
