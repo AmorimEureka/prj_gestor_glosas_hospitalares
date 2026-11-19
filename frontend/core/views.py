@@ -9613,6 +9613,140 @@ def _cp_formatar_simulacao(resultado):
     return resultado
 
 
+CP_NFSE_MANUAL_ACOES = {"ler_nfse_pdf", "confirmar_nfse_pdf", "descartar_nfse_pdf", "excluir_nfse_pdf"}
+CP_NFSE_MANUAL_FORM_KEY = "cp_nfse_manual_form"
+CP_NFSE_MANUAL_GRUPOS = (
+    ("Nota", (
+        ("numero_nfse", "Número da NFS-e", "text"), ("data_emissao", "Emissão", "datetime-local"),
+        ("competencia_nfse", "Competência", "date"), ("chave_acesso", "Chave de acesso", "text"),
+    )),
+    ("Prestador (fornecedor)", (
+        ("prestador_cnpj", "CNPJ", "text"), ("prestador_razao_social", "Razão social", "text"),
+        ("prestador_municipio", "Município/UF", "text"), ("prestador_inscricao_municipal", "Inscrição municipal", "text"),
+    )),
+    ("Tomador", (
+        ("tomador_cnpj", "CNPJ do tomador", "text"), ("tomador_razao_social", "Razão social", "text"),
+    )),
+    ("Valores e retenções", (
+        ("valor_servicos", "Valor do serviço", "money"), ("desconto_incondicionado", "Desconto incondicionado", "money"),
+        ("desconto_condicionado", "Desconto condicionado", "money"), ("iss_retido", "ISS retido pelo tomador", "bool"),
+        ("valor_iss", "ISS", "money"), ("aliquota", "Alíquota do ISS (%)", "text"), ("valor_ir", "IRRF retido", "money"),
+        ("valor_csll", "CSRF retida (PIS/COFINS/CSLL)", "money"), ("valor_inss", "INSS retido", "money"),
+        ("outras_retencoes", "Outras retenções", "money"), ("valor_liquido_nfse", "Valor líquido", "money"),
+    )),
+)
+CP_NFSE_MANUAL_CAMPOS = [c for _, campos in CP_NFSE_MANUAL_GRUPOS for c, _, _ in campos] + ["discriminacao", "codigo_tributacao", "codigo_municipio_servico"]
+
+
+def _cp_erros_api(exc):
+    """Lista de erros de validação do cadastro (detail.erros) ou a mensagem da API."""
+    try:
+        detalhe = json.loads(str(exc)).get("detail")
+    except (ValueError, AttributeError):
+        detalhe = None
+    if isinstance(detalhe, dict) and isinstance(detalhe.get("erros"), list):
+        return detalhe["erros"]
+    return [extract_api_error_message(exc)]
+
+
+def _cp_valor_form(campo, valor):
+    """Valor lido da API -> valor do input (datas no formato do HTML, dinheiro com vírgula)."""
+    if valor in (None, ""):
+        return ""
+    texto = str(valor)
+    if campo == "data_emissao":
+        return texto[:16]
+    if campo == "competencia_nfse":
+        return texto[:10]
+    if campo.startswith(("valor_", "desconto_", "outras_")):
+        try:
+            return f"{Decimal(texto):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        except InvalidOperation:
+            return texto
+    return texto
+
+
+def _cp_nfse_manual_post(request, acao):
+    destino = reverse("contas_pagar_nfse_setor")
+    manual_id = as_int_or_none(request.POST.get("manual_id"))
+    if acao == "ler_nfse_pdf":
+        arquivo = request.FILES.get("arquivo_nfse")
+        if arquivo is None:
+            messages.error(request, "Selecione o PDF da NFS-e.")
+            return f"{destino}?cadastrar=1"
+        if arquivo.size > 10 * 1024 * 1024:
+            messages.error(request, "O PDF da NFS-e deve ter até 10 MB.")
+            return f"{destino}?cadastrar=1"
+        try:
+            resultado = api_post_files(f"{CP_NFSE_PATH}/recebidas/manual/leitura",
+                                       {"arquivo": (arquivo.name, arquivo.read(), "application/pdf")}, {})
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível ler o PDF: {extract_api_error_message(exc)}")
+            return f"{destino}?cadastrar=1"
+        if resultado.get("reconhecido"):
+            messages.success(request, "PDF lido. Confira os dados antes de confirmar.")
+        return f"{destino}?conferir={resultado['id']}#cadastro"
+    if not manual_id:
+        messages.error(request, "Cadastro inválido.")
+        return destino
+    if acao == "descartar_nfse_pdf":
+        api_delete(f"{CP_NFSE_PATH}/recebidas/manual/{manual_id}")
+        messages.success(request, "Cadastro descartado.")
+        return destino
+    if acao == "excluir_nfse_pdf":
+        motivo = " ".join((request.POST.get("motivo") or "").split())
+        if len(motivo) < 5:
+            messages.error(request, "Informe o motivo para excluir o cadastro.")
+            return None
+        api_post(f"{CP_NFSE_PATH}/recebidas/manual/{manual_id}/excluir", {"motivo": motivo[:300]})
+        messages.success(request, "Cadastro da NFS-e excluído. Ela saiu da fila.")
+        return None
+    dados = {c: (request.POST.get(c) or "").strip() for c in CP_NFSE_MANUAL_CAMPOS}
+    dados["iss_retido"] = "1" if request.POST.get("iss_retido") == "1" else "2"
+    try:
+        resultado = api_post(f"{CP_NFSE_PATH}/recebidas/manual/{manual_id}/confirmar", {"dados": dados})
+    except ApiError as exc:
+        request.session[CP_NFSE_MANUAL_FORM_KEY] = {"id": manual_id, "dados": dados}
+        for erro in _cp_erros_api(exc):
+            messages.error(request, erro)
+        return f"{destino}?conferir={manual_id}#cadastro"
+    request.session.pop(CP_NFSE_MANUAL_FORM_KEY, None)
+    chave = resultado.get("chave")
+    messages.success(request, f"NFS-e {resultado.get('numero_nfse')} cadastrada. Anexe o boleto para enviar ao financeiro.")
+    return f"{destino}?{urlencode({'situacao': 'todas', 'nota': chave})}#nota-{chave}"
+
+
+def _cp_nfse_manual_contexto(request):
+    """Card de cadastro (envio do PDF) ou de conferência do rascunho."""
+    if request.GET.get("cadastrar") == "1":
+        return {"etapa": "envio"}
+    manual_id = as_int_or_none(request.GET.get("conferir"))
+    if not manual_id:
+        return None
+    try:
+        rascunho = api_get(f"{CP_NFSE_PATH}/recebidas/manual/{manual_id}")
+    except ApiError as exc:
+        messages.error(request, f"Não foi possível abrir o cadastro: {extract_api_error_message(exc)}")
+        return None
+    if rascunho.get("status") != "rascunho":
+        return None
+    lidos = rascunho.get("dados") or {}
+    salvo = request.session.get(CP_NFSE_MANUAL_FORM_KEY) or {}
+    editados = salvo.get("dados") if salvo.get("id") == manual_id else None
+    grupos = []
+    for titulo, campos in CP_NFSE_MANUAL_GRUPOS:
+        itens = []
+        for campo, rotulo, tipo in campos:
+            valor = editados.get(campo) if editados is not None else _cp_valor_form(campo, lidos.get(campo))
+            itens.append({"campo": campo, "rotulo": rotulo, "tipo": tipo, "valor": valor or ""})
+        grupos.append({"titulo": titulo, "itens": itens})
+    servico = {c: (editados.get(c) if editados is not None else lidos.get(c)) or "" for c in ("discriminacao", "codigo_tributacao", "codigo_municipio_servico")}
+    return {"etapa": "conferencia", "id": manual_id, "reconhecido": rascunho.get("reconhecido"), "avisos": rascunho.get("avisos") or [],
+            "grupos": grupos, "servico": servico, "nome_arquivo": rascunho.get("nome_arquivo"),
+            "municipio_emissor": (rascunho.get("informativos") or {}).get("municipio_emissor"),
+            "iss_retido": (editados or lidos).get("iss_retido") in ("1", 1)}
+
+
 def _contas_pagar_nfse_setor_post(request):
     acao = request.POST.get("acao")
     cnpj = re.sub(r"\D", "", request.POST.get("cnpj") or "")
@@ -9666,8 +9800,11 @@ def _contas_pagar_nfse_setor_post(request):
             return
         api_delete(f"{CP_NFSE_PATH}/boletos/{boleto_id}")
         messages.success(request, "Boleto excluído.")
+    elif acao in CP_NFSE_MANUAL_ACOES:
+        return _cp_nfse_manual_post(request, acao)
     else:
         messages.error(request, "Ação inválida.")
+    return None
 
 
 @require_http_methods(["GET", "POST"])
@@ -9675,9 +9812,13 @@ def contas_pagar_nfse_setor(request):
     """NFS-e recebidas pelas oficinas do usuário que ainda não foram lançadas no MV."""
     if request.method == "POST":
         try:
-            _contas_pagar_nfse_setor_post(request)
+            destino_especifico = _contas_pagar_nfse_setor_post(request)
         except ApiError as exc:
-            messages.error(request, f"Não foi possível salvar o boleto: {extract_api_error_message(exc)}")
+            destino_especifico = None
+            alvo = "o boleto" if request.POST.get("acao") in ("anexar_boleto", "excluir_boleto") else "a alteração"
+            messages.error(request, f"Não foi possível salvar {alvo}: {extract_api_error_message(exc)}")
+        if destino_especifico:
+            return redirect(destino_especifico)
         retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_oficina", "desde", "page", "nota"} and v}
         destino = reverse("contas_pagar_nfse_setor")
         return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
@@ -9763,6 +9904,7 @@ def contas_pagar_nfse_setor(request):
             },
             "pode_classificar": pode_classificar,
             "nota_aberta": nota_aberta,
+            "cadastro_pdf": _cp_nfse_manual_contexto(request),
             "nota_aberta_na_pagina": bool(nota_aberta) and any(i.get("chave") == nota_aberta.get("chave") for i in itens_pagina),
             "simulacao": simulacao,
             "mv_vinculo": _mv_vinculo(),

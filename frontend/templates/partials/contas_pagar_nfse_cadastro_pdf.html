@@ -1,0 +1,80 @@
+{% load core_extras %}
+<article id="cadastro" class="follow-up-glosa-card cf-card is-aberta ns-card--cadastro" x-data x-init="$nextTick(() => $el.scrollIntoView({ block: 'start' }))">
+  <div class="follow-up-glosa-card-header-row">
+    <div class="follow-up-glosa-card-header ns-card-header--avulsa">
+      <span class="follow-up-glosa-card-field"><small>AÇÃO</small><strong>Cadastrar NFS-e de outro município</strong></span>
+      <span class="follow-up-glosa-card-field"><small>ETAPA</small><strong>{% if cadastro_pdf.etapa == 'envio' %}1 de 2 · Enviar o PDF{% else %}2 de 2 · Conferir os dados{% endif %}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>{% if cadastro_pdf.etapa == 'envio' %}FORMATO{% else %}ARQUIVO{% endif %}</small><strong>{% if cadastro_pdf.etapa == 'envio' %}PDF da NFS-e (DANFSe do padrão nacional){% else %}{{ cadastro_pdf.nome_arquivo }}{% if cadastro_pdf.municipio_emissor %} · {{ cadastro_pdf.municipio_emissor }}{% endif %}{% endif %}</strong></span>
+    </div>
+    <span class="follow-up-glosa-pdf-slot"><a class="follow-up-glosa-pdf-action" href="{% url 'contas_pagar_nfse_setor' %}" aria-label="Fechar">Fechar</a></span>
+  </div>
+  <div class="follow-up-glosa-card-body">
+    <div class="follow-up-glosa-card-content">
+      {% if cadastro_pdf.etapa == 'envio' %}
+      <section class="account-group-section">
+        <header class="account-group-header"><span class="account-group-title">PDF da NFS-e</span>
+          <span class="ns-resumo-boletos">notas do ISS Fortaleza chegam sozinhas; use para notas de outros municípios</span></header>
+        <form method="post" enctype="multipart/form-data" class="remessa-filters ns-anexar">{% csrf_token %}
+          <input type="hidden" name="acao" value="ler_nfse_pdf">
+          <div class="filter-row">
+            <div class="filter-group ns-just"><label for="ns-arquivo-nfse">Arquivo PDF</label><input id="ns-arquivo-nfse" class="form-control" type="file" name="arquivo_nfse" accept="application/pdf" required></div>
+            <div class="filter-actions"><button class="btn btn-primary" type="submit">Ler PDF</button></div>
+          </div>
+          <p class="ns-regra">O Receita Certa lê os dados da nota (prestador, tomador, valores e retenções) e mostra para você conferir antes de entrar na fila.</p>
+        </form>
+      </section>
+      {% else %}
+      {% if not cadastro_pdf.reconhecido %}
+      <div class="cf-mensagem cf-mensagem--atencao"><strong>O PDF não está no padrão nacional.</strong> Preencha os dados conforme a nota.</div>
+      {% endif %}
+      {% if cadastro_pdf.avisos %}
+      <div class="cf-mensagem cf-mensagem--atencao"><strong>Confira:</strong><ul>{% for a in cadastro_pdf.avisos %}<li>{{ a }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      <form method="post" class="ns-conferencia" x-data="{ issRetido: {% if cadastro_pdf.iss_retido %}true{% else %}false{% endif %} }">{% csrf_token %}
+        <input type="hidden" name="acao" value="confirmar_nfse_pdf"><input type="hidden" name="manual_id" value="{{ cadastro_pdf.id }}">
+        {% for grupo in cadastro_pdf.grupos %}
+        <section class="account-group-section">
+          <header class="account-group-header"><span class="account-group-title">{{ grupo.titulo }}</span></header>
+          <div class="ns-campos-form">
+            {% for c in grupo.itens %}
+            <div class="filter-group{% if c.campo == 'chave_acesso' or c.campo == 'prestador_razao_social' or c.campo == 'tomador_razao_social' %} ns-campo-largo{% endif %}">
+              <label for="ns-{{ c.campo }}">{{ c.rotulo }}</label>
+              {% if c.tipo == 'bool' %}
+              <label class="form-check ns-check"><input id="ns-{{ c.campo }}" class="form-check-input" type="checkbox" name="{{ c.campo }}" value="1" x-model="issRetido"> <span class="form-check-label">Sim, o hospital retém o ISS</span></label>
+              {% elif c.tipo == 'money' %}
+              <input id="ns-{{ c.campo }}" class="form-control ns-dinheiro" name="{{ c.campo }}" value="{{ c.valor }}" inputmode="decimal" placeholder="0,00">
+              {% elif c.tipo == 'datetime-local' %}
+              <input id="ns-{{ c.campo }}" class="form-control" type="datetime-local" name="{{ c.campo }}" value="{{ c.valor }}">
+              {% elif c.tipo == 'date' %}
+              <input id="ns-{{ c.campo }}" class="form-control" type="date" name="{{ c.campo }}" value="{{ c.valor }}">
+              {% else %}
+              <input id="ns-{{ c.campo }}" class="form-control" name="{{ c.campo }}" value="{{ c.valor }}">
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+        {% endfor %}
+        <section class="account-group-section">
+          <header class="account-group-header"><span class="account-group-title">Serviço</span></header>
+          <div class="ns-campos-form">
+            <div class="filter-group ns-campo-total"><label for="ns-discriminacao">Descrição do serviço</label><textarea id="ns-discriminacao" class="form-control" name="discriminacao" rows="2">{{ cadastro_pdf.servico.discriminacao }}</textarea></div>
+            <div class="filter-group"><label for="ns-codigo_tributacao">Código de tributação</label><input id="ns-codigo_tributacao" class="form-control" name="codigo_tributacao" value="{{ cadastro_pdf.servico.codigo_tributacao }}"></div>
+            <div class="filter-group"><label for="ns-codigo_municipio_servico">Local da prestação</label><input id="ns-codigo_municipio_servico" class="form-control" name="codigo_municipio_servico" value="{{ cadastro_pdf.servico.codigo_municipio_servico }}"></div>
+          </div>
+        </section>
+        <div class="follow-up-batch-toolbar cf-acoes">
+          <span>Ao confirmar, a nota entra na fila do setor do fornecedor. Depois é só anexar o boleto.</span>
+          <div>
+            <button class="collapse-action" type="submit" form="ns-descartar">Descartar</button>
+            <button class="btn-acatar cf-botao" type="submit">Confirmar cadastro</button>
+          </div>
+        </div>
+      </form>
+      <form id="ns-descartar" method="post" onsubmit="return confirm('Descartar este cadastro?')">{% csrf_token %}
+        <input type="hidden" name="acao" value="descartar_nfse_pdf"><input type="hidden" name="manual_id" value="{{ cadastro_pdf.id }}">
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</article>

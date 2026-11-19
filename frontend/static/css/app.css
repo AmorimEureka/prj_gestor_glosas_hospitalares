@@ -15744,7 +15744,8 @@ a.collapse-action { text-decoration: none; }
   grid-template-columns: 18px minmax(84px, 0.6fr) minmax(80px, 0.6fr) minmax(170px, 1.9fr) minmax(130px, 1.2fr)
     minmax(90px, 0.7fr) minmax(150px, 1.3fr) minmax(96px, 0.8fr) minmax(104px, 0.85fr);
 }
-.ns-card-header--avulsa { grid-template-columns: minmax(90px, 0.6fr) minmax(200px, 2fr) minmax(200px, 1.5fr); cursor: default; }
+.ns-card-header--avulsa { grid-template-columns: minmax(150px, 0.8fr) minmax(200px, 1.6fr) minmax(200px, 1.6fr); cursor: default; }
+.ns-card--cadastro .ns-card-header--avulsa { grid-template-columns: minmax(260px, 1.2fr) minmax(170px, 0.8fr) minmax(220px, 1.6fr); }
 .ns-card--pendente .follow-up-glosa-card-header { border-left-color: #2d7790; }
 .ns-card--pronta .follow-up-glosa-card-header { border-left-color: #2f8a5f; }
 .ns-card--divergencia .follow-up-glosa-card-header { border-left-color: #b24d32; }
@@ -15783,3 +15784,14 @@ a.collapse-action { text-decoration: none; }
 .ns-imp .cp-imp__tabela { padding: 6px 10px; }
 .ns-imp .cp-imp__ordem { width: 1.3rem; height: 1.3rem; font-size: 11px; }
 .ns-imp .cp-imp__escolhas { font-size: 12px; }
+/* NFS-e do setor · cadastro de NFS-e de outro município (PDF) */
+.ns-card--cadastro .follow-up-glosa-card-header { border-left-color: #17647d; background: #f2f8fa; }
+.ns-campos-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; padding: 12px 14px; }
+.ns-campos-form .ns-campo-largo { grid-column: span 2; }
+.ns-campos-form .ns-campo-total { grid-column: 1 / -1; }
+.ns-campos-form .ns-dinheiro { text-align: right; font-variant-numeric: tabular-nums; }
+.ns-campos-form input[name="chave_acesso"] { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.ns-check { margin: 6px 0 0; font-size: 12px; }
+.ns-conferencia { display: grid; gap: 10px; }
+.ns-excluir-cadastro > div { align-items: center; }
+.ns-excluir-cadastro .form-control-sm { width: 220px; font-size: 12px; }
