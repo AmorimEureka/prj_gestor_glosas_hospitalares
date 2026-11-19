@@ -10026,6 +10026,8 @@ def contas_pagar_conferencia(request):
             messages.error(request, f"Não foi possível preparar o desfazer: {extract_api_error_message(exc)}")
 
     resumo = payload.get("resumo") or {}
+    totais = {e: {"quantidade": (resumo.get(e) or {}).get("quantidade", 0),
+                  "valor_liquido": (resumo.get(e) or {}).get("valor_liquido", 0)} for e in CP_CONF_ROTULOS if e != "todas"}
     cartoes = [
         {"etapa": e, "rotulo": rotulo, **(resumo.get(e) or {"quantidade": 0, "valor_liquido": 0})}
         for e, rotulo in CP_CONF_ETAPAS if e != "todas"
@@ -10034,6 +10036,7 @@ def contas_pagar_conferencia(request):
         "filtros": filtros,
         "etapas": CP_CONF_ETAPAS,
         "cartoes": cartoes,
+        "totais": totais,
         "fora_do_prazo": payload.get("fora_do_prazo") or 0,
         "prazo_minimo_hoje": payload.get("prazo_minimo_hoje"),
         "desde": payload.get("desde"),
