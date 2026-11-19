@@ -118,6 +118,7 @@
       </div>
       <div class="collapse-actions cf-cabecalho-acoes">
         {% include "partials/mv_login_status.html" %}
+        <a class="btn-acatar cf-botao" href="{% url 'contas_pagar_nfse_setor' %}?cadastrar=1#cadastro" title="Notas que não vêm do ISS Fortaleza: envie o PDF da NFS-e">Cadastrar NFS-e de outro município</a>
         {% if itens %}
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-expandir'))">Expandir</button>
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-colapsar'))">Colapsar todos</button>
