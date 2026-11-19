@@ -1,0 +1,164 @@
+{% load core_extras %}
+<section class="account-group-section" id="boletos">
+  <header class="account-group-header">
+    <span class="account-group-title">Boletos</span>
+    <span class="ns-resumo-boletos">soma R$ {{ nota_aberta.resumo.soma|br_currency }} · líquido da nota R$ {{ nota_aberta.resumo.valor_liquido|br_currency }}</span>
+    {% if nota_aberta.resumo.pronta %}<strong class="account-group-count ns-count--ok">Pronta para o financeiro</strong>
+    {% elif nota_aberta.resumo.com_divergencia %}<strong class="account-group-count ns-count--erro">Boleto com divergência</strong>
+    {% else %}<strong class="account-group-count">{{ nota_aberta.resumo.quantidade }} boleto{{ nota_aberta.resumo.quantidade|pluralize }}</strong>{% endif %}
+  </header>
+  {% if nota_aberta.boletos %}
+  <div class="table-responsive detail-table-wrap account-group-table-wrap">
+    <table class="table align-middle account-table cf-boletos ns-boletos">
+      <colgroup><col class="cf-col-data"><col class="cf-col-valor"><col class="cf-col-banco"><col class="cf-col-linha"><col class="ns-col-conf"><col class="ns-col-acoes"></colgroup>
+      <thead><tr><th>VENCIMENTO</th><th>VALOR</th><th>BANCO</th><th class="col-desc">LINHA DIGITÁVEL</th><th class="col-desc">CONFERÊNCIA</th><th></th></tr></thead>
+      <tbody>
+        {% for boleto in nota_aberta.boletos %}
+        <tr class="item-row">
+          <td>{{ boleto.vencimento|api_date }}</td>
+          <td class="cf-direita">R$ {{ boleto.valor|br_currency }}</td>
+          <td>{{ boleto.banco|default:'Arrec.' }}</td>
+          <td class="col-desc"><span class="cf-mono">{{ boleto.linha_digitavel }}</span>{% if boleto.origem_leitura == 'manual' %}<span class="cf-sub">digitada</span>{% endif %}</td>
+          <td class="col-desc">
+            {% for d in boleto.divergencias %}<span class="cf-sub cf-erro">{{ d }}</span>{% empty %}<span class="cf-ok">Confere com a NFS-e</span>{% endfor %}
+            {% if boleto.fora_do_prazo %}<span class="cf-sub cf-prazo--fora">Fora do prazo de 3 dias úteis · prazo era {{ boleto.prazo_minimo|api_date }}{% if boleto.enviado_por_nome %} · enviado por {{ boleto.enviado_por_nome }}{% endif %}</span><span class="cf-sub">Justificativa: {{ boleto.justificativa_atraso }}</span>{% endif %}
+          </td>
+          <td class="ns-acoes-boleto">
+            <a class="cf-link" href="{% url 'contas_pagar_boleto_pdf' boleto.id %}" target="_blank" rel="noopener">PDF</a>
+            <form method="post" class="d-inline">{% csrf_token %}
+              <input type="hidden" name="acao" value="excluir_boleto"><input type="hidden" name="boleto_id" value="{{ boleto.id }}">
+              <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+              {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+              {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+              <input type="hidden" name="page" value="{{ pagination.page }}">
+              <button class="btn-glosar ns-excluir" type="submit" onclick="return confirm('Excluir este boleto?')">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="cf-vazio">Nenhum boleto anexado ainda.</p>{% endif %}
+</section>
+
+<section class="account-group-section">
+  <header class="account-group-header"><span class="account-group-title">Anexar boleto</span>
+    {% if nota_aberta.prazo_minimo_hoje %}<span class="ns-resumo-boletos">enviando agora, vencimentos a partir de {{ nota_aberta.prazo_minimo_hoje|api_date }} não precisam de justificativa</span>{% endif %}
+  </header>
+  <form method="post" enctype="multipart/form-data" class="remessa-filters ns-anexar">{% csrf_token %}
+    <input type="hidden" name="acao" value="anexar_boleto">
+    <input type="hidden" name="cnpj" value="{{ nota_aberta.nota.prestador_cnpj }}"><input type="hidden" name="numero" value="{{ nota_aberta.nota.numero_nfse }}">
+    <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+    {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+    {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+    <input type="hidden" name="page" value="{{ pagination.page }}">
+    <div class="filter-row">
+      <div class="filter-group"><label for="ns-arquivo">PDF do boleto</label><input id="ns-arquivo" class="form-control" type="file" name="arquivo" accept="application/pdf" required></div>
+      <div class="filter-group"><label for="ns-linha" title="Preencha só se o PDF for imagem (escaneado)">Linha digitável (PDF escaneado)</label><input id="ns-linha" class="form-control" name="linha_digitavel" maxlength="60" inputmode="numeric" placeholder="Opcional"></div>
+      <div class="filter-group filter-group--sm ns-venc"><label for="ns-venc" title="Para contas de consumo sem vencimento na linha digitável">Vencimento</label><input id="ns-venc" class="form-control" type="date" name="vencimento"></div>
+      <div class="filter-group ns-just"><label for="ns-just" title="Obrigatória se o boleto vencer antes do prazo de 3 dias úteis">Justificativa do atraso</label><input id="ns-just" class="form-control" name="justificativa_atraso" maxlength="400" placeholder="Ex.: o fornecedor só enviou o boleto hoje"></div>
+      <div class="filter-actions"><button class="btn btn-primary" type="submit">Anexar boleto</button></div>
+    </div>
+    <p class="ns-regra">Regra do financeiro: o boleto deve vencer pelo menos 3 dias úteis depois do envio.</p>
+  </form>
+</section>
+
+{% if pode_classificar %}
+<section class="account-group-section" id="simulacao">
+  <header class="account-group-header">
+    <span class="account-group-title">Importação para o MV</span>
+    <span class="ns-resumo-boletos">simulação: mostra o que seria gravado e o que impede · nada é gravado</span>
+  </header>
+  <div class="cp-imp ns-imp">
+    <div class="cp-imp__head">
+      {% if mv_vinculo.pode_gravar_no_mv %}
+      <a class="{% if simulacao %}collapse-action{% else %}btn-acatar cf-botao{% endif %}" href="?{% querystring simular='1' %}#simulacao">{% if simulacao %}Simular de novo{% else %}Simular importação no MV{% endif %}</a>
+      {% else %}
+      <span class="cp-nfse-muted">Entre com o seu login MV (no alto da lista) para simular.</span>
+      {% endif %}
+    </div>
+
+    {% if simulacao %}
+    <div class="cp-imp__status {% if simulacao.apta %}is-apta{% else %}is-bloqueada{% endif %}">
+      {% if simulacao.apta %}
+      <strong>Apta para importar.</strong> Todas as validações da importação do MV passaram.
+      {% else %}
+      <strong>Não pode ser importada ainda.</strong> Resolva {{ simulacao.pendencias|length }} pendência{{ simulacao.pendencias|length|pluralize }}:
+      <ul>{% for p in simulacao.pendencias %}<li>{% if p.codigo|slice:":1" == "-" %}<code>{{ p.codigo }}</code> {% endif %}{{ p.mensagem }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+    {% for aviso in simulacao.avisos %}<div class="cp-imp__aviso">{{ aviso }}</div>{% endfor %}
+    {% with reg=simulacao.importacao_registrada %}{% if reg %}
+    <div class="cp-imp__registro {% if reg.status == 'importada' %}is-ok{% elif reg.status == 'erro' %}is-erro{% endif %}">
+      {% if reg.status == 'importada' %}<strong>Já importada no MV</strong> por {{ reg.cd_usuario_mv }} em {{ reg.concluido_em|api_datetime }}: entrada {{ reg.cd_ent_serv }}, título {{ reg.cd_con_pag }}.
+      {% elif reg.status == 'erro' %}<strong>A última tentativa de importação falhou</strong> ({{ reg.cd_usuario_mv }}, {{ reg.concluido_em|api_datetime }}). Nada foi gravado no MV. {{ reg.erro }}
+      {% elif reg.status == 'desfeita' %}<strong>Importação desfeita</strong> por {{ reg.cd_usuario_mv_desfazer }} em {{ reg.desfeita_em|api_datetime }}{% if reg.motivo_desfazer %}: “{{ reg.motivo_desfazer }}”{% endif %}.
+      {% else %}<strong>Importação em andamento</strong> por {{ reg.cd_usuario_mv }} desde {{ reg.iniciado_em|api_datetime }}.{% endif %}
+    </div>
+    {% endif %}{% endwith %}
+
+    {% with e=simulacao.escolhas %}
+    <div class="cf-campos ns-escolhas">
+      <span class="follow-up-glosa-card-field"><small>USUÁRIO MV</small><strong>{{ e.usuario_mv|default:'—' }}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong>{% if e.fornecedor %}{{ e.fornecedor.cd_fornecedor }} · {{ e.fornecedor.nm_fornecedor }}{% else %}—{% endif %}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>OFICINA / SETOR</small><strong>{% if e.oficina %}{{ e.oficina.cd_oficina }} · {{ e.oficina.ds_oficina }} (setor {{ e.oficina.cd_setor|default:'—' }}){% else %}—{% endif %}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>SERVIÇO</small><strong>{% if e.servico %}{{ e.servico.cd_servico }} · {{ e.servico.nm_servico }}{% else %}—{% endif %}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>CONTA DO FORNECEDOR</small><strong>{{ e.conta_fornecedor.cd_reduzido|default:'—' }}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>MODELO USADO</small><strong>{% if e.modelo %}entrada {{ e.modelo.cd_ent_serv }} (NF {{ e.modelo.nr_documento }}, {{ e.modelo.cd_usuario }}){% else %}sem lançamento anterior{% endif %}</strong></span>
+    </div>
+    {% endwith %}
+
+    {% if simulacao.apta and simulacao.assinatura %}
+    {% if simulacao.gravacao_habilitada %}
+    <form method="post" class="follow-up-batch-toolbar cp-imp__importar" onsubmit="return confirm('Gravar esta NFS-e no MV de produção com o seu login MV ({{ simulacao.escolhas.usuario_mv }})? A entrada de serviço e o título no Contas a Pagar serão criados agora.')">{% csrf_token %}
+      <input type="hidden" name="acao" value="importar_mv"><input type="hidden" name="assinatura" value="{{ simulacao.assinatura }}">
+      <input type="hidden" name="cnpj" value="{{ nota_aberta.nota.prestador_cnpj }}"><input type="hidden" name="numero" value="{{ nota_aberta.nota.numero_nfse }}">
+      <input type="hidden" name="situacao" value="{{ filtros.situacao }}"><input type="hidden" name="nota" value="{{ nota_aberta.chave }}">
+      {% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+      {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+      <label class="form-check"><input class="form-check-input" type="checkbox" name="conferido" value="1" required> <span class="form-check-label">Conferi fornecedor, oficina, serviço, valores e parcelas abaixo.</span></label>
+      <div><button class="btn-acatar cf-botao" type="submit">Importar no MV</button></div>
+    </form>
+    <p class="ns-regra">Grava com o seu login MV, numa transação única: se o MV recusar, nada é gravado.</p>
+    {% else %}
+    <div class="cp-imp__aviso">A gravação no MV está desligada no servidor.</div>
+    {% endif %}
+    {% endif %}
+
+    {% if simulacao.gravacoes %}
+    <div class="cp-imp__gravacoes">
+      {% for g in simulacao.gravacoes %}
+      <details class="cp-imp__tabela">
+        <summary><span class="cp-imp__ordem">{{ g.ordem }}</span> <code>{{ g.operacao }} {{ g.tabela }}</code> <small>{{ g.linhas|length }} campo{{ g.linhas|length|pluralize }}</small></summary>
+        {% if g.observacao %}<p class="cp-nfse-muted">{{ g.observacao }}</p>{% endif %}
+        <table class="table table-sm cp-imp__campos">
+          <thead><tr><th>Campo</th><th>Valor</th><th>Origem</th></tr></thead>
+          <tbody>{% for l in g.linhas %}<tr><td><code>{{ l.campo }}</code></td><td>{{ l.valor }}</td><td class="cp-nfse-muted">{{ l.origem }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </details>
+      {% endfor %}
+      {% with imp=simulacao.importacao %}{% if imp.chamada %}
+      <details class="cp-imp__tabela" open>
+        <summary><span class="cp-imp__ordem">{{ simulacao.gravacoes|length|add:1 }}</span> <code>{{ imp.chamada }}</code> <small>gera o título no Contas a Pagar</small></summary>
+        <p class="cp-nfse-muted">Parâmetros: fornecedor {{ imp.parametros.p_cd_fornecedor }}, documento {{ imp.parametros.p_nr_documento }}, série {{ imp.parametros.p_nr_serie }}, empresa {{ imp.parametros.p_cd_multi_empresa }}.</p>
+        {% with t=imp.titulo_previsto %}
+        <dl class="cp-imp__escolhas">
+          <div><dt>Título</dt><dd>{{ t.tabela }} · tipo {{ t.tp_con_pag }}</dd></div>
+          <div><dt>Valor bruto</dt><dd>{{ t.valor_fmt }}</dd></div>
+          {% if t.impostos %}<div><dt>Líquido a pagar ao fornecedor</dt><dd>{{ t.liquido_fmt }}</dd></div>{% endif %}
+          <div><dt>Conta contábil</dt><dd>{{ t.cd_reduzido|default:'—' }}</dd></div>
+          <div><dt>Setor</dt><dd>{{ t.cd_setor|default:'—' }}</dd></div>
+          <div><dt>Lançado por</dt><dd>{{ t.cd_usuario_ins }}</dd></div>
+          <div><dt>Parcelas</dt><dd>{% for p in t.parcelas %}{{ p.nr_parcela }}ª · {{ p.vencimento_fmt }} · {{ p.valor_fmt }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>
+          {% if t.impostos %}<div><dt>Títulos de imposto (criados pelo MV)</dt><dd>{% for i in t.impostos %}{{ i.nr_documento }} · {{ i.cd_detalhamento }} {{ i.ds_detalhamento }} · {{ i.valor_fmt }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>{% endif %}
+        </dl>
+        {% endwith %}
+      </details>
+      {% endif %}{% endwith %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</section>
+{% endif %}
