@@ -43,10 +43,11 @@
     <div class="results-heading">
       <div>
         <span class="panel-title">NFS-e recebidas</span>
-        <span class="results-subtitle">{% if pagination.total %}{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} nota{{ pagination.total|pluralize }} · {% endif %}emitidas no ISS Fortaleza{% if desde %} desde {{ desde|api_date }}{% endif %} · cada nota aparece para o setor do fornecedor</span>
+        <span class="results-subtitle">{% if pagination.total %}{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} nota{{ pagination.total|pluralize }} · {% endif %}emitidas desde {% if desde %}{{ desde|api_date }}{% endif %} (ISS Fortaleza automático; outros municípios por PDF) · cada nota aparece para o setor do fornecedor</span>
       </div>
       <div class="collapse-actions cf-cabecalho-acoes">
         {% include "partials/mv_login_status.html" %}
+        <a class="btn-acatar cf-botao" href="{% url 'contas_pagar_nfse_setor' %}?cadastrar=1#cadastro" title="Notas que não vêm do ISS Fortaleza: envie o PDF da NFS-e">Cadastrar NFS-e de outro município</a>
         {% if itens %}
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-expandir'))">Expandir</button>
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-colapsar'))">Colapsar todos</button>
@@ -78,8 +79,9 @@
     </div>
   </div>
 
-  {% if itens or nota_aberta %}
+  {% if itens or nota_aberta or cadastro_pdf %}
   <div class="results-list follow-up-glosa-list">
+    {% if cadastro_pdf %}{% include "partials/contas_pagar_nfse_cadastro_pdf.html" %}{% endif %}
     {% if nota_aberta and not nota_aberta_na_pagina %}
     <article id="nota-{{ nota_aberta.chave }}" class="follow-up-glosa-card cf-card is-aberta ns-card--avulsa" x-data x-init="$nextTick(() => $el.scrollIntoView({ block: 'start' }))">
       <div class="follow-up-glosa-card-header-row">
@@ -107,7 +109,7 @@
           <span class="follow-up-glosa-card-field"><small>NFS-E</small><strong>{{ item.numero_nfse }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ item.prestador }}">{{ item.prestador }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{{ item.ds_oficina|default:'' }}">{% if item.ds_oficina %}{{ item.ds_oficina }}{% else %}<span class="ns-sem-setor">Sem setor</span>{% endif %}</strong></span>
-          <span class="follow-up-glosa-card-field"><small>STATUS ISS</small><strong class="{% if item.status_nfse and item.status_nfse != 'NORMAL' %}cf-erro{% elif item.status_nfse %}cf-ok{% else %}ns-neutro{% endif %}">{% if not item.status_nfse %}Não consultado{% else %}{{ item.status_nfse|lower|capfirst }}{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>{% if item.origem_nfse == 'pdf' %}ORIGEM{% else %}STATUS ISS{% endif %}</small><strong class="{% if item.origem_nfse == 'pdf' %}ns-neutro{% elif item.status_nfse and item.status_nfse != 'NORMAL' %}cf-erro{% elif item.status_nfse %}cf-ok{% else %}ns-neutro{% endif %}">{% if item.origem_nfse == 'pdf' %}Cadastrada por PDF{% elif not item.status_nfse %}Não consultado{% else %}{{ item.status_nfse|lower|capfirst }}{% endif %}</strong></span>
           <span class="follow-up-glosa-card-field"><small>SITUAÇÃO</small><strong class="ns-situacao">
             {% if item.situacao == 'lancada' %}Lançada no MV
             {% elif item.situacao == 'cancelada' %}Cancelada no ISS
@@ -131,7 +133,8 @@
               <span class="follow-up-glosa-card-field"><small>CNPJ DO FORNECEDOR</small><strong>{{ item.prestador_cnpj }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>CÓD. VERIFICAÇÃO</small><strong>{{ item.codigo_verificacao|default:'—' }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>TOMADOR</small><strong>{{ item.empresa|default:item.tomador }}</strong></span>
-              <span class="follow-up-glosa-card-field"><small>ISS CONSULTADO EM</small><strong>{% if item.status_nfse_consultado_em %}{{ item.status_nfse_consultado_em|api_datetime }}{% else %}—{% endif %}</strong></span>
+              {% if item.origem_nfse == 'pdf' %}<span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>PDF enviado no Receita Certa</strong></span>
+              {% else %}<span class="follow-up-glosa-card-field"><small>ISS CONSULTADO EM</small><strong>{% if item.status_nfse_consultado_em %}{{ item.status_nfse_consultado_em|api_datetime }}{% else %}—{% endif %}</strong></span>{% endif %}
               {% if item.situacao == 'lancada' %}<span class="follow-up-glosa-card-field"><small>NO MV</small><strong>{% if item.mv.cd_ent_serv %}Entrada {{ item.mv.cd_ent_serv }}{% endif %}{% if item.mv.cd_con_pag %}{% if item.mv.cd_ent_serv %} · {% endif %}Título {{ item.mv.cd_con_pag }}{% endif %}</strong></span>{% endif %}
             </div>
             {% if item.discriminacao %}<p class="ns-discriminacao">{{ item.discriminacao }}</p>{% endif %}
@@ -145,6 +148,14 @@
           <div class="follow-up-batch-toolbar cf-acoes"><span>{{ item.motivo|default:'O fornecedor ainda não tem setor definido.' }}</span>{% if pode_classificar %}<div><a class="btn-acatar cf-botao" href="{% url 'contas_pagar_nfse_regras' %}">Classificar</a></div>{% endif %}</div>
           {% endif %}
 
+          {% if item.origem_nfse == 'pdf' and item.situacao == 'pendente' and not item.boletos and item.nfse_manual_id %}
+          <form method="post" class="follow-up-batch-toolbar cf-acoes ns-excluir-cadastro" onsubmit="return confirm('Tirar esta NFS-e da fila?')">{% csrf_token %}
+            <input type="hidden" name="acao" value="excluir_nfse_pdf"><input type="hidden" name="manual_id" value="{{ item.nfse_manual_id }}">
+            <input type="hidden" name="situacao" value="{{ filtros.situacao }}">{% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+            <span>Cadastrada por PDF por engano ou com dados errados? Exclua o cadastro e envie de novo.</span>
+            <div><input class="form-control form-control-sm" name="motivo" maxlength="300" required placeholder="Motivo"><button class="btn-glosar cf-botao" type="submit">Excluir cadastro</button></div>
+          </form>
+          {% endif %}
           {% if aberta == item.chave %}
           {% include "partials/contas_pagar_nfse_boletos.html" %}
           {% elif item.situacao == 'pendente' %}
