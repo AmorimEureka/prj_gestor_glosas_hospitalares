@@ -65,7 +65,7 @@ class NfseSetorViewTests(TestCase):
         self.assertContains(response, 'Software SA')
         self.assertContains(response, 'A lançar')
         self.assertContains(response, '1.500,50')
-        self.assertContains(response, 'cp-nfse-setor__empresa">HOSPITAL PRONTOCARDIO')
+        self.assertContains(response, 'TECNOLOGIA DA INFORMACAO · HOSPITAL PRONTOCARDIO (1 · R$ 1.500,50)')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
             {'situacao': 'pendente', 'cd_oficina': '', 'desde': ''},
@@ -82,10 +82,10 @@ class NfseSetorViewTests(TestCase):
         self.assertEqual(response.context['pagination']['page'], 3)
         self.assertEqual(response.context['pagination']['total_pages'], 3)
         self.assertEqual([i['numero_nfse'] for i in response.context['itens']], ['9020', '9021', '9022'])
-        self.assertContains(response, '21-23 de 23 notas exibidas')
+        self.assertContains(response, '21-23 de 23 notas')
         self.assertContains(response, 'R$ 230,00')
         self.assertContains(response, 'href="?situacao=pendente&amp;cd_oficina=2&amp;page=2"')
-        self.assertContains(response, 'cd_oficina=2&amp;page=3&amp;nota=12345678000199-9020#boletos')
+        self.assertContains(response, 'cd_oficina=2&amp;page=3&amp;nota=12345678000199-9020#nota-12345678000199-9020')
 
     @patch('core.views.api_get')
     def test_pagina_alem_do_fim_mostra_a_ultima(self, api_get):
@@ -105,13 +105,14 @@ class NfseSetorViewTests(TestCase):
 
         response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=todas')
 
-        self.assertContains(response, 'Status ISS')
-        self.assertContains(response, 'cp-nfse-status--normal">Normal')
+        self.assertContains(response, 'STATUS ISS')
+        self.assertContains(response, 'class="cf-ok">Normal')
         self.assertContains(response, '18/11/2026 08:40')  # UTC -> Fortaleza
-        self.assertContains(response, 'cp-nfse-status--cancelada">Cancelada')
-        self.assertContains(response, 'Cancelada no ISS</span>')
-        self.assertNotContains(response, 'nota=07530025000146-388581#boletos')
-        self.assertContains(response, 'is-cancelada')
+        self.assertContains(response, 'class="cf-erro">Cancelada')
+        self.assertContains(response, 'Cancelada no ISS')
+        self.assertContains(response, 'Não anexe boleto')
+        self.assertNotContains(response, 'nota=07530025000146-388581#nota-')  # nota cancelada não oferece "Anexar boleto"
+        self.assertContains(response, 'ns-card--cancelada')
 
     @patch('core.views.api_get')
     def test_status_nao_consultado(self, api_get):
@@ -330,7 +331,8 @@ class NfseBoletoViewTests(TestCase):
 
         response = self.client.get(self.URL + '?nota=11111111000111-123')
 
-        self.assertContains(response, 'Boletos da NFS-e 123')
+        self.assertContains(response, 'id="nota-11111111000111-123"')
+        self.assertContains(response, 'id="boletos"')
         self.assertContains(response, 'Boleto vencido.')
         self.assertContains(response, 'Boleto com divergência')
         self.assertContains(response, '/financeiro/contas-a-pagar/boletos/9/pdf/')
@@ -675,8 +677,8 @@ class PrazoBoletoTests(TestCase):
         api_get.return_value = {'oficinas': [], 'itens': [item]}
         response = self.client.get(self.URL)
         self.assertContains(response, 'href="/financeiro/contas-a-pagar/nfse/11111111000111/123/pdf/"', html=False)
-        self.assertContains(response, 'Ver NFS-e')
-        self.assertContains(response, 'Fora do prazo · justificado')
+        self.assertContains(response, 'aria-label="Ver NFS-e 123"')
+        self.assertContains(response, '>atraso</em>', html=False)
 
     @patch('core.views.api_get')
     def test_painel_mostra_prazo_e_justificativa(self, api_get):

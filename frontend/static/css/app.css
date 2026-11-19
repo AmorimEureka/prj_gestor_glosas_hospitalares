@@ -15738,3 +15738,48 @@ a.collapse-action { text-decoration: none; }
 .cf-desfazer-toolbar { margin: 0; }
 .cf-confirmacoes { display: grid !important; gap: 2px !important; color: var(--ink); }
 .cf-fechar { min-width: 60px; }
+
+/* Contas a Pagar · NFS-e do setor, no padrão da Follow-Up de Glosas (reaproveita .cf-* da Conferência). */
+.ns-card-header {
+  grid-template-columns: 18px minmax(84px, 0.6fr) minmax(80px, 0.6fr) minmax(170px, 1.9fr) minmax(130px, 1.2fr)
+    minmax(90px, 0.7fr) minmax(150px, 1.3fr) minmax(96px, 0.8fr) minmax(104px, 0.85fr);
+}
+.ns-card-header--avulsa { grid-template-columns: minmax(90px, 0.6fr) minmax(200px, 2fr) minmax(200px, 1.5fr); cursor: default; }
+.ns-card--pendente .follow-up-glosa-card-header { border-left-color: #2d7790; }
+.ns-card--pronta .follow-up-glosa-card-header { border-left-color: #2f8a5f; }
+.ns-card--divergencia .follow-up-glosa-card-header { border-left-color: #b24d32; }
+.ns-card--a_classificar .follow-up-glosa-card-header { border-left-color: #d98c2b; }
+.ns-card--lancada .follow-up-glosa-card-header { border-left-color: #8a9ba8; }
+.ns-card--cancelada .follow-up-glosa-card-header { border-left-color: #c9d3da; }
+.ns-card--avulsa .follow-up-glosa-card-header { border-left-color: #17647d; }
+.cf-card.is-aberta { border-color: #9fc3d0; box-shadow: 0 2px 10px rgba(16, 42, 58, 0.09); }
+.ns-card--pronta .ns-situacao { color: #24734f; }
+.ns-card--divergencia .ns-situacao, .ns-card--cancelada .ns-situacao { color: #b24d32; }
+.ns-card--pendente .ns-situacao { color: #17647d; }
+.ns-card--a_classificar .ns-situacao { color: #a8650f; }
+.ns-card--lancada .ns-situacao { color: var(--muted); }
+.ns-sem-setor { color: #a8650f; }
+.ns-neutro { color: var(--muted); }
+.ns-filtro-setor { flex: 2 1 300px; }
+.ns-aviso { flex: 0 0 auto; }
+.ns-discriminacao { margin: 0; padding: 0 14px 12px; color: #476575; font-size: 12px; line-height: 1.45; }
+.ns-resumo-boletos { color: var(--muted); font-size: 11px; font-weight: 600; }
+.ns-count--ok { border-color: #b9ddc9; background: #edf8f2; color: #24734f; }
+.ns-count--erro { border-color: #ecc5ba; background: #fdf3f0; color: #b24d32; }
+.ns-boletos col.ns-col-conf { width: 34%; } .ns-boletos col.ns-col-acoes { width: 11%; }
+.account-table.ns-boletos td.ns-acoes-boleto { text-align: right; white-space: nowrap; }
+.ns-excluir { margin-left: 8px; }
+.ns-anexar { padding: 12px 14px 10px; }
+.ns-anexar .filter-row { align-items: flex-end; }
+.ns-anexar .ns-just { flex: 2 1 280px; }
+.ns-anexar .ns-venc { flex: 0 1 150px; }
+.ns-regra { margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+.ns-imp { margin: 0; padding: 12px 14px; border-top: 0; }
+.ns-imp .cp-imp__head { justify-content: flex-start; margin-bottom: 10px; }
+.ns-escolhas { padding: 0 0 10px; }
+.ns-imp .cp-imp__importar { margin: 6px 0 0; }
+.ns-imp .cp-imp__status, .ns-imp .cp-imp__aviso, .ns-imp .cp-imp__registro { font-size: 12px; padding: 8px 12px; margin-bottom: 8px; }
+.ns-imp .cp-imp__tabela summary { font-size: 12px; }
+.ns-imp .cp-imp__tabela { padding: 6px 10px; }
+.ns-imp .cp-imp__ordem { width: 1.3rem; height: 1.3rem; font-size: 11px; }
+.ns-imp .cp-imp__escolhas { font-size: 12px; }
