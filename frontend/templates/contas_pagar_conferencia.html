@@ -2,244 +2,251 @@
 {% load core_extras %}
 {% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
 {% block page_title %}Conferência do financeiro{% endblock %}
+{% block content_class %}follow-up-compact{% endblock %}
 {% block content %}
-<section class="cf-page">
-  <header class="panel cf-intro">
-    <div>
-      <h2 class="cf-intro__title">Notas enviadas pelos setores</h2>
-      <p class="cf-intro__text">
-        NFS-e com boleto anexado ou já importadas pelo Receita Certa{% if desde %}, emitidas desde <strong>{{ desde|api_date }}</strong>{% endif %}.
-        {% if prazo_minimo_hoje %}Boletos enviados hoje precisam vencer a partir de <strong>{{ prazo_minimo_hoje|api_date }}</strong> (3 dias úteis).{% endif %}
-      </p>
-    </div>
-    {% include "partials/mv_login_status.html" %}
-  </header>
 
-  {% if desfazer %}
-  <section class="panel cf-desfazer" id="desfazer" aria-labelledby="cf-desfazer-titulo">
-    <div class="cf-desfazer__head">
-      <div>
-        <h3 id="cf-desfazer-titulo" class="cf-desfazer__titulo">Desfazer importação · NFS-e {{ desfazer.nota.numero_nfse }}</h3>
-        <p class="cf-muted">{{ desfazer.nota.prestador_razao_social }} · importada por {{ desfazer.importacao.cd_usuario_mv }}. O que será excluído do MV, com o seu login MV ({{ desfazer.usuario_mv }}):</p>
+{% if desfazer %}
+<article class="follow-up-glosa-card cf-card cf-card--desfazer" id="desfazer">
+  <div class="follow-up-glosa-card-header-row">
+    <div class="follow-up-glosa-card-header cf-desfazer-header">
+      <span class="follow-up-glosa-card-field"><small>AÇÃO</small><strong>Desfazer importação</strong></span>
+      <span class="follow-up-glosa-card-field"><small>NFS-E</small><strong>{{ desfazer.nota.numero_nfse }}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ desfazer.nota.prestador_razao_social }}">{{ desfazer.nota.prestador_razao_social }}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>IMPORTADA POR</small><strong>{{ desfazer.importacao.cd_usuario_mv|default:'—' }}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>LOGIN MV USADO</small><strong>{{ desfazer.usuario_mv|default:'—' }}</strong></span>
+      {% if desfazer.titulo %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DO TÍTULO</small><strong>R$ {{ desfazer.titulo.vl_bruto_conta|br_currency }}</strong></span>{% endif %}
+    </div>
+    <span class="follow-up-glosa-pdf-slot"><a class="follow-up-glosa-pdf-action cf-fechar" href="?{% querystring desfazer='' %}" aria-label="Fechar">Fechar</a></span>
+  </div>
+  <div class="follow-up-glosa-card-body">
+    <div class="follow-up-glosa-card-content">
+      {% if desfazer.titulo %}
+      <section class="account-group-section">
+        <header class="account-group-header"><span class="account-group-title">O que será excluído do MV</span></header>
+        <div class="cf-campos">
+          <span class="follow-up-glosa-card-field"><small>TÍTULO</small><strong>{{ desfazer.titulo.cd_con_pag }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>PARCELAS</small><strong>{% for p in desfazer.parcelas %}{{ p.nr_parcela }}ª · {{ p.vencimento_fmt }} · R$ {{ p.vl_duplicata|br_currency }}{% if not forloop.last %}; {% endif %}{% endfor %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>TÍTULOS DE IMPOSTO</small><strong>{% for i in desfazer.impostos %}{{ i.cd_con_pag_filho }} (R$ {{ i.vl_bruto_conta|br_currency }}){% if not forloop.last %}, {% endif %}{% empty %}Nenhum{% endfor %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>ENTRADA DE SERVIÇO</small><strong>{{ desfazer.entrada.cd_ent_serv }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>ITENS · DUPLICATAS</small><strong>{{ desfazer.itens|length }} · {{ desfazer.qt_duplicatas }}</strong></span>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if desfazer.alteracoes_no_mv %}
+      <div class="cf-mensagem cf-mensagem--atencao">
+        <strong>Este título foi alterado no MV depois da importação.</strong> Ao desfazer, estas alterações também serão perdidas:
+        <ul>{% for a in desfazer.alteracoes_no_mv %}<li>{{ a.quando }} · {{ a.cd_usuario }} · {{ a.campos }}</li>{% endfor %}</ul>
       </div>
-      <a class="btn-close" href="?{% querystring desfazer='' %}" aria-label="Fechar"></a>
-    </div>
+      {% endif %}
 
-    {% if desfazer.titulo %}
-    <dl class="cf-desfazer__itens">
-      <div><dt>Título no Contas a Pagar</dt><dd><span class="cf-num">{{ desfazer.titulo.cd_con_pag }}</span> · R$ {{ desfazer.titulo.vl_bruto_conta|br_currency }}
-        {% for p in desfazer.parcelas %}<br><small class="cf-muted">{{ p.nr_parcela }}ª parcela · {{ p.vencimento_fmt }} · R$ {{ p.vl_duplicata|br_currency }}</small>{% endfor %}</dd></div>
-      <div><dt>Títulos de imposto</dt><dd>{% for i in desfazer.impostos %}<span class="cf-num">{{ i.cd_con_pag_filho }}</span> · {{ i.nr_documento }} · R$ {{ i.vl_bruto_conta|br_currency }}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="cf-muted">Nenhum</span>{% endfor %}</dd></div>
-      <div><dt>Entrada de serviço</dt><dd><span class="cf-num">{{ desfazer.entrada.cd_ent_serv }}</span> · {{ desfazer.itens|length }} item(ns) · {{ desfazer.qt_duplicatas }} duplicata(s)</dd></div>
-    </dl>
-    {% endif %}
-
-    {% if desfazer.alteracoes_no_mv %}
-    <div class="cf-aviso">
-      <strong>Este título foi alterado no MV depois da importação.</strong> Ao desfazer, estas alterações também serão perdidas:
-      <ul>{% for a in desfazer.alteracoes_no_mv %}<li>{{ a.quando }} · {{ a.cd_usuario }} · {{ a.campos }}</li>{% endfor %}</ul>
-    </div>
-    {% endif %}
-
-    {% if desfazer.pode_desfazer and desfazer.gravacao_habilitada %}
-    <form method="post" class="cf-desfazer__form" onsubmit="return confirm('Excluir do MV o título {{ desfazer.titulo.cd_con_pag }} e a entrada {{ desfazer.entrada.cd_ent_serv }}? A nota voltará para “Pronta para o financeiro”.')">{% csrf_token %}
-      <input type="hidden" name="acao" value="desfazer"><input type="hidden" name="nota" value="{{ desfazer.chave }}">
-      <input type="hidden" name="cd_con_pag" value="{{ desfazer.titulo.cd_con_pag }}">
-      <input type="hidden" name="tem_alteracoes" value="{% if desfazer.alteracoes_no_mv %}1{% else %}0{% endif %}">
-      {% for k, v in filtros.items %}{% if v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
-      <label class="filter-group cf-desfazer__motivo"><span>Motivo</span>
-        <textarea class="form-control" name="motivo" rows="2" minlength="10" maxlength="400" required placeholder="Ex.: boleto anexado errado; o fornecedor vai reenviar"></textarea>
-      </label>
-      <div class="cf-desfazer__confirmacoes">
-        <label class="form-check"><input class="form-check-input" type="checkbox" name="confirmo" value="exclusao" required> <span class="form-check-label">Entendo que o título {{ desfazer.titulo.cd_con_pag }}{% if desfazer.impostos %}, os títulos de imposto{% endif %} e a entrada {{ desfazer.entrada.cd_ent_serv }} serão excluídos do MV.</span></label>
-        {% if desfazer.alteracoes_no_mv %}<label class="form-check"><input class="form-check-input" type="checkbox" name="confirmo" value="alteracoes" required> <span class="form-check-label">Conferi as alterações feitas no MV e elas podem ser perdidas.</span></label>{% endif %}
-      </div>
-      <div class="cf-desfazer__acoes">
-        <a class="btn btn-outline-secondary" href="?{% querystring desfazer='' %}">Cancelar</a>
-        <button class="btn btn-outline-danger" type="submit">Desfazer importação</button>
-      </div>
-    </form>
-    {% elif not desfazer.gravacao_habilitada %}
-    <div class="cf-aviso">A gravação no MV está desligada no servidor.</div>
-    {% else %}
-    <div class="cf-bloqueio">
-      <strong>Não é possível desfazer pelo Receita Certa:</strong>
-      <ul>{% for p in desfazer.pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
-    </div>
-    {% endif %}
-  </section>
-  {% endif %}
-
-  <nav class="cf-resumo" aria-label="Resumo por etapa">
-    {% for c in cartoes %}
-    <a class="cf-resumo__item cf-etapa--{{ c.etapa }}{% if filtros.etapa == c.etapa %} is-active{% endif %}" href="?{% querystring etapa=c.etapa page='' desfazer='' %}">
-      <span class="cf-resumo__rotulo"><i class="cf-ponto" aria-hidden="true"></i>{{ c.rotulo }}</span>
-      <span class="cf-resumo__qtd cf-num">{{ c.quantidade }}</span>
-      <span class="cf-resumo__valor cf-num">R$ {{ c.valor_liquido|br_currency }}</span>
-    </a>
-    {% endfor %}
-    <div class="cf-resumo__item cf-resumo__item--info">
-      <span class="cf-resumo__rotulo"><i class="cf-ponto cf-ponto--prazo" aria-hidden="true"></i>Fora do prazo</span>
-      <span class="cf-resumo__qtd cf-num">{{ fora_do_prazo }}</span>
-      <span class="cf-resumo__valor">nas notas listadas</span>
-    </div>
-  </nav>
-
-  <form method="get" class="panel filter-panel cf-filtros">
-    <label class="filter-group"><span>Etapa</span>
-      <select class="form-select" name="etapa" onchange="this.form.submit()">
-        {% for valor, rotulo in etapas %}<option value="{{ valor }}" {% if filtros.etapa == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="filter-group"><span>Empresa</span>
-      <select class="form-select" name="empresa" onchange="this.form.submit()">
-        <option value="">Todas</option>
-        {% for cd, nome in empresas %}<option value="{{ cd }}" {% if filtros.empresa == cd|stringformat:'s' %}selected{% endif %}>{{ nome }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="filter-group"><span>Emitidas desde</span>
-      <input class="form-control" type="date" name="desde" value="{{ filtros.desde }}">
-    </label>
-    <label class="filter-group cf-filtros__busca"><span>Fornecedor, CNPJ ou nº da NFS-e</span>
-      <input class="form-control" type="search" name="busca" value="{{ filtros.busca }}" placeholder="Buscar">
-    </label>
-    <div class="filter-actions">
-      <button class="btn btn-primary" type="submit">Atualizar</button>
-      <a class="btn btn-outline-secondary" href="{% url 'contas_pagar_conferencia' %}">Limpar</a>
-    </div>
-  </form>
-
-  <section class="panel results-summary-panel cf-resultados">
-    <div class="cf-resultados__head">
-      <div>
-        <span class="panel-title">Notas</span>
-        {% if pagination.total %}
-        <span class="results-subtitle">{{ pagination.start }}–{{ pagination.end }} de {{ pagination.total }} · R$ {{ valor_total|br_currency }} em valor líquido · ordenadas pelo vencimento</span>
-        {% else %}
-        <span class="results-subtitle">Nenhuma nota nesta seleção.</span>
-        {% endif %}
-      </div>
-      {% if pagination.total %}
-      <div class="results-toolbar note-request-results-toolbar">
-        <span class="note-request-results-total"><span>Registros</span><strong>{{ pagination.total }}</strong></span>
-        {% include "_workflow_pagination.html" with pagination_id="cf-page-select" %}
+      {% if desfazer.pode_desfazer and desfazer.gravacao_habilitada %}
+      <form method="post" class="cf-desfazer-form" onsubmit="return confirm('Excluir do MV o título {{ desfazer.titulo.cd_con_pag }} e a entrada {{ desfazer.entrada.cd_ent_serv }}? A nota voltará para “Pronta para o financeiro”.')">{% csrf_token %}
+        <input type="hidden" name="acao" value="desfazer"><input type="hidden" name="nota" value="{{ desfazer.chave }}">
+        <input type="hidden" name="cd_con_pag" value="{{ desfazer.titulo.cd_con_pag }}">
+        <input type="hidden" name="tem_alteracoes" value="{% if desfazer.alteracoes_no_mv %}1{% else %}0{% endif %}">
+        {% for k, v in filtros.items %}{% if v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+        <div class="filter-group">
+          <label for="cf-motivo">Motivo</label>
+          <textarea id="cf-motivo" class="form-control" name="motivo" rows="2" minlength="10" maxlength="400" required placeholder="Ex.: boleto anexado errado; o fornecedor vai reenviar"></textarea>
+        </div>
+        <div class="follow-up-batch-toolbar cf-desfazer-toolbar">
+          <div class="cf-confirmacoes">
+            <label class="form-check"><input class="form-check-input" type="checkbox" name="confirmo" value="exclusao" required> <span class="form-check-label">Entendo que o título {{ desfazer.titulo.cd_con_pag }}{% if desfazer.impostos %}, os títulos de imposto{% endif %} e a entrada {{ desfazer.entrada.cd_ent_serv }} serão excluídos do MV.</span></label>
+            {% if desfazer.alteracoes_no_mv %}<label class="form-check"><input class="form-check-input" type="checkbox" name="confirmo" value="alteracoes" required> <span class="form-check-label">Conferi as alterações feitas no MV e elas podem ser perdidas.</span></label>{% endif %}
+          </div>
+          <div>
+            <a class="collapse-action" href="?{% querystring desfazer='' %}">Cancelar</a>
+            <button class="btn-glosar cf-botao" type="submit">Desfazer importação</button>
+          </div>
+        </div>
+      </form>
+      {% elif not desfazer.gravacao_habilitada %}
+      <div class="cf-mensagem cf-mensagem--atencao">A gravação no MV está desligada no servidor.</div>
+      {% else %}
+      <div class="cf-mensagem cf-mensagem--bloqueio">
+        <strong>Não é possível desfazer pelo Receita Certa:</strong>
+        <ul>{% for p in desfazer.pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
       </div>
       {% endif %}
     </div>
+  </div>
+</article>
+{% endif %}
 
-    {% if itens %}
-    <div class="table-responsive">
-      <table class="table cf-tabela">
-        <colgroup><col class="cf-col-venc"><col><col class="cf-col-setor"><col class="cf-col-valor"><col class="cf-col-prazo"><col class="cf-col-etapa"><col class="cf-col-acao"></colgroup>
-        <thead>
-          <tr><th>Vencimento</th><th>Fornecedor · NFS-e</th><th>Setor</th><th class="text-end">Líquido</th><th>Prazo</th><th>Etapa</th><th><span class="visually-hidden">Detalhes</span></th></tr>
-        </thead>
-        {% for item in itens %}
-        <tbody class="cf-nota{% if desfazer and desfazer.chave == item.chave %} is-selected{% endif %}" x-data="{ aberto: {% if desfazer and desfazer.chave == item.chave %}true{% else %}false{% endif %} }">
-          <tr class="cf-linha" @click="aberto = !aberto">
-            <td class="cf-venc">
-              {% if item.primeiro_vencimento %}<span class="cf-num">{{ item.primeiro_vencimento|api_date }}</span>
-                {% if item.etapa == 'a_importar' or item.etapa == 'pendencia' %}
-                <small class="cf-venc__falta{% if item.vencimento_dias is not None and item.vencimento_dias < 0 %} is-vencido{% elif item.vencimento_dias is not None and item.vencimento_dias <= 2 %} is-proximo{% endif %}">
-                  {% if item.vencimento_dias is None %}{% elif item.vencimento_dias < 0 %}vencido há {{ item.vencimento_atraso }} dia{{ item.vencimento_atraso|pluralize }}{% elif item.vencimento_dias == 0 %}vence hoje{% elif item.vencimento_dias == 1 %}amanhã{% else %}em {{ item.vencimento_dias }} dias{% endif %}
-                </small>
-                {% endif %}
-              {% else %}<span class="cf-muted">—</span>{% endif %}
-            </td>
-            <td>
-              <span class="cf-fornecedor">{{ item.prestador }}</span>
-              <small class="cf-muted">NFS-e <span class="cf-num">{{ item.numero_nfse }}</span> · emitida {{ item.data_emissao|api_date }}{% if item.status_nfse and item.status_nfse != 'NORMAL' %} · <span class="cf-texto-alerta">{{ item.status_nfse|lower }} no ISS</span>{% endif %}</small>
-            </td>
-            <td><span class="cf-setor">{{ item.ds_oficina|default:'Sem setor' }}</span><small class="cf-muted">{{ item.empresa|default:'' }}</small></td>
-            <td class="text-end">
-              <span class="cf-valor cf-num">R$ {{ item.valor_liquido|br_currency }}</span>
-              {% if item.retencao %}<small class="cf-muted cf-num">bruto {{ item.valor_servicos|br_currency }} · retido {{ item.valor_retido|br_currency }}</small>{% endif %}
-            </td>
-            <td>
-              {% if not item.boletos %}<span class="cf-muted">—</span>
-              {% elif item.fora_do_prazo %}<span class="cf-tag cf-tag--prazo"><i class="cf-ponto cf-ponto--prazo" aria-hidden="true"></i>Fora do prazo</span>
-              {% else %}<span class="cf-tag"><i class="cf-ponto cf-ponto--ok" aria-hidden="true"></i>No prazo</span>{% endif %}
-              <small class="cf-muted">{{ item.boletos|length }} boleto{{ item.boletos|length|pluralize }}</small>
-            </td>
-            <td><span class="cf-tag cf-etapa--{{ item.etapa }}"><i class="cf-ponto" aria-hidden="true"></i>{{ item.rotulo_etapa }}</span></td>
-            <td class="cf-acao"><button type="button" class="cf-expandir" :aria-expanded="aberto" aria-label="Ver detalhes da NFS-e {{ item.numero_nfse }}" @click.stop="aberto = !aberto"><span aria-hidden="true">›</span></button></td>
-          </tr>
-          <tr class="cf-detalhe" x-show="aberto" x-cloak>
-            <td colspan="7">
-              <div class="cf-detalhe__grade">
-                <div class="cf-detalhe__boletos">
-                  <h4 class="cf-subtitulo">Boletos</h4>
-                  {% if item.boletos %}
-                  <table class="table table-sm cf-boletos">
-                    <thead><tr><th>Vencimento</th><th class="text-end">Valor</th><th>Banco</th><th>Enviado</th><th>Prazo</th><th></th></tr></thead>
-                    <tbody>
-                      {% for b in item.boletos %}
-                      <tr>
-                        <td class="cf-num">{{ b.vencimento|api_date }}</td>
-                        <td class="text-end cf-num">R$ {{ b.valor|br_currency }}</td>
-                        <td>{{ b.banco|default:'Arrecadação' }}</td>
-                        <td><small>{{ b.enviado_por_nome|default:'—' }}{% if b.enviado_em_local %}<br><span class="cf-muted">{{ b.enviado_em_local|date:'d/m/Y H:i' }}</span>{% endif %}</small></td>
-                        <td>
-                          {% if b.fora_do_prazo %}<small class="cf-texto-prazo">Fora do prazo{% if b.prazo_minimo %} (mínimo {{ b.prazo_minimo|api_date }}){% endif %}</small>
-                            {% if b.justificativa_atraso %}<p class="cf-justificativa">“{{ b.justificativa_atraso }}”</p>{% else %}<p class="cf-justificativa cf-texto-alerta">Sem justificativa</p>{% endif %}
-                          {% else %}<small class="cf-muted">No prazo</small>{% endif %}
-                          {% for d in b.divergencias %}<p class="cf-justificativa cf-texto-alerta">{{ d }}</p>{% endfor %}
-                        </td>
-                        <td class="text-end"><a class="cf-link" href="{% url 'contas_pagar_boleto_pdf' b.id %}" target="_blank" rel="noopener">PDF</a></td>
-                      </tr>
-                      <tr class="cf-boletos__linha"><td colspan="6"><span class="cf-mono">{{ b.linha_digitavel }}</span></td></tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                  {% else %}<p class="cf-muted">Sem boleto no Receita Certa.</p>{% endif %}
-                  {% if item.pendencias %}
-                  <div class="cf-pendencias"><strong>Pendências</strong><ul>{% for p in item.pendencias %}<li>{{ p }}</li>{% endfor %}</ul></div>
-                  {% endif %}
-                </div>
-                <aside class="cf-detalhe__lado">
-                  <h4 class="cf-subtitulo">No MV</h4>
-                  {% with r=item.importacao %}
-                  <dl class="cf-dados">
-                    {% if r and r.status == 'importada' %}
-                    <div><dt>Título</dt><dd class="cf-num">{{ r.cd_con_pag }}</dd></div>
-                    <div><dt>Entrada</dt><dd class="cf-num">{{ r.cd_ent_serv }}</dd></div>
-                    <div><dt>Importada por</dt><dd>{{ r.cd_usuario_mv }}{% if r.importado_por_nome %} · {{ r.importado_por_nome }}{% endif %}{% if r.concluido_em_local %}<br><span class="cf-muted">{{ r.concluido_em_local|date:'d/m/Y H:i' }}</span>{% endif %}</dd></div>
-                    {% elif item.etapa == 'lancada_mv' %}
-                    <div><dt>Lançada pelo MV</dt><dd>{% if item.mv.cd_con_pag %}Título <span class="cf-num">{{ item.mv.cd_con_pag }}</span>{% endif %}{% if item.mv.cd_ent_serv %}{% if item.mv.cd_con_pag %} · {% endif %}entrada <span class="cf-num">{{ item.mv.cd_ent_serv }}</span>{% endif %}</dd></div>
-                    {% else %}
-                    <div><dt>Situação</dt><dd class="cf-muted">Ainda não lançada</dd></div>
-                    {% endif %}
-                    {% if r and r.status == 'desfeita' %}
-                    <div><dt>Importação desfeita</dt><dd>{{ r.cd_usuario_mv_desfazer }}{% if r.desfeito_por_nome %} · {{ r.desfeito_por_nome }}{% endif %}{% if r.desfeita_em_local %}<br><span class="cf-muted">{{ r.desfeita_em_local|date:'d/m/Y H:i' }}</span>{% endif %}{% if r.motivo_desfazer %}<p class="cf-justificativa">“{{ r.motivo_desfazer }}”</p>{% endif %}</dd></div>
-                    {% elif r and r.status == 'erro' %}
-                    <div><dt>Última tentativa</dt><dd class="cf-texto-alerta">{{ r.erro }}</dd></div>
-                    {% endif %}
-                  </dl>
-                  {% endwith %}
-                  <div class="cf-acoes">
-                    <a class="btn btn-outline-secondary btn-sm" href="{% url 'contas_pagar_nfse_pdf' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener">Ver NFS-e</a>
-                    {% if item.etapa == 'a_importar' %}<a class="btn btn-primary btn-sm" href="{% url 'contas_pagar_nfse_setor' %}?situacao=pronta&nota={{ item.chave }}&simular=1#simulacao">Simular e importar</a>{% endif %}
-                    {% if item.etapa == 'pendencia' %}<a class="btn btn-outline-primary btn-sm" href="{% url 'contas_pagar_nfse_setor' %}?situacao=todas&nota={{ item.chave }}#boletos">Ver boletos</a>{% endif %}
-                    {% if item.pode_desfazer %}<a class="btn btn-outline-danger btn-sm" href="?{% querystring desfazer=item.chave %}#desfazer">Desfazer importação</a>{% endif %}
-                  </div>
-                </aside>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-        {% endfor %}
-      </table>
+<section class="panel filter-panel cf-filtros" x-data="{ loading: false }">
+  <form class="remessa-filters" method="get" @submit="loading = true">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="cf-etapa">Etapa</label>
+        <select id="cf-etapa" name="etapa" class="form-select">
+          {% for valor, rotulo in etapas %}<option value="{{ valor }}" {% if filtros.etapa == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="cf-empresa">Empresa</label>
+        <select id="cf-empresa" name="empresa" class="form-select">
+          <option value="">Todas</option>
+          {% for cd, nome in empresas %}<option value="{{ cd }}" {% if filtros.empresa == cd|stringformat:'s' %}selected{% endif %}>{{ nome }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="cf-desde">Emitidas desde</label>
+        <input id="cf-desde" class="form-control" type="date" name="desde" value="{{ filtros.desde }}">
+      </div>
+      <div class="filter-group cf-filtro-busca">
+        <label for="cf-busca">Fornecedor, CNPJ ou NFS-e</label>
+        <input id="cf-busca" class="form-control" name="busca" value="{{ filtros.busca }}" placeholder="Nome, CNPJ ou número da nota">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" :disabled="loading">
+          <span x-show="!loading">Filtrar</span>
+          <span x-show="loading" x-cloak>Buscando...</span>
+        </button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
+      </div>
     </div>
-    {% if pagination.total_pages > 1 %}
-    <div class="pagination-footer cp-nfse-pagination-footer">
-      {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}
-      <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
-      {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}
+  </form>
+</section>
+
+<section class="panel results-summary-panel follow-up-glosa-results cf-resultados">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Notas no financeiro</span>
+        {% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} notas · ordenadas pelo vencimento{% if prazo_minimo_hoje %} · boletos enviados hoje vencem a partir de {{ prazo_minimo_hoje|api_date }}{% endif %}</span>{% endif %}
+      </div>
+      <div class="collapse-actions cf-cabecalho-acoes">
+        {% include "partials/mv_login_status.html" %}
+        {% if itens %}
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-expandir'))">Expandir</button>
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-colapsar'))">Colapsar todos</button>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
-    {% else %}
-    <p class="cf-vazio">Nenhuma nota nesta seleção. As notas aparecem aqui quando o setor anexa o boleto.</p>
-    {% endif %}
-  </section>
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total"><span>Notas</span><strong>{{ pagination.total }}</strong></span>
+        <span class="result-total result-total--value"><span>A importar · {{ totais.a_importar.quantidade }}</span><strong>R$ {{ totais.a_importar.valor_liquido|br_currency }}</strong></span>
+        <span class="result-total{% if totais.pendencia.quantidade %} cf-total--pendencia{% endif %}"><span>Com pendência</span><strong>{{ totais.pendencia.quantidade }}</strong></span>
+        <span class="result-total result-total--treated"><span>Importadas · {{ totais.importada.quantidade }}</span><strong>R$ {{ totais.importada.valor_liquido|br_currency }}</strong></span>
+        <span class="result-total"><span>Fora do prazo</span><strong>{{ fora_do_prazo }}</strong></span>
+      </div>
+      {% if pagination.total %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="cf-page-select">Página</label>
+          <select id="cf-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if itens %}
+  <div class="results-list follow-up-glosa-list">
+    {% for item in itens %}
+    <article class="follow-up-glosa-card cf-card cf-card--{{ item.etapa }}"
+             x-data="{ open: {% if desfazer and desfazer.chave == item.chave %}true{% else %}false{% endif %} }"
+             @cf-expandir.window="open = true" @cf-colapsar.window="open = false">
+      <div class="follow-up-glosa-card-header-row">
+        <div class="follow-up-glosa-card-header cf-card-header">
+          <button type="button" class="follow-up-glosa-chevron" :class="{ 'is-open': open }" @click="open = !open" :aria-expanded="open" aria-label="Expandir ou recolher a NFS-e {{ item.numero_nfse }}">&#9654;</button>
+          <span class="follow-up-glosa-card-field"><small>VENCIMENTO</small>
+            <strong>{% if item.primeiro_vencimento %}{{ item.primeiro_vencimento|api_date }}{% if item.etapa == 'a_importar' or item.etapa == 'pendencia' %}{% if item.vencimento_atraso %} <em class="cf-dias cf-dias--vencido">vencido</em>{% elif item.vencimento_dias == 0 %} <em class="cf-dias cf-dias--proximo">hoje</em>{% elif item.vencimento_dias is not None and item.vencimento_dias <= 2 %} <em class="cf-dias cf-dias--proximo">{{ item.vencimento_dias }}d</em>{% endif %}{% endif %}{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ item.prestador }}">{{ item.prestador }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>NFS-E</small><strong>{{ item.numero_nfse }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{{ item.ds_oficina|default:'' }} · {{ item.empresa|default:'' }}">{{ item.ds_oficina|default:'Sem setor' }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>ETAPA</small><strong class="cf-etapa">{{ item.rotulo_etapa }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>PRAZO</small><strong class="{% if item.fora_do_prazo %}cf-prazo--fora{% endif %}">{% if not item.boletos %}—{% elif item.fora_do_prazo %}Fora do prazo{% else %}No prazo{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>RETIDO</small><strong>{% if item.retencao %}R$ {{ item.valor_retido|br_currency }}{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>LÍQUIDO</small><strong>R$ {{ item.valor_liquido|br_currency }}</strong></span>
+        </div>
+        <span class="follow-up-glosa-pdf-slot">
+          <a class="follow-up-glosa-pdf-action" href="{% url 'contas_pagar_nfse_pdf' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener" title="PDF oficial da NFS-e" aria-label="Abrir o PDF da NFS-e {{ item.numero_nfse }}">PDF</a>
+        </span>
+      </div>
+
+      <div class="follow-up-glosa-card-body" x-show="open" x-cloak>
+        <div class="follow-up-glosa-card-content">
+          {% if item.pendencias %}
+          <div class="cf-mensagem cf-mensagem--bloqueio"><strong>Pendências</strong><ul>{% for p in item.pendencias %}<li>{{ p }}</li>{% endfor %}</ul></div>
+          {% endif %}
+
+          <section class="account-group-section">
+            <header class="account-group-header">
+              <span class="account-group-title">Boletos</span>
+              <strong class="account-group-count">{{ item.boletos|length }} boleto{{ item.boletos|length|pluralize }}</strong>
+            </header>
+            {% if item.boletos %}
+            <div class="table-responsive detail-table-wrap account-group-table-wrap">
+              <table class="table align-middle account-table cf-boletos">
+                <colgroup><col class="cf-col-data"><col class="cf-col-valor"><col class="cf-col-banco"><col class="cf-col-linha"><col class="cf-col-envio"><col class="cf-col-prazo"><col class="cf-col-just"><col class="cf-col-pdf"></colgroup>
+                <thead><tr><th>VENCIMENTO</th><th>VALOR</th><th>BANCO</th><th class="col-desc">LINHA DIGITÁVEL</th><th>ENVIADO POR</th><th>PRAZO</th><th class="col-desc">JUSTIFICATIVA / CONFERÊNCIA</th><th></th></tr></thead>
+                <tbody>
+                  {% for b in item.boletos %}
+                  <tr class="item-row">
+                    <td>{{ b.vencimento|api_date }}</td>
+                    <td class="cf-direita">R$ {{ b.valor|br_currency }}</td>
+                    <td>{{ b.banco|default:'Arrec.' }}</td>
+                    <td class="col-desc"><span class="cf-mono">{{ b.linha_digitavel }}</span></td>
+                    <td class="cf-quebra">{{ b.enviado_por_nome|default:'—' }}{% if b.enviado_em_local %}<span class="cf-sub">{{ b.enviado_em_local|date:'d/m/Y H:i' }}</span>{% endif %}</td>
+                    <td class="cf-quebra">{% if b.fora_do_prazo %}<span class="cf-prazo--fora">Fora do prazo</span>{% if b.prazo_minimo %}<span class="cf-sub">mínimo {{ b.prazo_minimo|api_date }}</span>{% endif %}{% else %}No prazo{% endif %}</td>
+                    <td class="col-desc">{% if b.justificativa_atraso %}“{{ b.justificativa_atraso }}”{% elif b.fora_do_prazo %}<span class="cf-erro">Sem justificativa</span>{% endif %}{% for d in b.divergencias %}<span class="cf-sub cf-erro">{{ d }}</span>{% empty %}{% if not b.fora_do_prazo %}<span class="cf-ok">Confere com a NFS-e</span>{% endif %}{% endfor %}</td>
+                    <td><a class="cf-link" href="{% url 'contas_pagar_boleto_pdf' b.id %}" target="_blank" rel="noopener">PDF</a></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}<p class="cf-vazio">Sem boleto no Receita Certa.</p>{% endif %}
+          </section>
+
+          <section class="account-group-section">
+            <header class="account-group-header"><span class="account-group-title">Situação no MV</span></header>
+            {% with r=item.importacao %}
+            <div class="cf-campos">
+              <span class="follow-up-glosa-card-field"><small>EMPRESA</small><strong>{{ item.empresa|default:'—' }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>EMISSÃO · CNPJ</small><strong>{{ item.data_emissao|api_date }} · {{ item.prestador_cnpj }}</strong></span>
+              <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR BRUTO</small><strong>R$ {{ item.valor_servicos|br_currency }}</strong></span>
+              {% if r and r.status == 'importada' %}
+              <span class="follow-up-glosa-card-field"><small>TÍTULO · ENTRADA</small><strong>{{ r.cd_con_pag }} · {{ r.cd_ent_serv }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>IMPORTADA POR</small><strong>{{ r.cd_usuario_mv }}{% if r.concluido_em_local %} · {{ r.concluido_em_local|date:'d/m/Y H:i' }}{% endif %}</strong></span>
+              {% elif item.etapa == 'lancada_mv' %}
+              <span class="follow-up-glosa-card-field"><small>LANÇADA PELO MV</small><strong>{% if item.mv.cd_con_pag %}Título {{ item.mv.cd_con_pag }}{% endif %}{% if item.mv.cd_ent_serv %} · entrada {{ item.mv.cd_ent_serv }}{% endif %}</strong></span>
+              {% else %}
+              <span class="follow-up-glosa-card-field"><small>NO MV</small><strong>Ainda não lançada</strong></span>
+              {% endif %}
+              {% if r and r.status == 'desfeita' %}
+              <span class="follow-up-glosa-card-field"><small>IMPORTAÇÃO DESFEITA</small><strong title="{{ r.motivo_desfazer }}">{{ r.cd_usuario_mv_desfazer }}{% if r.desfeita_em_local %} · {{ r.desfeita_em_local|date:'d/m/Y H:i' }}{% endif %}{% if r.motivo_desfazer %} · “{{ r.motivo_desfazer }}”{% endif %}</strong></span>
+              {% elif r and r.status == 'erro' %}
+              <span class="follow-up-glosa-card-field"><small>ÚLTIMA TENTATIVA</small><strong class="cf-erro" title="{{ r.erro }}">{{ r.erro }}</strong></span>
+              {% endif %}
+            </div>
+            {% endwith %}
+          </section>
+
+          <div class="follow-up-batch-toolbar cf-acoes">
+            <span>{% if item.etapa == 'a_importar' %}Conferida e pronta para importar com o seu login MV.{% elif item.etapa == 'pendencia' %}Resolva as pendências com o setor antes de importar.{% elif item.etapa == 'importada' %}Importada pelo Receita Certa. Desfazer exclui o título e a entrada do MV.{% elif item.etapa == 'lancada_mv' %}Lançada diretamente no MV.{% else %}NFS-e cancelada no ISS.{% endif %}</span>
+            <div>
+              {% if item.etapa == 'pendencia' %}<a class="collapse-action" href="{% url 'contas_pagar_nfse_setor' %}?situacao=todas&nota={{ item.chave }}#boletos">Ver boletos</a>{% endif %}
+              {% if item.etapa == 'a_importar' %}<a class="btn-acatar cf-botao" href="{% url 'contas_pagar_nfse_setor' %}?situacao=pronta&nota={{ item.chave }}&simular=1#simulacao">Simular e importar</a>{% endif %}
+              {% if item.pode_desfazer %}<a class="btn-glosar cf-botao" href="?{% querystring desfazer=item.chave %}#desfazer">Desfazer importação</a>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="cf-vazio">Nenhuma nota nesta seleção. As notas aparecem aqui quando o setor anexa o boleto.</p>
+  {% endif %}
 </section>
 {% endblock %}

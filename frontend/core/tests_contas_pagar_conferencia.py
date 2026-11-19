@@ -60,11 +60,13 @@ class ConferenciaTests(TestCase):
         self.assertContains(response, 'DB3 SERVICOS DE TELECOMUNICACOES S.A')
         self.assertContains(response, 'Fora do prazo')
         self.assertContains(response, '“O fornecedor só enviou o boleto hoje.”')
-        self.assertContains(response, 'bruto 560,00 · retido 11,20')
+        self.assertContains(response, '<small>RETIDO</small><strong>R$ 11,20</strong>', html=False)
+        self.assertContains(response, 'follow-up-glosa-card cf-card cf-card--a_importar')
+        self.assertContains(response, '<span>A importar · 1</span><strong>R$ 548,80</strong>', html=False)
         self.assertContains(response, 'Simular e importar')
         self.assertContains(response, '?situacao=pronta&nota=41644220000135-5744268&simular=1#simulacao', html=False)
         self.assertContains(response, 'Desfazer importação')
-        self.assertContains(response, 'a partir de <strong>24/11/2026</strong>', html=False)
+        self.assertContains(response, 'boletos enviados hoje vencem a partir de 24/11/2026')
         self.assertContains(response, '6. Conferência do financeiro')
         conteudo = response.content.decode()
         self.assertLess(conteudo.index('5744268'), conteudo.index('93125822'))  # mantém a ordem por vencimento
@@ -81,7 +83,8 @@ class ConferenciaTests(TestCase):
     def test_previa_do_desfazer_mostra_o_que_sai_do_mv(self, api_get):
         api_get.side_effect = self._api_get
         response = self.client.get(URL + '?desfazer=63554067000198-93125822')
-        self.assertContains(response, 'Desfazer importação · NFS-e 93125822')
+        self.assertContains(response, 'cf-card--desfazer')
+        self.assertContains(response, '<small>NFS-E</small><strong>93125822</strong>', html=False)
         self.assertContains(response, '108679')
         self.assertContains(response, '12463')
         self.assertContains(response, 'Este título foi alterado no MV depois da importação.')
