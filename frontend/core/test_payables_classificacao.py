@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from openpyxl import load_workbook
 
-from .payables_export import HEADERS, build_payables_workbook
+from .payables_export import ACORDO_HEADERS, HEADERS, build_payables_workbook
 from . import tests as existing_tests
 from .payables_lazy_testing import lazy_get
 
@@ -50,7 +50,8 @@ class PayablesAccountClassificationTests(TestCase):
         )
         sheet = load_workbook(BytesIO(build_payables_workbook(data["fornecedores"])))["Contas vencidas"]
         column = HEADERS.index("Classificação da conta") + 1
-        self.assertEqual(column, len(HEADERS))
+        # Última coluna antes dos campos do acordo, que ficam ao final.
+        self.assertEqual(HEADERS[column:], ACORDO_HEADERS)
         self.assertEqual(sheet.cell(row=2, column=column).value, "ACORDO")
         self.assertEqual(sheet.cell(row=3, column=column).value, "Sem classificação")
 

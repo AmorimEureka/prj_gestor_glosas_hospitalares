@@ -9,7 +9,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from openpyxl import load_workbook
 
-from core.payables_export import HEADERS, build_payables_workbook
+from core.payables_export import ACORDO_HEADERS, HEADERS, build_payables_workbook
 from core.payables_lazy_testing import lazy_get
 from core.payables_priority import summary_card_filters
 from core import tests as existing_tests
@@ -94,6 +94,7 @@ class AcordosTests(TestCase):
         valor = lambda titulo, header: sheet.cell(
             row=linhas[titulo], column=HEADERS.index(header) + 1
         ).value
+        self.assertEqual(HEADERS[-3:], ACORDO_HEADERS)
         self.assertEqual(valor("225814", "Status"), "Em acordo")
         self.assertEqual(valor("225814", "Vencimento original (acordo)").date().isoformat(), "2026-04-10")
         self.assertEqual(valor("225814", "Data do acordo").date().isoformat(), "2026-11-12")
