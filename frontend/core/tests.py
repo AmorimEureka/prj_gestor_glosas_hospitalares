@@ -1353,6 +1353,16 @@ class DashboardIndicadoresTests(TestCase):
 
         self.assertGreaterEqual(DASHBOARD_GLOSAS_LIMIT, 17166)
 
+    def test_menu_lateral_rola_quando_os_grupos_abertos_passam_da_tela(self):
+        import re
+
+        css = Path(finders.find('css/app.css')).read_text()
+        regra = re.search(r'\n\.sidebar nav \{(.*?)\}', css, re.S).group(1)
+        self.assertIn('overflow-y: auto;', regra)
+        self.assertIn('min-height: 0;', regra)
+        base = Path(settings.BASE_DIR, 'templates', 'base.html').read_text()
+        self.assertEqual(base.count("scrollIntoView({ block: 'nearest', behavior: 'smooth' })"), 6)
+
     def test_acoes_dos_filtros_permanecem_dentro_do_painel(self):
         css = Path(finders.find('css/app.css')).read_text()
 
