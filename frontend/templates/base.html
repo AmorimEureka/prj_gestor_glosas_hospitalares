@@ -7,7 +7,7 @@
   <title>Receita Certa</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20261123-extratos" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20261123-menu-rolagem" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -57,7 +57,7 @@
         <button
           type="button"
           class="nav-group-toggle {% if request.resolver_match.url_name == 'follow_up_glosas' or request.resolver_match.url_name == 'recursos' or request.resolver_match.url_name == 'associacoes_remessas_ipm' or request.resolver_match.url_name == 'conta_atendimento' or request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}"
-          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
+          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }; if (open) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))"
           :aria-expanded="sidebarOpen && open"
           title="Núcleo Gestor de Glosas"
         >
@@ -94,7 +94,7 @@
         <button
           type="button"
           class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'contas_pagar_conferencia' or request.resolver_match.url_name == 'contas_pagar_extratos' or request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}"
-          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
+          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }; if (open) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))"
           :aria-expanded="sidebarOpen && open"
           title="Financeiro"
         >
@@ -119,7 +119,7 @@
             <button
               type="button"
               class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' %}is-active{% endif %}"
-              @click="requestOpen = !requestOpen"
+              @click="requestOpen = !requestOpen; if (requestOpen) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))"
               :aria-expanded="requestOpen"
               title="Solicitações Notas"
             >
@@ -142,7 +142,7 @@
           {% endif %}
           {% if screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao or screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras %}
           <div class="nav-subgroup">
-            <button type="button" class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'contas_pagar_conferencia' or request.resolver_match.url_name == 'contas_pagar_extratos' %}is-active{% endif %}" @click="payableOpen = !payableOpen" :aria-expanded="payableOpen" title="Contas a Pagar">
+            <button type="button" class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'contas_pagar_conferencia' or request.resolver_match.url_name == 'contas_pagar_extratos' %}is-active{% endif %}" @click="payableOpen = !payableOpen; if (payableOpen) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))" :aria-expanded="payableOpen" title="Contas a Pagar">
               <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span>
               <span class="nav-label">Contas a Pagar</span><span class="nav-nested-chevron" aria-hidden="true">&#9654;</span>
             </button>
@@ -169,7 +169,7 @@
         <button
           type="button"
           class="nav-group-toggle {% if request.resolver_match.url_name == 'solicitacao_nota' or request.resolver_match.url_name == 'solicitacoes_nota' or request.resolver_match.url_name == 'solicitacoes_recusas' or request.resolver_match.url_name == 'cadastrar_nota' %}is-active{% endif %}"
-          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
+          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }; if (open) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))"
           :aria-expanded="sidebarOpen && open"
           title="Solicitação"
         >
@@ -198,7 +198,7 @@
         <button
           type="button"
           class="nav-group-toggle {% if request.resolver_match.url_name == 'fornecedores_criticos' or request.resolver_match.url_name == 'prazos_recurso_convenio' or request.resolver_match.url_name == 'empresas_emissoras' or request.resolver_match.url_name == 'user_access_management' %}is-active{% endif %}"
-          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
+          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }; if (open) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))"
           :aria-expanded="sidebarOpen && open"
           title="Administrativo"
         >
@@ -584,6 +584,14 @@
         link.addEventListener('touchstart', run, { once: true, passive: true });
       });
     })();
+
+    // O item da tela atual fica visível no menu mesmo quando está abaixo da dobra.
+    document.addEventListener('alpine:initialized', () => {
+      requestAnimationFrame(() => {
+        const ativo = document.querySelector('.sidebar nav .nav-subitem.is-active, .sidebar nav > a.is-active');
+        if (ativo) ativo.scrollIntoView({ block: 'nearest' });
+      });
+    });
 
     window.addEventListener('keydown', (event) => {
       const isReloadShortcut = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r');

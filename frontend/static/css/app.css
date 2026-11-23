@@ -328,6 +328,16 @@ body.is-login-entry .app-light-reveal span {
   grid-auto-rows: min-content;
   gap: 4px;
   flex: 1;
+  /* Com os grupos abertos o menu passa da altura da tela: rola só a navegação,
+     mantendo logo e rodapé fixos. O padding preserva o marcador do item ativo. */
+  min-height: 0;
+  margin-inline: -14px;
+  padding: 0 14px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 111, 134, 0.35) transparent;
 }
 
 .sidebar a {
@@ -589,6 +599,8 @@ body.is-login-entry .app-light-reveal span {
 }
 
 .sidebar-collapsed .sidebar nav {
+  margin-inline: -10px;
+  padding-inline: 10px;
   gap: 8px;
   align-content: center;
   justify-content: center;
