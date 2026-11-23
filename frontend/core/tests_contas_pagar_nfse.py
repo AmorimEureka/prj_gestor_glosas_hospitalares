@@ -72,6 +72,7 @@ class NfseSetorViewTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
             {'situacao': 'pendente', 'cd_setor': '', 'cd_oficina': '', 'desde': ''},
+            timeout=45,
         )
 
     @patch('core.views.api_get')
@@ -90,6 +91,7 @@ class NfseSetorViewTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
             {'situacao': 'pendente', 'cd_setor': '43', 'cd_oficina': '', 'desde': ''},
+            timeout=45,
         )
         self.assertContains(response, '<option value="43" selected title="MANUTENÇÃO E INFRAESTRUTURA, OBRAS">MANUTENCAO PREDIAL · HOSPITAL PRONTOCARDIO')
         self.assertContains(response, 'href="?situacao=pendente&amp;cd_setor=43&amp;page=2"')
@@ -197,7 +199,7 @@ class NfseRegrasViewTests(TestCase):
         self.addCleanup(vinculo.stop)
 
     @staticmethod
-    def respostas(path, params=None):
+    def respostas(path, params=None, **kwargs):
         if path.endswith('/oficinas'):
             return {'oficinas': OFICINAS}
         if path.endswith('/regras'):
@@ -349,7 +351,7 @@ class NfseBoletoViewTests(TestCase):
 
     @patch('core.views.api_get')
     def test_painel_da_nota_lista_boletos_e_formulario(self, api_get):
-        def respostas(path, params=None):
+        def respostas(path, params=None, **kwargs):
             if path.endswith('/boletos'):
                 return {'nota': {'prestador_cnpj': '11111111000111', 'numero_nfse': '123',
                                  'prestador_razao_social': 'Software SA'},
@@ -478,7 +480,7 @@ class SimulacaoImportacaoTests(TestCase):
         session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'usuario', 'telas_permitidas': telas}
         session.save()
 
-    def _api_get(self, path, params=None):
+    def _api_get(self, path, params=None, **kwargs):
         return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
 
     @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
@@ -566,7 +568,7 @@ class ImportacaoMvTests(TestCase):
         vinculo.start()
         self.addCleanup(vinculo.stop)
 
-    def _api_get(self, path, params=None):
+    def _api_get(self, path, params=None, **kwargs):
         return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
 
     def _post(self, **extra):
@@ -722,7 +724,7 @@ class PrazoBoletoTests(TestCase):
             'resumo': {'quantidade': 1, 'soma': '1400.00', 'valor_liquido': '1400.00', 'pronta': True},
             'prazo_minimo_hoje': '2026-11-23T10:00:00',
         }
-        api_get.side_effect = lambda path, params=None: boletos if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+        api_get.side_effect = lambda path, params=None, **kwargs: boletos if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
         response = self.client.get(self.URL + '?nota=11111111000111-123')
         self.assertContains(response, 'a partir de 23/11/2026')
         self.assertContains(response, 'name="justificativa_atraso"', html=False)
@@ -794,7 +796,7 @@ class SimulacaoComImpostosTests(TestCase):
         vinculo.start()
         self.addCleanup(vinculo.stop)
 
-    @patch('core.views.api_get', side_effect=lambda path, params=None: BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []})
+    @patch('core.views.api_get', side_effect=lambda path, params=None, **kwargs: BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []})
     @patch('core.views.api_post')
     def test_titulo_previsto_mostra_liquido_e_titulos_de_imposto(self, api_post, api_get):
         titulo = {**SIMULACAO['importacao']['titulo_previsto'], 'vl_bruto_conta': '30487.20', 'vl_liquido': '27697.63',

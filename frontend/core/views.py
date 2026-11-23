@@ -9536,6 +9536,9 @@ CP_NFSE_POR_PAGINA = 10
 
 
 CP_NFSE_FUSO = ZoneInfo("America/Fortaleza")
+# As listagens consultam o MV (lançamentos dos fornecedores); com o MV carregado
+# podem passar dos 15 s padrão (API_TIMEOUT). Abaixo dos 120 s do gunicorn/nginx.
+CP_NFSE_TIMEOUT = 45
 
 
 def _cp_nfse_hora_local(valor):
@@ -9840,7 +9843,7 @@ def contas_pagar_nfse_setor(request):
     }
     payload = {}
     try:
-        payload = api_get(f"{CP_NFSE_PATH}/recebidas", filtros)
+        payload = api_get(f"{CP_NFSE_PATH}/recebidas", filtros, timeout=CP_NFSE_TIMEOUT)
     except ApiError as exc:
         messages.error(request, f"Não foi possível carregar as NFS-e recebidas: {exc}")
     itens = payload.get("itens", [])
@@ -10133,7 +10136,7 @@ def contas_pagar_conferencia(request):
         params["cd_multi_empresa"] = filtros["empresa"]
     payload = {}
     try:
-        payload = api_get(f"{CP_NFSE_PATH}/financeiro/conferencia", params)
+        payload = api_get(f"{CP_NFSE_PATH}/financeiro/conferencia", params, timeout=CP_NFSE_TIMEOUT)
     except ApiError as exc:
         messages.error(request, f"Não foi possível carregar a conferência: {extract_api_error_message(exc)}")
     hoje = datetime.now(CP_NFSE_FUSO).date()

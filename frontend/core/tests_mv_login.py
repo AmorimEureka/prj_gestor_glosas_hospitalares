@@ -83,7 +83,7 @@ class MvLoginTests(TestCase):
 
     @patch('core.views.api_get')
     def test_tela_mostra_status_do_login_mv(self, api_get):
-        def respostas(path, params=None):
+        def respostas(path, params=None, **kwargs):
             if path == '/mv/vinculo':
                 return {'cd_usuario_mv': 'RH000969', 'origem': 'cas', 'pode_gravar_no_mv': True}
             return {'oficinas': [], 'itens': []}
@@ -95,7 +95,7 @@ class MvLoginTests(TestCase):
 
     @patch('core.views.api_get')
     def test_tela_sem_vinculo_oferece_o_login(self, api_get):
-        api_get.side_effect = lambda path, params=None: (
+        api_get.side_effect = lambda path, params=None, **kwargs: (
             {'cd_usuario_mv': None, 'origem': None, 'pode_gravar_no_mv': False} if path == '/mv/vinculo'
             else {'oficinas': [], 'itens': []}
         )

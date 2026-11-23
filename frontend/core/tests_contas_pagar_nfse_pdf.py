@@ -29,7 +29,7 @@ class CadastroPdfTests(TestCase):
         vinculo.start()
         self.addCleanup(vinculo.stop)
 
-    def _api_get(self, path, params=None):
+    def _api_get(self, path, params=None, **kwargs):
         return RASCUNHO if '/recebidas/manual/' in path else {'oficinas': [], 'itens': []}
 
     @patch('core.views.api_get')
@@ -96,7 +96,7 @@ class CadastroPdfTests(TestCase):
                 'data_emissao': '2026-11-06', 'valor_servicos': '18551.40', 'valor_liquido': '16853.95', 'situacao': 'pendente',
                 'origem_nfse': 'pdf', 'nfse_manual_id': 41, 'status_nfse': None, 'boletos': None, 'pronta': False,
                 'ds_oficina': 'CENTRAL', 'cd_oficina': 5, 'empresa': 'HOSPITAL', 'tomador': 'HOSPITAL', 'mv': None}
-        api_get.side_effect = lambda path, params=None: {'oficinas': [], 'itens': [nota]}
+        api_get.side_effect = lambda path, params=None, **kwargs: {'oficinas': [], 'itens': [nota]}
         response = self.client.get(URL)
         self.assertContains(response, 'Cadastrada por PDF')
         self.assertContains(response, 'name="acao" value="excluir_nfse_pdf"', html=False)

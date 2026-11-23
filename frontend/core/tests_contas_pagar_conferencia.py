@@ -48,14 +48,14 @@ class ConferenciaTests(TestCase):
         vinculo.start()
         self.addCleanup(vinculo.stop)
 
-    def _api_get(self, path, params=None):
+    def _api_get(self, path, params=None, **kwargs):
         return PREVIA if path.endswith('/importacao/desfazer') else PAYLOAD
 
     @patch('core.views.api_get')
     def test_lista_notas_com_boletos_prazo_e_importacao(self, api_get):
         api_get.side_effect = self._api_get
         response = self.client.get(URL)
-        api_get.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/financeiro/conferencia', {'etapa': 'todas'})
+        api_get.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/financeiro/conferencia', {'etapa': 'todas'}, timeout=45)
         self.assertContains(response, 'Conferência do financeiro')
         self.assertContains(response, 'DB3 SERVICOS DE TELECOMUNICACOES S.A')
         self.assertContains(response, 'Fora do prazo')
@@ -85,7 +85,7 @@ class ConferenciaTests(TestCase):
     def test_busca_por_fornecedor_e_filtro_de_etapa(self, api_get):
         api_get.side_effect = self._api_get
         response = self.client.get(URL + '?busca=hapvida&etapa=importada')
-        api_get.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/financeiro/conferencia', {'etapa': 'importada'})
+        api_get.assert_called_once_with('/app_glosas/financeiro/contas-a-pagar/nfse/financeiro/conferencia', {'etapa': 'importada'}, timeout=45)
         self.assertContains(response, 'HAPVIDA ASSISTENCIA')
         self.assertNotContains(response, 'DB3 SERVICOS DE TELECOMUNICACOES S.A</span>')
 
@@ -105,7 +105,7 @@ class ConferenciaTests(TestCase):
     @patch('core.views.api_get')
     def test_previa_com_bloqueio_nao_mostra_o_botao(self, api_get):
         bloqueada = {**PREVIA, 'pode_desfazer': False, 'pendencias': ['Existe pagamento para o título, parcela 1.']}
-        api_get.side_effect = lambda path, params=None: bloqueada if path.endswith('/desfazer') else PAYLOAD
+        api_get.side_effect = lambda path, params=None, **kwargs: bloqueada if path.endswith('/desfazer') else PAYLOAD
         response = self.client.get(URL + '?desfazer=63554067000198-93125822')
         self.assertContains(response, 'Não é possível desfazer pelo Receita Certa')
         self.assertContains(response, 'Existe pagamento para o título, parcela 1.')
