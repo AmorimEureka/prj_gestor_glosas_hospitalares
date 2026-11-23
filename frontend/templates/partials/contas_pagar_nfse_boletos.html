@@ -102,7 +102,7 @@
     <div class="cf-campos ns-escolhas">
       <span class="follow-up-glosa-card-field"><small>USUÁRIO MV</small><strong>{{ e.usuario_mv|default:'—' }}</strong></span>
       <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong>{% if e.fornecedor %}{{ e.fornecedor.cd_fornecedor }} · {{ e.fornecedor.nm_fornecedor }}{% else %}—{% endif %}</strong></span>
-      <span class="follow-up-glosa-card-field"><small>OFICINA / SETOR</small><strong>{% if e.oficina %}{{ e.oficina.cd_oficina }} · {{ e.oficina.ds_oficina }} (setor {{ e.oficina.cd_setor|default:'—' }}){% else %}—{% endif %}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>OFICINA / SETOR</small><strong>{% if e.oficina %}{{ e.oficina.cd_oficina }} · {{ e.oficina.ds_oficina }} (setor {% if e.oficina.nm_setor %}{{ e.oficina.nm_setor }} · {% endif %}{{ e.oficina.cd_setor|default:'—' }}){% else %}—{% endif %}</strong></span>
       <span class="follow-up-glosa-card-field"><small>SERVIÇO</small><strong>{% if e.servico %}{{ e.servico.cd_servico }} · {{ e.servico.nm_servico }}{% else %}—{% endif %}</strong></span>
       <span class="follow-up-glosa-card-field"><small>CONTA DO FORNECEDOR</small><strong>{{ e.conta_fornecedor.cd_reduzido|default:'—' }}</strong></span>
       <span class="follow-up-glosa-card-field"><small>MODELO USADO</small><strong>{% if e.modelo %}entrada {{ e.modelo.cd_ent_serv }} (NF {{ e.modelo.nr_documento }}, {{ e.modelo.cd_usuario }}){% else %}sem lançamento anterior{% endif %}</strong></span>
