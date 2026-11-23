@@ -9819,7 +9819,7 @@ def contas_pagar_nfse_setor(request):
             messages.error(request, f"Não foi possível salvar {alvo}: {extract_api_error_message(exc)}")
         if destino_especifico:
             return redirect(destino_especifico)
-        retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_oficina", "desde", "page", "nota"} and v}
+        retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_setor", "cd_oficina", "desde", "page", "nota"} and v}
         destino = reverse("contas_pagar_nfse_setor")
         return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
 
@@ -9831,8 +9831,10 @@ def contas_pagar_nfse_setor(request):
     situacao = request.GET.get("situacao") or "pendente"
     if situacao not in {valor for valor, _ in situacoes}:
         situacao = "pendente"
+    # O setor é o do MV (OFICINA.CD_SETOR -> SETOR); cd_oficina segue aceito para links antigos.
     filtros = {
         "situacao": situacao,
+        "cd_setor": request.GET.get("cd_setor") or "",
         "cd_oficina": request.GET.get("cd_oficina") or "",
         "desde": request.GET.get("desde") or "",
     }

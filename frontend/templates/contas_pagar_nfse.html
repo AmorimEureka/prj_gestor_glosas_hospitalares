@@ -16,9 +16,9 @@
       </div>
       <div class="filter-group ns-filtro-setor">
         <label for="ns-setor">Setor</label>
-        <select id="ns-setor" name="cd_oficina" class="form-select">
+        <select id="ns-setor" name="cd_setor" class="form-select">
           <option value="">Todos os setores</option>
-          {% for grupo in oficinas %}{% if grupo.cd_oficina %}<option value="{{ grupo.cd_oficina }}" {% if grupo.cd_oficina|stringformat:'s' == filtros.cd_oficina %}selected{% endif %}>{{ grupo.ds_oficina }}{% if grupo.empresa %} · {{ grupo.empresa }}{% endif %} ({{ grupo.quantidade }} · R$ {{ grupo.valor|br_currency }})</option>{% endif %}{% endfor %}
+          {% for grupo in oficinas %}{% if grupo.cd_setor %}<option value="{{ grupo.cd_setor }}" {% if grupo.cd_setor|stringformat:'s' == filtros.cd_setor %}selected{% endif %} title="{{ grupo.oficinas|join:', ' }}">{{ grupo.nm_setor }}{% if grupo.empresa %} · {{ grupo.empresa }}{% endif %} ({{ grupo.quantidade }} · R$ {{ grupo.valor|br_currency }})</option>{% endif %}{% endfor %}
         </select>
       </div>
       <div class="filter-group">
@@ -108,7 +108,7 @@
           <span class="follow-up-glosa-card-field"><small>EMISSÃO</small><strong>{{ item.data_emissao|api_date }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>NFS-E</small><strong>{{ item.numero_nfse }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ item.prestador }}">{{ item.prestador }}</strong></span>
-          <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{{ item.ds_oficina|default:'' }}">{% if item.ds_oficina %}{{ item.ds_oficina }}{% else %}<span class="ns-sem-setor">Sem setor</span>{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{% if item.ds_oficina %}Oficina: {{ item.ds_oficina }}{% endif %}">{% if item.nm_setor or item.ds_oficina %}{{ item.nm_setor|default:item.ds_oficina }}{% else %}<span class="ns-sem-setor">Sem setor</span>{% endif %}</strong></span>
           <span class="follow-up-glosa-card-field"><small>{% if item.origem_nfse == 'pdf' %}ORIGEM{% else %}STATUS ISS{% endif %}</small><strong class="{% if item.origem_nfse == 'pdf' %}ns-neutro{% elif item.status_nfse and item.status_nfse != 'NORMAL' %}cf-erro{% elif item.status_nfse %}cf-ok{% else %}ns-neutro{% endif %}">{% if item.origem_nfse == 'pdf' %}Cadastrada por PDF{% elif not item.status_nfse %}Não consultado{% else %}{{ item.status_nfse|lower|capfirst }}{% endif %}</strong></span>
           <span class="follow-up-glosa-card-field"><small>SITUAÇÃO</small><strong class="ns-situacao">
             {% if item.situacao == 'lancada' %}Lançada no MV
@@ -151,7 +151,7 @@
           {% if item.origem_nfse == 'pdf' and item.situacao == 'pendente' and not item.boletos and item.nfse_manual_id %}
           <form method="post" class="follow-up-batch-toolbar cf-acoes ns-excluir-cadastro" onsubmit="return confirm('Tirar esta NFS-e da fila?')">{% csrf_token %}
             <input type="hidden" name="acao" value="excluir_nfse_pdf"><input type="hidden" name="manual_id" value="{{ item.nfse_manual_id }}">
-            <input type="hidden" name="situacao" value="{{ filtros.situacao }}">{% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
+            <input type="hidden" name="situacao" value="{{ filtros.situacao }}">{% if filtros.cd_setor %}<input type="hidden" name="cd_setor" value="{{ filtros.cd_setor }}">{% endif %}{% if filtros.cd_oficina %}<input type="hidden" name="cd_oficina" value="{{ filtros.cd_oficina }}">{% endif %}
             <span>Cadastrada por PDF por engano ou com dados errados? Exclua o cadastro e envie de novo.</span>
             <div><input class="form-control form-control-sm" name="motivo" maxlength="300" required placeholder="Motivo"><button class="btn-glosar cf-botao" type="submit">Excluir cadastro</button></div>
           </form>

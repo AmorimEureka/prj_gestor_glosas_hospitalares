@@ -73,6 +73,15 @@ class ConferenciaTests(TestCase):
         self.assertLess(conteudo.index('5744268'), conteudo.index('93125822'))  # mantém a ordem por vencimento
 
     @patch('core.views.api_get')
+    def test_campo_setor_usa_o_setor_do_mv_e_mostra_a_oficina_no_titulo(self, api_get):
+        itens = [{**ITENS[0], 'cd_setor': 12, 'nm_setor': 'TI'}, {**ITENS[1], 'cd_setor': None, 'nm_setor': None}]
+        api_get.return_value = {**PAYLOAD, 'itens': itens}
+        response = self.client.get(URL)
+        self.assertContains(response, '<small>SETOR</small><strong title="Oficina: TECNOLOGIA DA INFORMACAO · HOSPITAL PRONTOCARDIO">TI</strong>', html=False)
+        # Sem setor no MV, cai no nome da oficina, como antes.
+        self.assertContains(response, '>CENTRAL DE RECEBIMENTO FISCAL</strong>', html=False)
+
+    @patch('core.views.api_get')
     def test_busca_por_fornecedor_e_filtro_de_etapa(self, api_get):
         api_get.side_effect = self._api_get
         response = self.client.get(URL + '?busca=hapvida&etapa=importada')

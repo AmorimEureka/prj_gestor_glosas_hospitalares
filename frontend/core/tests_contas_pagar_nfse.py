@@ -54,9 +54,10 @@ class NfseSetorViewTests(TestCase):
     def test_lista_notas_do_setor(self, api_get):
         api_get.return_value = {
             'desde': '2026-10-01', 'situacao': 'pendente',
-            'oficinas': [{'cd_oficina': 2, 'ds_oficina': 'TECNOLOGIA DA INFORMACAO', 'cd_multi_empresa': 1,
+            'oficinas': [{'cd_setor': 12, 'nm_setor': 'TI', 'oficinas': ['TECNOLOGIA DA INFORMACAO'],
+                          'cd_oficina': 2, 'ds_oficina': 'TI', 'cd_multi_empresa': 1,
                           'empresa': 'HOSPITAL PRONTOCARDIO', 'quantidade': 1, 'valor': '1500.50'}],
-            'itens': [NOTA],
+            'itens': [{**NOTA, 'cd_setor': 12, 'nm_setor': 'TI'}],
         }
 
         response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/')
@@ -65,11 +66,42 @@ class NfseSetorViewTests(TestCase):
         self.assertContains(response, 'Software SA')
         self.assertContains(response, 'A lançar')
         self.assertContains(response, '1.500,50')
-        self.assertContains(response, 'TECNOLOGIA DA INFORMACAO · HOSPITAL PRONTOCARDIO (1 · R$ 1.500,50)')
+        # Filtro e campo SETOR usam o setor do MV; a oficina fica no título.
+        self.assertContains(response, '<option value="12"  title="TECNOLOGIA DA INFORMACAO">TI · HOSPITAL PRONTOCARDIO (1 · R$ 1.500,50)</option>', html=False)
+        self.assertContains(response, '<small>SETOR</small><strong title="Oficina: TECNOLOGIA DA INFORMACAO">TI</strong>')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
-            {'situacao': 'pendente', 'cd_oficina': '', 'desde': ''},
+            {'situacao': 'pendente', 'cd_setor': '', 'cd_oficina': '', 'desde': ''},
         )
+
+    @patch('core.views.api_get')
+    def test_filtra_por_setor_e_mantem_o_filtro_na_paginacao(self, api_get):
+        itens = [{**NOTA, 'numero_nfse': f'9{n:03d}', 'chave': f'12345678000199-9{n:03d}', 'cd_setor': 43,
+                  'nm_setor': 'MANUTENCAO PREDIAL'} for n in range(12)]
+        api_get.return_value = {
+            'oficinas': [{'cd_setor': 43, 'nm_setor': 'MANUTENCAO PREDIAL', 'oficinas': ['MANUTENÇÃO E INFRAESTRUTURA', 'OBRAS'],
+                          'cd_oficina': 1, 'ds_oficina': 'MANUTENCAO PREDIAL', 'cd_multi_empresa': 1,
+                          'empresa': 'HOSPITAL PRONTOCARDIO', 'quantidade': 12, 'valor': '120.00'}],
+            'itens': itens,
+        }
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?cd_setor=43')
+
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
+            {'situacao': 'pendente', 'cd_setor': '43', 'cd_oficina': '', 'desde': ''},
+        )
+        self.assertContains(response, '<option value="43" selected title="MANUTENÇÃO E INFRAESTRUTURA, OBRAS">MANUTENCAO PREDIAL · HOSPITAL PRONTOCARDIO')
+        self.assertContains(response, 'href="?situacao=pendente&amp;cd_setor=43&amp;page=2"')
+        self.assertContains(response, '<input type="hidden" name="cd_setor" value="43">')
+
+    @patch('core.views.api_get')
+    def test_nota_sem_setor_do_mv_mostra_a_oficina(self, api_get):
+        api_get.return_value = {'oficinas': [], 'itens': [{**NOTA, 'cd_setor': None, 'nm_setor': None}]}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/')
+
+        self.assertContains(response, '<small>SETOR</small><strong title="Oficina: TECNOLOGIA DA INFORMACAO">TECNOLOGIA DA INFORMACAO</strong>')
 
     @patch('core.views.api_get')
     def test_pagina_dez_notas_por_vez_mantendo_filtros(self, api_get):
