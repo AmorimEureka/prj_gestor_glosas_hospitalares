@@ -167,6 +167,16 @@ urlpatterns = [
         name="contas_pagar_conferencia",
     ),
     path(
+        "financeiro/contas-a-pagar/extratos/",
+        views.contas_pagar_extratos,
+        name="contas_pagar_extratos",
+    ),
+    path(
+        "financeiro/contas-a-pagar/extratos/<int:extrato_id>/arquivo/",
+        views.contas_pagar_extrato_arquivo,
+        name="contas_pagar_extrato_arquivo",
+    ),
+    path(
         "financeiro/contas-a-pagar/nfse/<str:cnpj>/<str:numero>/",
         views.contas_pagar_nfse_ver,
         name="contas_pagar_nfse_ver",

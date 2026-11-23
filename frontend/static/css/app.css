@@ -15795,3 +15795,28 @@ a.collapse-action { text-decoration: none; }
 .ns-conferencia { display: grid; gap: 10px; }
 .ns-excluir-cadastro > div { align-items: center; }
 .ns-excluir-cadastro .form-control-sm { width: 220px; font-size: 12px; }
+
+/* Contas a Pagar · Extratos e baixa (fase 5)
+   Reaproveita painel, totais, tabelas e mensagens da Conferência; aqui só o envio,
+   a lista de débitos com seus candidatos e o quadro da simulação. */
+.ex-pagina > .panel { flex: 0 0 auto; }
+.ex-envio-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 4px 0 8px; }
+.ex-envio-form input[type="file"] { flex: 1 1 360px; max-width: 640px; }
+.ex-resultado-envio td, .ex-extratos td, .ex-debitos td { font-size: 12px; vertical-align: top; }
+.ex-filtro-conta { flex: 2 1 260px; }
+.ex-conta-form select { min-width: 220px; font-size: 12px; }
+.ex-debito--unico td:first-child { box-shadow: inset 3px 0 0 #2f8a5f; }
+.ex-debito--ambiguo td:first-child { box-shadow: inset 3px 0 0 #b24d32; }
+.ex-debito--sem_titulo td { color: var(--muted); }
+.ex-candidato { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+.ex-candidato:last-child { border-bottom: 0; }
+.ex-candidato--simulando { background: #f1f8fb; }
+.ex-simulacao { flex: 0 0 auto; margin-bottom: 6px; }
+.ex-simulacao-header { grid-template-columns: minmax(150px, 1fr) minmax(180px, 2fr) minmax(110px, 0.9fr) minmax(100px, 0.8fr) minmax(110px, 0.9fr); cursor: default; }
+.ex-simulacao--ok .follow-up-glosa-card-header { border-left-color: #2f8a5f; }
+.ex-simulacao--bloqueio .follow-up-glosa-card-header { border-left-color: #b24d32; }
+.ex-planos { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; padding: 10px 14px; }
+.ex-plano caption { caption-side: top; font-weight: 700; font-size: 12px; color: #17647d; }
+.ex-plano th { width: 45%; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; color: #476575; font-weight: 600; }
+.ex-plano td { font-size: 12px; }
+.ex-efeitos { margin: 0 14px 10px; padding-left: 1.1rem; font-size: 12px; color: var(--muted); }
