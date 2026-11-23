@@ -70,19 +70,22 @@ COLUMNS = (
     ("Dias em atraso", None, 14, lambda s, t, c: c["days"]),
     ("Saldo a pagar", MONEY, 18, lambda s, t, c: c["balance"]),
     ("Status", None, 14, lambda s, t, c: _title_status(t, c)),
-    # Dívida vencida renegociada no MV (Prorrogar/Parcelar).
-    ("Vencimento original (acordo)", DATE, 16,
-     lambda s, t, c: _date(t.get("data_vencimento_original"))),
-    ("Data do acordo", DATE, 14, lambda s, t, c: _date(t.get("data_acordo"))),
-    ("Em acordo do fornecedor", MONEY, 22,
-     lambda s, t, c: _money(s.get("valor_em_acordo"))),
     ("Nível de criticidade", None, 14, lambda s, t, c: s.get("nivel_criticidade")),
     ("Classificação de criticidade", None, 22, lambda s, t, c: s["criticidade_label"]),
     ("Faixa de atraso do título", None, 22, lambda s, t, c: _age_label(c["days"])),
     ("Classificação da conta", None, 26,
      lambda s, t, c: t.get("classificacao") or "Sem classificação"),
+    # Dívida vencida renegociada no MV (Prorrogar/Parcelar): sempre ao final.
+    ("Vencimento original (acordo)", DATE, 16,
+     lambda s, t, c: _date(t.get("data_vencimento_original"))),
+    ("Data do acordo", DATE, 14, lambda s, t, c: _date(t.get("data_acordo"))),
+    ("Em acordo do fornecedor", MONEY, 22,
+     lambda s, t, c: _money(s.get("valor_em_acordo"))),
 )
 HEADERS = tuple(column[0] for column in COLUMNS)
+ACORDO_HEADERS = (
+    "Vencimento original (acordo)", "Data do acordo", "Em acordo do fornecedor",
+)
 
 
 SUMMARY_HEADERS = (
