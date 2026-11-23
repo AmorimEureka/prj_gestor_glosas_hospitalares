@@ -67,6 +67,7 @@ SUMMARY_CARDS = (
     ("a_pagar", "Total a pagar"),
     ("a_vencer", "A vencer"),
     ("vencida", "Dívida vencida"),
+    ("em_acordo", "Dívida vencida em acordo"),
     ("novos_7d", "Nova dívida vencida - 7 dias"),
     ("pagar_agora", "Pagar agora"),
     ("saldo_negociar", "Saldo a negociar"),

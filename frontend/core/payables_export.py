@@ -16,6 +16,14 @@ def _status(balance, days):
     return "Pago" if balance <= 0 else "Em atraso" if days > 0 else "A vencer"
 
 
+def _title_status(title, context):
+    if context["balance"] > 0 and title.get("situacao_acordo") == "a_vencer":
+        return "Em acordo"
+    if context["balance"] > 0 and title.get("situacao_acordo") == "em_atraso":
+        return "Acordo em atraso"
+    return _status(context["balance"], context["days"])
+
+
 def _age_label(days):
     limits = {5: 120, 4: 90, 3: 60, 2: 30, 1: 0}
     return next(
@@ -61,7 +69,13 @@ COLUMNS = (
     ("Parcela", None, 10, lambda s, t, c: str(t.get("numero_parcela") or "")),
     ("Dias em atraso", None, 14, lambda s, t, c: c["days"]),
     ("Saldo a pagar", MONEY, 18, lambda s, t, c: c["balance"]),
-    ("Status", None, 14, lambda s, t, c: _status(c["balance"], c["days"])),
+    ("Status", None, 14, lambda s, t, c: _title_status(t, c)),
+    # Dívida vencida renegociada no MV (Prorrogar/Parcelar).
+    ("Vencimento original (acordo)", DATE, 16,
+     lambda s, t, c: _date(t.get("data_vencimento_original"))),
+    ("Data do acordo", DATE, 14, lambda s, t, c: _date(t.get("data_acordo"))),
+    ("Em acordo do fornecedor", MONEY, 22,
+     lambda s, t, c: _money(s.get("valor_em_acordo"))),
     ("Nível de criticidade", None, 14, lambda s, t, c: s.get("nivel_criticidade")),
     ("Classificação de criticidade", None, 22, lambda s, t, c: s["criticidade_label"]),
     ("Faixa de atraso do título", None, 22, lambda s, t, c: _age_label(c["days"])),

@@ -117,3 +117,22 @@
 .payables-page.is-filtering .payables-results-toolbar { opacity: .45; pointer-events: none; }
 .payables-kpis article.is-pending { outline: 3px dashed #0f6b5d; outline-offset: -1px; }
 .payables-filtering-status { margin: 0; padding: 10px 16px; background: #eef8f5; color: #0f6b5d; font-weight: 700; }
+
+/* Dívida vencida em acordo (renegociada no MV): faixa própria, em âmbar. */
+.payables-debt-split { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.payables-debt-split > span, .payables-debt-split > a { display: grid; gap: 1px; padding: 4px 8px; border-radius: 8px; font-size: .7rem; line-height: 1.2; text-decoration: none; }
+.payables-debt-split small { font-size: .58rem; letter-spacing: .04em; text-transform: uppercase; color: inherit; }
+.payables-debt-split .is-overdue { background: #ffe9eb; color: #b3283a; }
+.payables-debt-split .is-agreement { background: #fff3dc; color: #8a5200; border: 1px dashed #d89a2b; }
+.payables-debt-split a.is-agreement:hover, .payables-debt-split a.is-agreement.is-selected { background: #ffe5b4; border-style: solid; }
+.payables-pill-split { display: block; margin-top: 2px; font-size: .6rem !important; color: #7a6a55 !important; font-weight: 600; letter-spacing: 0 !important; text-transform: none !important; }
+.payables-pill-split b { color: #8a5200; }
+.payables-title-card.is-agreement > .payables-title-header { box-shadow: inset 3px 0 0 #d89a2b; background: #fffaf0; }
+.payables-due em { display: block; margin-top: 1px; font-style: normal; font-size: .56rem; font-weight: 700; color: #8a5200; }
+.payables-title-status strong.is-agreement { background: #fff1d6; color: #8a5200; }
+.payables-agreement-detail { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 8px 14px; margin-bottom: 12px; padding: 10px 12px; border-left: 3px solid #d89a2b; border-radius: 8px; background: #fffaf0; }
+.payables-agreement-detail > strong { grid-column: 1 / -1; color: #8a5200; font-size: .78rem; }
+.payables-agreement-detail span { display: grid; gap: 2px; }
+.payables-agreement-detail small { font-size: .6rem; font-weight: 800; letter-spacing: .05em; color: #7a6a55; }
+.payables-agreement-detail b { color: #3d2a0a; font-size: .8rem; }
+@media (max-width: 760px) { .payables-agreement-detail { grid-template-columns: 1fr 1fr; } }

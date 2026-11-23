@@ -4,7 +4,7 @@
             <div class="payables-title-list">
               {% if modo == "operacao" and fornecedor.titulos %}<div class="payables-title-table-head" aria-hidden="true"><span></span><span>Título / Parcela</span><span>Documento</span><span>Emissão</span><span>Lançamento</span><span>Vencimento</span><span>Dias em atraso</span><span>Valor</span><span>Saldo a pagar</span><span>Status</span></div>{% endif %}
               {% for titulo in fornecedor.titulos %}
-              <article class="payables-title-card" x-data="{ titleOpen: false }" @payables-collapse.window="titleOpen=false">
+              <article class="payables-title-card{% if titulo.situacao_acordo %} is-agreement{% endif %}" x-data="{ titleOpen: false }" @payables-collapse.window="titleOpen=false">
                 {% if modo == "operacao" %}
                 <button type="button" class="payables-title-header is-table-row" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
                   <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
@@ -12,11 +12,11 @@
                   <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
                   <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
                   <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
-                  <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
+                  <span class="payables-due"><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong>{% if titulo.data_vencimento_original %}<em title="Vencimento original, antes do acordo">orig. {{ titulo.data_vencimento_original|api_date }}</em>{% endif %}</span>
                   <span><small>DIAS EM ATRASO</small><strong class="payables-days-badge{% if titulo.dias_vencidos > 0 %} is-overdue{% endif %}">{{ titulo.dias_vencidos }}</strong></span>
                   <span><small>VALOR</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
                   <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
-                  <span class="payables-title-status"><small>STATUS</small><strong class="{% if titulo.pago %}is-paid{% elif titulo.dias_vencidos > 0 %}is-overdue{% else %}is-current{% endif %}">{% if titulo.pago %}Pago{% elif titulo.dias_vencidos > 0 %}Em atraso{% else %}A vencer{% endif %}</strong></span>
+                  <span class="payables-title-status"><small>STATUS</small><strong class="{% if titulo.pago %}is-paid{% elif titulo.situacao_acordo == 'a_vencer' %}is-agreement{% elif titulo.dias_vencidos > 0 %}is-overdue{% else %}is-current{% endif %}">{% if titulo.pago %}Pago{% elif titulo.situacao_acordo == 'a_vencer' %}Em acordo{% elif titulo.situacao_acordo == 'em_atraso' %}Acordo em atraso{% elif titulo.dias_vencidos > 0 %}Em atraso{% else %}A vencer{% endif %}</strong></span>
                 </button>
                 {% else %}
                 <button type="button" class="payables-title-header" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
@@ -25,7 +25,7 @@
                   <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
                   <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
                   <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
-                  <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
+                  <span class="payables-due"><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong>{% if titulo.data_vencimento_original %}<em title="Vencimento original, antes do acordo">orig. {{ titulo.data_vencimento_original|api_date }}</em>{% endif %}</span>
                   <span><small>VALOR TOTAL</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
                   <span><small>TOTAL HONRADO</small><strong>R$ {{ titulo.valor_total_honrado|br_currency }}</strong></span>
                   <span><small>DIAS VENCIDOS</small><strong>{{ titulo.dias_vencidos }}</strong></span>
@@ -33,6 +33,15 @@
                 </button>
                 {% endif %}
                 <div class="payables-title-body" x-show="titleOpen" x-cloak>
+                  {% if titulo.data_vencimento_original %}
+                  <div class="payables-agreement-detail">
+                    <strong>{% if titulo.situacao_acordo == 'a_vencer' %}Dívida vencida em acordo{% else %}Acordo em atraso{% endif %}</strong>
+                    <span><small>VENCIMENTO ORIGINAL</small><b>{{ titulo.data_vencimento_original|api_date }}</b></span>
+                    <span><small>NOVO VENCIMENTO (ACORDO)</small><b>{{ titulo.data_vencimento|api_date }}</b></span>
+                    <span><small>ALTERADO NO MV EM</small><b>{{ titulo.data_acordo|api_date }}</b></span>
+                    <span><small>ORIGEM</small><b>{% if titulo.acordo_parcela_nova %}Parcela criada no parcelamento{% else %}Vencimento renegociado{% endif %}</b></span>
+                  </div>
+                  {% endif %}
                   <div class="payables-title-description"><small>CLASSIFICAÇÃO DA CONTA</small><strong>{{ titulo.classificacao|default:"Sem classificação" }}</strong></div>
                   <div class="payables-title-description"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></div>
                   <div class="payables-title-description"><small>DATA DO PAGAMENTO (MV)</small><strong>{{ titulo.data_pagamento_mv|api_date }}</strong></div>
