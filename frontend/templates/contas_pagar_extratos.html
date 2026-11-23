@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
+{% block page_title %}Extratos e baixa{% endblock %}
+{% block content_class %}follow-up-compact{% endblock %}
+{% block content %}
+<div class="cp-nfse-page ex-pagina">
+
+{% if simulacao %}
+<article class="follow-up-glosa-card cf-card ex-simulacao {% if simulacao.pode_baixar %}ex-simulacao--ok{% else %}ex-simulacao--bloqueio{% endif %}" id="simulacao">
+  <div class="follow-up-glosa-card-header-row">
+    <div class="follow-up-glosa-card-header ex-simulacao-header">
+      <span class="follow-up-glosa-card-field"><small>SIMULAÇÃO DA BAIXA</small><strong>{% if simulacao.pode_baixar %}Pode ser baixada{% else %}Com pendência{% endif %}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ simulacao.titulo.nm_fornecedor }}">{{ simulacao.titulo.nm_fornecedor|default:'—' }}</strong></span>
+      <span class="follow-up-glosa-card-field"><small>TÍTULO · PARCELA</small><strong>{{ simulacao.titulo.cd_con_pag }} · {{ simulacao.titulo.nr_parcela }}ª</strong></span>
+      <span class="follow-up-glosa-card-field"><small>VENCIMENTO</small><strong>{{ simulacao.titulo.dt_vencimento|api_date }}</strong></span>
+      <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR PAGO</small><strong>R$ {{ simulacao.pagcon_pag.vl_pago|br_currency }}</strong></span>
+    </div>
+    <span class="follow-up-glosa-pdf-slot"><a class="follow-up-glosa-pdf-action cf-fechar" href="?{% querystring simular='' titulo='' %}" aria-label="Fechar">Fechar</a></span>
+  </div>
+  <div class="follow-up-glosa-card-body">
+    <div class="follow-up-glosa-card-content">
+      {% if simulacao.pendencias %}
+      <div class="cf-mensagem cf-mensagem--bloqueio"><strong>Não pode ser baixada:</strong>
+        <ul>{% for p in simulacao.pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      {% if simulacao.avisos %}
+      <div class="cf-mensagem cf-mensagem--atencao"><strong>Confira antes de baixar:</strong>
+        <ul>{% for a in simulacao.avisos %}<li>{{ a }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      <section class="account-group-section">
+        <header class="account-group-header"><span class="account-group-title">O que a baixa gravaria no MV (tela O_PAG)</span></header>
+        <div class="ex-planos">
+          <table class="table align-middle account-table ex-plano">
+            <caption>PAGCON_PAG · pagamento</caption>
+            <tbody>{% for campo, valor in simulacao.pagcon_pag.items %}<tr><th>{{ campo }}</th><td>{{ valor|default_if_none:'—' }}</td></tr>{% endfor %}</tbody>
+          </table>
+          <table class="table align-middle account-table ex-plano">
+            <caption>MOV_CONCOR · débito na conta corrente</caption>
+            <tbody>{% for campo, valor in simulacao.mov_concor.items %}<tr><th>{{ campo }}</th><td>{{ valor|default_if_none:'—' }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+        <ul class="ex-efeitos">{% for efeito in simulacao.efeitos_no_mv %}<li>{{ efeito }}</li>{% endfor %}</ul>
+      </section>
+      <div class="cf-mensagem cf-mensagem--atencao">Simulação: nada foi gravado no MV. A gravação da baixa com o seu login MV é a próxima etapa (5c).</div>
+    </div>
+  </div>
+</article>
+{% endif %}
+
+<section class="panel ex-envio">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Enviar extratos</span>
+        <span class="results-subtitle">PDF do BB, Bradesco, BNB, Caixa e Unicred; no Santander, o Excel (XLSX). Pode enviar os arquivos do dia de uma vez.</span>
+      </div>
+    </div>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="ex-envio-form" x-data="{ enviando: false }" @submit="enviando = true">{% csrf_token %}
+    <input type="hidden" name="acao" value="enviar">
+    {% for k, v in filtros.items %}{% if v %}<input type="hidden" name="{% if k == 'conta' %}cd_con_cor_filtro{% else %}{{ k }}{% endif %}" value="{{ v }}">{% endif %}{% endfor %}
+    <input class="form-control" type="file" name="arquivos" accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required>
+    <button class="btn-acatar cf-botao" type="submit" :disabled="enviando">
+      <span x-show="!enviando">Enviar</span><span x-show="enviando" x-cloak>Lendo os extratos...</span>
+    </button>
+  </form>
+  {% if envio %}
+  <table class="table align-middle account-table ex-resultado-envio">
+    <thead><tr><th>Arquivo</th><th>Banco · conta</th><th>Conta no MV</th><th>Período</th><th>Lançamentos</th><th>Resultado</th></tr></thead>
+    <tbody>
+    {% for r in envio %}
+      <tr>
+        <td>{{ r.nome }}</td>
+        {% if r.erro %}
+        <td colspan="4">—</td>
+        <td class="cf-erro">{{ r.erro }}</td>
+        {% else %}
+        <td>{{ r.nome_banco }} · {{ r.agencia }} / {{ r.conta }}{% if r.conta_dv %}-{{ r.conta_dv }}{% endif %}</td>
+        <td>{{ r.ds_con_cor|default:'Não cadastrada no MV' }}</td>
+        <td>{{ r.periodo_inicio|api_date }} a {{ r.periodo_fim|api_date }}</td>
+        <td>{{ r.qtd_linhas }}{% if r.linhas_repetidas %} <span class="cf-sub">{{ r.linhas_repetidas }} já vieram em outro extrato</span>{% endif %}</td>
+        <td>{% if r.conferido %}<span class="cf-ok">Recebido e conferido com o saldo</span>{% else %}<span class="cf-prazo--fora">Recebido sem conferência de saldo</span>{% endif %}
+          {% for a in r.avisos %}<span class="cf-sub">{{ a }}</span>{% endfor %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<section class="panel filter-panel cf-filtros" x-data="{ loading: false }">
+  <form class="remessa-filters" method="get" @submit="loading = true">
+    <div class="filter-row">
+      <div class="filter-group ex-filtro-conta">
+        <label for="ex-conta">Conta corrente</label>
+        <select id="ex-conta" name="conta" class="form-select">
+          {% for c in contas_com_extrato %}<option value="{{ c.cd_con_cor }}" {% if filtros.conta == c.cd_con_cor %}selected{% endif %}>{{ c.ds_con_cor }}</option>{% empty %}<option value="">Nenhum extrato enviado</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="ex-desde">Débitos de</label>
+        <input id="ex-desde" class="form-control" type="date" name="desde" value="{{ filtros.desde }}">
+      </div>
+      <div class="filter-group">
+        <label for="ex-ate">até</label>
+        <input id="ex-ate" class="form-control" type="date" name="ate" value="{{ filtros.ate }}">
+      </div>
+      <div class="filter-group">
+        <label for="ex-situacao">Situação</label>
+        <select id="ex-situacao" name="situacao" class="form-select">
+          {% for valor, rotulo in situacoes %}<option value="{{ valor }}" {% if filtros.situacao == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" :disabled="loading"><span x-show="!loading">Filtrar</span><span x-show="loading" x-cloak>Buscando...</span></button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel results-summary-panel follow-up-glosa-results">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Sugestões de baixa</span>
+        {% if sugestoes %}<span class="results-subtitle">{{ sugestoes.ds_con_cor }} · débitos de {{ sugestoes.desde|api_date }} a {{ sugestoes.ate|api_date }} · parcelas em aberto de mesmo valor, vencendo de {{ sugestoes.janela_dias.antes }} dias antes a {{ sugestoes.janela_dias.depois }} dias depois do débito</span>{% endif %}
+      </div>
+    </div>
+    {% if sugestoes %}
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total result-total--treated"><span>Um título</span><strong>{{ sugestoes.resumo.unico }}</strong></span>
+        <span class="result-total{% if sugestoes.resumo.ambiguo %} cf-total--pendencia{% endif %}"><span>Mais de um título</span><strong>{{ sugestoes.resumo.ambiguo }}</strong></span>
+        <span class="result-total"><span>Sem título</span><strong>{{ sugestoes.resumo.sem_titulo }}</strong></span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% if debitos %}
+  <table class="table align-middle account-table ex-debitos">
+    <thead><tr><th>Data</th><th>Histórico do extrato</th><th class="text-end">Débito</th><th>Parcelas em aberto de mesmo valor</th></tr></thead>
+    <tbody>
+    {% for d in debitos %}
+      <tr class="ex-debito ex-debito--{{ d.situacao }}">
+        <td>{{ d.data|api_date }}</td>
+        <td><span title="{{ d.historico }}">{{ d.historico|truncatechars:70 }}</span>{% if d.documento %}<span class="cf-sub">Documento {{ d.documento }}</span>{% endif %}</td>
+        <td class="text-end">R$ {{ d.valor|br_currency }}</td>
+        <td>
+          {% for c in d.candidatos %}
+          <div class="ex-candidato{% if simulando.linha == d.linha_id and simulando.titulo == c.cd_itcon_pag %} ex-candidato--simulando{% endif %}">
+            <span><strong>{{ c.nm_fornecedor|default:'—' }}</strong> · título {{ c.cd_con_pag }} · {{ c.nr_parcela }}ª · doc {{ c.nr_documento|default:'—' }} · vence {{ c.dt_vencimento|api_date }} <em class="cf-dias {% if c.dias > 0 %}cf-dias--proximo{% endif %}">{% if c.dias == 0 %}no dia{% elif c.dias > 0 %}{{ c.dias }}d depois{% else %}{{ c.dias }}d antes{% endif %}</em>{% if c.cd_itcon_pag in d.titulos_em_outros_debitos %} <span class="cf-prazo--fora">também casa com outro débito</span>{% endif %}</span>
+            <a class="collapse-action" href="?{% querystring simular=d.linha_id titulo=c.cd_itcon_pag %}#simulacao">Simular baixa</a>
+          </div>
+          {% empty %}
+          <span class="cf-sub">Nenhuma parcela em aberto com este valor perto do vencimento (pagamento em lote, tarifa ou transferência).</span>
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif sugestoes %}
+  <p class="cf-vazio">Nenhum débito neste período para a situação escolhida.</p>
+  {% else %}
+  <p class="cf-vazio">Envie os extratos e escolha a conta corrente para ver as sugestões de baixa.</p>
+  {% endif %}
+</section>
+
+<section class="panel results-summary-panel follow-up-glosa-results">
+  <div class="panel-header"><div class="results-heading"><div><span class="panel-title">Extratos enviados</span><span class="results-subtitle">Os mais recentes primeiro. A conta do MV vem sugerida pelo número da conta; troque se precisar.</span></div></div></div>
+  {% if extratos %}
+  <table class="table align-middle account-table ex-extratos">
+    <thead><tr><th>Arquivo</th><th>Banco · conta</th><th>Conta no MV</th><th>Período</th><th class="text-end">Saldo final</th><th>Lançamentos</th><th>Enviado</th><th></th></tr></thead>
+    <tbody>
+    {% for e in extratos %}
+      <tr>
+        <td><a class="cf-link" href="{% url 'contas_pagar_extrato_arquivo' e.id %}" target="_blank" rel="noopener">{{ e.nome_arquivo }}</a>
+          {% if not e.conferido %}<span class="cf-sub cf-prazo--fora">Sem conferência de saldo</span>{% endif %}</td>
+        <td>{{ e.nome_banco }} · {{ e.agencia }} / {{ e.conta }}{% if e.conta_dv %}-{{ e.conta_dv }}{% endif %}</td>
+        <td>
+          <form method="post" class="ex-conta-form">{% csrf_token %}
+            <input type="hidden" name="acao" value="conta"><input type="hidden" name="extrato_id" value="{{ e.id }}">
+            <select name="cd_con_cor" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Fora da baixa</option>
+              {% for c in contas %}<option value="{{ c.cd_con_cor }}" {% if c.cd_con_cor == e.cd_con_cor %}selected{% endif %}>{{ c.ds_con_cor }} (emp. {{ c.cd_multi_empresa }})</option>{% endfor %}
+            </select>
+          </form>
+        </td>
+        <td>{{ e.periodo_inicio|api_date }} a {{ e.periodo_fim|api_date }}</td>
+        <td class="text-end">{% if e.saldo_final is not None %}R$ {{ e.saldo_final|br_currency }}{% else %}—{% endif %}</td>
+        <td>{{ e.qtd_linhas }}{% if e.linhas_repetidas %} <span class="cf-sub">{{ e.linhas_repetidas }} repetidas</span>{% endif %}</td>
+        <td>{{ e.criado_em|api_datetime }}<span class="cf-sub">{{ e.enviado_por_nome|default:'' }}</span></td>
+        <td>
+          <form method="post" onsubmit="return confirm('Excluir o extrato {{ e.nome_arquivo|escapejs }}?')">{% csrf_token %}
+            <input type="hidden" name="acao" value="excluir"><input type="hidden" name="extrato_id" value="{{ e.id }}">
+            <button class="collapse-action" type="submit">Excluir</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="cf-vazio">Nenhum extrato enviado ainda.</p>
+  {% endif %}
+</section>
+
+</div>
+{% endblock %}

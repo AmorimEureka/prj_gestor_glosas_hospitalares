@@ -10497,3 +10497,171 @@ def conciliacao(request):
         divergencias = []
         messages.error(request, format_api_error(exc, "Conciliacao"))
     return render(request, "conciliacao.html", {"divergencias": divergencias})
+
+
+# ---------------------------------------------------------------- Contas a Pagar · Extratos e baixa (fase 5)
+
+CP_EXTRATOS_PATH = f"{CONTAS_PAGAR_PATH}/extratos"
+CP_EXTRATO_MAX_BYTES = 8 * 1024 * 1024
+CP_EXTRATO_MAX_ARQUIVOS = 30
+CP_EXTRATOS_SESSAO = "cp_extratos_envio"
+CP_EXTRATOS_SITUACOES = (
+    ("todas", "Todos os débitos"),
+    ("unico", "Um título correspondente"),
+    ("ambiguo", "Mais de um título"),
+    ("sem_titulo", "Sem título de mesmo valor"),
+)
+
+
+def _cp_extratos_post(request):
+    acao = request.POST.get("acao")
+    if acao == "enviar":
+        arquivos = request.FILES.getlist("arquivos")[:CP_EXTRATO_MAX_ARQUIVOS]
+        if not arquivos:
+            messages.error(request, "Selecione os arquivos dos extratos.")
+            return
+        resultados = []
+        for arquivo in arquivos:
+            item = {"nome": arquivo.name}
+            if arquivo.size > CP_EXTRATO_MAX_BYTES:
+                item["erro"] = "Arquivo maior que 8 MB."
+            else:
+                try:
+                    item.update(api_post_files(
+                        CP_EXTRATOS_PATH,
+                        {"arquivo": (arquivo.name, arquivo.read(), arquivo.content_type or "application/octet-stream")},
+                    ))
+                except ApiError as exc:
+                    item["erro"] = extract_api_error_message(exc)
+            resultados.append(item)
+        request.session[CP_EXTRATOS_SESSAO] = resultados
+        aceitos = sum(1 for r in resultados if not r.get("erro"))
+        if aceitos:
+            messages.success(request, f"{aceitos} de {len(resultados)} extrato(s) recebido(s).")
+        if aceitos < len(resultados):
+            messages.error(request, f"{len(resultados) - aceitos} arquivo(s) não foram aceitos; veja o motivo abaixo.")
+        return
+    extrato_id = as_int_or_none(request.POST.get("extrato_id"))
+    if extrato_id is None:
+        messages.error(request, "Ação inválida.")
+        return
+    if acao == "conta":
+        conta = as_int_or_none(request.POST.get("cd_con_cor"))
+        api_put(f"{CP_EXTRATOS_PATH}/{extrato_id}/conta", {"cd_con_cor": conta})
+        messages.success(request, "Conta corrente do extrato atualizada.")
+    elif acao == "excluir":
+        api_delete(f"{CP_EXTRATOS_PATH}/{extrato_id}")
+        messages.success(request, "Extrato excluído.")
+    else:
+        messages.error(request, "Ação inválida.")
+
+
+def _cp_extratos_periodo(request):
+    hoje = datetime.now(CP_NFSE_FUSO).date()
+    try:
+        ate = date.fromisoformat(request.GET.get("ate") or "")
+    except ValueError:
+        ate = hoje
+    try:
+        desde = date.fromisoformat(request.GET.get("desde") or "")
+    except ValueError:
+        desde = ate - timedelta(days=7)
+    if desde > ate:
+        desde, ate = ate, desde
+    return desde, ate
+
+
+@require_http_methods(["GET", "POST"])
+def contas_pagar_extratos(request):
+    """Extratos bancários enviados pelo financeiro e sugestão/simulação de baixa (sem gravar no MV)."""
+    if request.method == "POST":
+        try:
+            _cp_extratos_post(request)
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível concluir: {extract_api_error_message(exc)}")
+        retorno = {k: v for k, v in request.POST.items() if k in {"cd_con_cor_filtro", "desde", "ate", "situacao"} and v}
+        if "cd_con_cor_filtro" in retorno:
+            retorno["conta"] = retorno.pop("cd_con_cor_filtro")
+        destino = reverse("contas_pagar_extratos")
+        return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
+
+    envio = request.session.pop(CP_EXTRATOS_SESSAO, None)
+    contas, extratos = [], []
+    try:
+        contas = api_get(f"{CP_EXTRATOS_PATH}/contas-mv").get("contas", [])
+        extratos = api_get(CP_EXTRATOS_PATH, {"limite": 60}).get("extratos", [])
+    except ApiError as exc:
+        messages.error(request, f"Não foi possível carregar os extratos: {extract_api_error_message(exc)}")
+    contas_por_empresa = sorted(contas, key=lambda c: (c.get("cd_multi_empresa") or 0, c.get("ds_con_cor") or ""))
+    contas_com_extrato = []
+    vistas = set()
+    for extrato in extratos:
+        cd = extrato.get("cd_con_cor")
+        if cd and cd not in vistas:
+            vistas.add(cd)
+            contas_com_extrato.append({"cd_con_cor": cd, "ds_con_cor": extrato.get("ds_con_cor") or cd})
+
+    desde, ate = _cp_extratos_periodo(request)
+    conta = as_int_or_none(request.GET.get("conta")) or (contas_com_extrato[0]["cd_con_cor"] if contas_com_extrato else None)
+    situacao = request.GET.get("situacao") or "todas"
+    if situacao not in dict(CP_EXTRATOS_SITUACOES):
+        situacao = "todas"
+    filtros = {"conta": conta or "", "desde": desde.isoformat(), "ate": ate.isoformat(), "situacao": situacao}
+    sugestoes = None
+    if conta:
+        try:
+            sugestoes = api_get(f"{CP_EXTRATOS_PATH}/baixas/sugestoes",
+                                {"cd_con_cor": conta, "desde": desde.isoformat(), "ate": ate.isoformat()})
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível montar as sugestões de baixa: {extract_api_error_message(exc)}")
+    debitos = (sugestoes or {}).get("sugestoes", [])
+    if situacao != "todas":
+        debitos = [d for d in debitos if d.get("situacao") == situacao]
+
+    simulacao = None
+    linha_id = as_int_or_none(request.GET.get("simular"))
+    titulo = as_int_or_none(request.GET.get("titulo"))
+    if linha_id and titulo:
+        try:
+            simulacao = api_post(f"{CP_EXTRATOS_PATH}/linhas/{linha_id}/simulacao", {"cd_itcon_pag": titulo})
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível simular a baixa: {extract_api_error_message(exc)}")
+
+    response = render(request, "contas_pagar_extratos.html", {
+        "envio": envio,
+        "extratos": extratos,
+        "contas": contas_por_empresa,
+        "contas_com_extrato": contas_com_extrato,
+        "filtros": filtros,
+        "situacoes": CP_EXTRATOS_SITUACOES,
+        "sugestoes": sugestoes,
+        "debitos": debitos,
+        "simulacao": simulacao,
+        "simulando": {"linha": linha_id, "titulo": titulo},
+    })
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@require_http_methods(["GET"])
+def contas_pagar_extrato_arquivo(request, extrato_id):
+    try:
+        upstream = api_get_stream(f"{CP_EXTRATOS_PATH}/{int(extrato_id)}/arquivo")
+    except ApiError as exc:
+        status_code = exc.status_code if exc.status_code and 400 <= exc.status_code <= 599 else 502
+        return HttpResponse(f"Extrato: {extract_api_error_message(exc)}", status=status_code,
+                            content_type="text/plain; charset=utf-8")
+
+    def iter_arquivo():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = StreamingHttpResponse(iter_arquivo(), content_type=upstream.headers.get("Content-Type") or "application/pdf")
+    response["Content-Disposition"] = upstream.headers.get("Content-Disposition") or f'inline; filename="extrato-{extrato_id}.pdf"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
+    return response
